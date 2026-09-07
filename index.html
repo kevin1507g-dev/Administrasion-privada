@@ -95,7 +95,7 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 <section id="cuotas"><h2>Cuotas</h2><div class="card adminOnly"><div class="form">
 <div><label>Residente</label><select id="cRes"></select></div><div><label>Concepto</label><input id="cConcepto" value="Mantenimiento"></div>
 <div><label>Monto</label><input id="cMonto" type="number" step=".01"></div><div><label>Vencimiento</label><input id="cFecha" type="date"></div></div>
-<button class="primary" style="margin-top:12px" onclick="addCuota()">Crear cuota</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Residente</th><th>Concepto</th><th>Monto</th><th>Vencimiento</th><th>Estado</th></tr></thead><tbody id="cuotasRows"></tbody></table></div></section>
+<button class="primary" style="margin-top:12px" onclick="addCuota()">Crear cuota</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Residente</th><th>Concepto</th><th>Monto</th><th>Vencimiento</th><th>Estado</th><th class="adminOnly">Acción</th></tr></thead><tbody id="cuotasRows"></tbody></table></div></section>
 
 <section id="pagos"><h2>Pagos</h2>
 <div id="residentDebtSummary" class="card" style="margin-bottom:14px;display:none">
@@ -335,6 +335,20 @@ function renderEventos(){
    <td class="adminOnly">${profile?.rol==='admin'?`<button class="danger" onclick="deleteEvento(${e.id})">Eliminar</button>`:''}</td>
  </tr>`).join('')||'<tr><td colspan="7" class="muted">No hay próximos eventos.</td></tr>';
 }
+
+async function editarVencimientoCuota(id, fechaActual){
+ if(profile?.rol!=='admin') return;
+ const nueva=prompt('Nueva fecha de vencimiento (AAAA-MM-DD):', fechaActual||'');
+ if(nueva===null) return;
+ const fecha=nueva.trim();
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha)){
+   return alert('Usa el formato AAAA-MM-DD. Ejemplo: 2026-09-30');
+ }
+ const {error}=await sb.from('cuotas').update({vencimiento:fecha}).eq('id',id);
+ if(error) return alert('No se pudo actualizar la fecha: '+error.message);
+ await loadData();
+ alert('Fecha de vencimiento actualizada.');
+}
 function resumenDeudaResidente(residenteId){
  const hoy=new Date().toISOString().slice(0,10);
  const qs=cuotas.filter(q=>q.residente_id===residenteId);
@@ -392,7 +406,7 @@ function render(){
  }
  profilesRows.innerHTML=profiles.map(x=>`<tr><td>${esc(x.nombre)}</td><td>${esc(x.unidad)}</td><td>${esc(x.rol)}</td><td>${x.activo?'Sí':'No'}</td></tr>`).join('');
  const residents=profiles.filter(x=>x.rol==='residente'); cRes.innerHTML=residents.map(x=>`<option value="${x.id}">${esc(x.nombre)} — ${esc(x.unidad)}</option>`).join('');
- cuotasRows.innerHTML=cuotas.map(x=>`<tr><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td>${esc(x.concepto)}</td><td>${money(x.monto)}</td><td>${esc(x.vencimiento)}</td><td><span class="badge">${esc(x.estado)}</span></td></tr>`).join('');
+ cuotasRows.innerHTML=cuotas.map(x=>`<tr><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td>${esc(x.concepto)}</td><td>${money(x.monto)}</td><td>${esc(x.vencimiento)}</td><td><span class="badge">${esc(x.estado)}</span></td><td class="adminOnly">${profile?.rol==='admin'?`<button onclick="editarVencimientoCuota(${x.id}, '${esc(x.vencimiento||'')}')">Editar vencimiento</button>`:''}</td></tr>`).join('');
  pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>`<option value="${x.id}">${esc(pname(x.residente_id))} — ${esc(x.concepto)} — ${money(x.monto)}</option>`).join('');
  pagosRows.innerHTML=pagos.map(x=>`<tr><td>${esc(x.fecha)}</td><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td>${money(x.monto)}</td><td>${esc(x.metodo)}</td><td>${esc(x.referencia)}</td></tr>`).join('');
  visitasRows.innerHTML=visitas.map(x=>`<tr><td>${esc(x.fecha)} ${esc(x.hora)}</td><td>${esc(x.visitante)}</td><td>${esc(x.unidad)}</td><td>${esc(x.placas)}</td><td><span class="badge">${esc(x.estado)}</span></td></tr>`).join('');
