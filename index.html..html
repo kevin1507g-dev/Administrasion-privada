@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Administración Residencial</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#0f172a;--p:#111827;--p2:#1e293b;--t:#f8fafc;--m:#94a3b8;--g:#22c55e;--r:#ef4444;--b:#38bdf8}
+*{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--t)}
+.hidden{display:none!important} input,select,button{font:inherit} input,select{width:100%;padding:12px;border:1px solid #334155;border-radius:10px;background:#020617;color:white}
+button{border:0;border-radius:10px;padding:11px 14px;font-weight:700;cursor:pointer;background:#334155;color:white} .primary{background:var(--g);color:#052e16} .danger{background:var(--r)}
+.login{min-height:100vh;display:grid;place-items:center;padding:20px} .card{background:var(--p);border:1px solid #334155;border-radius:18px;padding:20px}
+.login .card{width:min(430px,100%)} label{display:block;color:#cbd5e1;margin:14px 0 6px} .muted{color:var(--m)} .err{margin-top:12px;color:#fecaca}
+.app{display:grid;grid-template-columns:245px 1fr;min-height:100vh} aside{padding:18px;background:#020617;border-right:1px solid #334155} main{padding:24px;overflow:auto}
+.nav button{display:block;width:100%;margin:7px 0;text-align:left} section{display:none} section.active{display:block}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px} .kpi{font-size:28px;font-weight:900} .form{display:grid;grid-template-columns:repeat(2,1fr);gap:12px} .full{grid-column:1/-1}
+table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;border-bottom:1px solid #334155;text-align:left} .table{overflow:auto}
+.badge{padding:4px 8px;border-radius:99px;background:#334155} h1,h2,h3{margin-top:0}
+@media(max-width:800px){.app{grid-template-columns:1fr} aside{border-right:0;border-bottom:1px solid #334155} .grid,.form{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.grid,.form{grid-template-columns:1fr} main{padding:14px}}
+</style>
+</head>
+<body>
+<div id="login" class="login"><div class="card">
+<h2>Administración Residencial</h2><p class="muted">Acceso seguro con Supabase</p>
+<label>Correo</label><input id="email" type="email" autocomplete="username">
+<label>Contraseña</label><input id="password" type="password" autocomplete="current-password">
+<button id="loginBtn" class="primary" style="width:100%;margin-top:16px" type="button">Iniciar sesión</button>
+<div id="loginMsg" class="err"></div>
+</div></div>
+
+<div id="app" class="app hidden">
+<aside><h3>🏢 Condominio</h3><div id="who" class="muted"></div>
+<div class="nav">
+<button onclick="show('inicio')">🏠 Inicio</button>
+<button class="adminOnly" onclick="show('residentes')">👥 Residentes</button>
+<button class="adminOnly" onclick="show('deudas')">💰 Deuda total</button>
+<button class="adminOnly" onclick="show('porton')">🚧 Controles de portón</button>
+<button onclick="show('cuotas')">🧾 Cuotas</button>
+<button onclick="show('pagos')">💳 Pagos</button>
+<button onclick="show('visitas')">🚗 Visitas</button>
+<button onclick="show('eventos')">📅 Eventos</button>
+<button class="staffOnly" onclick="show('accesos')">🚪 Accesos</button>
+</div><button class="danger" style="width:100%;margin-top:15px" onclick="signOut()">Cerrar sesión</button></aside>
+
+<main>
+<section id="inicio" class="active"><h1>Panel principal</h1><div class="grid">
+<div class="card"><div class="muted">Cuotas</div><div id="kCuotas" class="kpi">0</div></div>
+<div class="card"><div class="muted">Pagos</div><div id="kPagos" class="kpi">0</div></div>
+<div class="card"><div class="muted">Visitas</div><div id="kVisitas" class="kpi">0</div></div>
+<div class="card"><div class="muted">Accesos</div><div id="kAccesos" class="kpi">0</div></div>
+<div class="card adminOnly"><div class="muted">Deuda total de residentes</div><div id="kDeuda" class="kpi">$0.00</div>
+<button class="primary" style="width:100%;margin-top:12px" onclick="show('deudas')">Ver deudas por persona</button></div>
+</div></section>
+
+
+<section id="deudas" class="adminOnly"><h2>Deuda total</h2>
+<div class="grid">
+  <div class="card"><div class="muted">Deuda total pendiente</div><div id="deudaTotal" class="kpi">$0.00</div></div>
+  <div class="card"><div class="muted">Personas con deuda</div><div id="deudoresCount" class="kpi">0</div></div>
+</div>
+<div class="card table" style="margin-top:14px">
+<table>
+<thead><tr><th>Residente</th><th>Unidad</th><th>Cuotas</th><th>Pagado</th><th>Deuda pendiente</th></tr></thead>
+<tbody id="deudasRows"></tbody>
+</table>
+</div>
+</section>
+
+
+<section id="porton" class="adminOnly"><h2>Controles de portón</h2>
+<div class="card">
+  <p class="muted">
+    Los residentes con cuotas vencidas se señalan para revisión. La suspensión no es automática:
+    un administrador debe confirmarla manualmente.
+  </p>
+  <div class="form">
+    <div><label>Días de gracia</label><input id="graceDays" type="number" min="0" value="5"></div>
+    <div style="display:flex;align-items:end"><button class="primary" style="width:100%" onclick="renderPorton()">Actualizar estados</button></div>
+  </div>
+</div>
+<div class="card table" style="margin-top:14px">
+<table>
+<thead><tr><th>Residente</th><th>Unidad</th><th>Deuda vencida</th><th>Estado sugerido</th><th>Control</th><th>Acción</th></tr></thead>
+<tbody id="portonRows"></tbody>
+</table>
+</div>
+</section>
+
+<section id="residentes"><h2>Residentes</h2><div class="card"><p class="muted">Los usuarios se crean primero en Authentication → Users. Después agrega su perfil aquí usando su UUID.</p>
+<div class="form"><div><label>UUID del usuario</label><input id="rId"></div><div><label>Nombre</label><input id="rNombre"></div>
+<div><label>Unidad</label><input id="rUnidad"></div><div><label>Rol</label><select id="rRol"><option value="residente">Residente</option><option value="guardia">Guardia</option><option value="admin">Administrador</option></select></div></div>
+<button class="primary" style="margin-top:12px" onclick="addProfile()">Guardar perfil</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Nombre</th><th>Unidad</th><th>Rol</th><th>Activo</th></tr></thead><tbody id="profilesRows"></tbody></table></div></section>
+
+<section id="cuotas"><h2>Cuotas</h2><div class="card adminOnly"><div class="form">
+<div><label>Residente</label><select id="cRes"></select></div><div><label>Concepto</label><input id="cConcepto" value="Mantenimiento"></div>
+<div><label>Monto</label><input id="cMonto" type="number" step=".01"></div><div><label>Vencimiento</label><input id="cFecha" type="date"></div></div>
+<button class="primary" style="margin-top:12px" onclick="addCuota()">Crear cuota</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Residente</th><th>Concepto</th><th>Monto</th><th>Vencimiento</th><th>Estado</th><th class="adminOnly">Acción</th></tr></thead><tbody id="cuotasRows"></tbody></table></div></section>
+
+<section id="pagos"><h2>Pagos</h2>
+<div id="residentDebtSummary" class="card" style="margin-bottom:14px;display:none">
+  <div class="grid">
+    <div><div class="muted">Deuda total pendiente</div><div id="rDebtTotal" class="kpi">$0.00</div></div>
+    <div><div class="muted">Cuotas vencidas</div><div id="rOverdueCount" class="kpi">0</div></div>
+    <div><div class="muted">Cuotas pendientes</div><div id="rPendingCount" class="kpi">0</div></div>
+    <div><div class="muted">Total pagado</div><div id="rPaidTotal" class="kpi">$0.00</div></div>
+  </div>
+  <div class="muted" style="margin-top:10px">Aquí puedes ver cuánto debes actualmente y el saldo restante de cada cuota.</div>
+</div><div class="card adminOnly"><div class="form">
+<div><label>Cuota</label><select id="pCuota"></select></div><div><label>Monto</label><input id="pMonto" type="number" step=".01"></div>
+<div><label>Método</label><select id="pMetodo"><option>Transferencia</option><option>Efectivo</option><option>Tarjeta</option><option>Otro</option></select></div><div><label>Referencia</label><input id="pRef"></div></div>
+<button class="primary" style="margin-top:12px" onclick="addPago()">Registrar pago</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Residente</th><th>Monto</th><th>Método</th><th>Referencia</th></tr></thead><tbody id="pagosRows"></tbody></table></div>
+<div id="residentBalanceCard" class="card table" style="margin-top:14px;display:none">
+  <h3 style="padding:14px 14px 0">Detalle de lo que debes</h3>
+  <table>
+    <thead><tr><th>Concepto</th><th>Vencimiento</th><th>Cuota</th><th>Pagado</th><th>Saldo</th><th>Estado</th></tr></thead>
+    <tbody id="residentBalanceRows"></tbody>
+  </table>
+</div></section>
+
+<section id="visitas"><h2>Visitas</h2><div class="card"><div class="form">
+<div><label>Visitante</label><input id="vNombre"></div><div><label>Unidad</label><input id="vUnidad"></div><div><label>Placas</label><input id="vPlacas"></div><div><label>Motivo</label><input id="vMotivo"></div>
+<div><label>Fecha</label><input id="vFecha" type="date"></div><div><label>Hora</label><input id="vHora" type="time"></div></div>
+<button id="visitCreate" class="primary" style="margin-top:12px" onclick="addVisita()">Registrar visita</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Visitante</th><th>Unidad</th><th>Placas</th><th>Estado</th></tr></thead><tbody id="visitasRows"></tbody></table></div></section>
+
+
+<section id="eventos"><h2>Eventos</h2>
+<div id="eventAdminForm" class="card adminOnly">
+  <h3>Crear evento</h3>
+  <div class="form">
+    <div><label>Título</label><input id="eTitulo" placeholder="Ej. Junta general"></div>
+    <div><label>Tipo</label><select id="eTipo"><option>Fiesta</option><option>Junta</option><option>Otro</option></select></div>
+    <div><label>Fecha</label><input id="eFecha" type="date"></div>
+    <div><label>Hora</label><input id="eHora" type="time"></div>
+    <div><label>Lugar</label><input id="eLugar" placeholder="Ej. Salón de usos múltiples"></div>
+    <div class="full"><label>Descripción</label><input id="eDescripcion" placeholder="Información del evento"></div>
+  </div>
+  <button class="primary" style="margin-top:12px" onclick="addEvento()">Publicar evento</button>
+</div>
+<div class="card table" style="margin-top:14px">
+  <table>
+    <thead><tr><th>Fecha</th><th>Hora</th><th>Evento</th><th>Tipo</th><th>Lugar</th><th>Descripción</th><th class="adminOnly">Acción</th></tr></thead>
+    <tbody id="eventosRows"></tbody>
+  </table>
+</div>
+</section>
+
+<section id="accesos"><h2>Accesos</h2><div class="card"><div class="form">
+<div><label>Persona</label><input id="aPersona"></div><div><label>Tipo</label><select id="aTipo"><option>Residente</option><option>Visita</option><option>Proveedor</option><option>Personal</option></select></div>
+<div><label>Movimiento</label><select id="aMov"><option>Entrada</option><option>Salida</option></select></div><div><label>Unidad</label><input id="aUnidad"></div><div class="full"><label>Observaciones</label><input id="aObs"></div></div>
+<button class="primary" style="margin-top:12px" onclick="addAcceso()">Registrar acceso</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Persona</th><th>Tipo</th><th>Movimiento</th><th>Unidad</th></tr></thead><tbody id="accesosRows"></tbody></table></div></section>
+</main></div>
+
+<script>
+const SB_URL='https://nndlfkuelwpwklldvtfo.supabase.co';
+const SB_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+let user=null, profile=null, profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[];
+let portonEstados={};
+const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+const money=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(n||0));
+function show(id){document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));$(id).classList.add('active')}
+async function signIn(){
+ const msg = document.getElementById('loginMsg');
+ const btn = document.getElementById('loginBtn');
+ const emailEl = document.getElementById('email');
+ const passEl = document.getElementById('password');
+
+ msg.textContent = '';
+ if(!emailEl.value.trim() || !passEl.value){
+   msg.textContent = 'Escribe tu correo y contraseña.';
+   return;
+ }
+ if(!window.supabase){
+   msg.textContent = 'No se pudo cargar la conexión con Supabase. Revisa tu conexión a Internet y vuelve a abrir la página.';
+   return;
+ }
+
+ btn.disabled = true;
+ btn.textContent = 'Conectando...';
+ msg.textContent = 'Intentando iniciar sesión...';
+
+ try{
+   const {data,error}=await sb.auth.signInWithPassword({
+     email: emailEl.value.trim(),
+     password: passEl.value
+   });
+   if(error){
+     console.error('Supabase login error:', error);
+     msg.textContent = 'Error de acceso: ' + (error.message || 'No se pudo iniciar sesión.');
+     return;
+   }
+   if(!data || !data.user){
+     msg.textContent = 'Supabase no devolvió un usuario. Intenta nuevamente.';
+     return;
+   }
+   user=data.user;
+   msg.textContent='Sesión iniciada. Cargando panel...';
+   await enter();
+ }catch(err){
+   console.error('Login exception:', err);
+   msg.textContent='Error técnico: ' + (err?.message || String(err));
+ }finally{
+   btn.disabled=false;
+   btn.textContent='Iniciar sesión';
+ }
+}
+async function signOut(){await sb.auth.signOut();location.reload()}
+async function enter(){
+ const {data,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
+ if(error||!data){loginMsg.textContent='Tu usuario existe, pero no tiene un perfil en la tabla profiles.';await sb.auth.signOut();return}
+ profile=data; login.classList.add('hidden');app.classList.remove('hidden');
+ who.textContent=`${profile.nombre} · ${profile.rol}${profile.unidad?' · '+profile.unidad:''}`;
+ document.querySelectorAll('.adminOnly').forEach(x=>x.classList.toggle('hidden',profile.rol!=='admin'));
+ document.querySelectorAll('.staffOnly').forEach(x=>x.classList.toggle('hidden',!['admin','guardia'].includes(profile.rol)));
+ if(profile.rol==='guardia') visitCreate.classList.add('hidden');
+ vFecha.value=new Date().toISOString().slice(0,10); cFecha.value=new Date().toISOString().slice(0,10);
+ await loadAll();
+}
+async function loadAll(){
+ const [pr,cu,pa,vi,ac]=await Promise.all([
+   profile.rol==='admin'?sb.from('profiles').select('*').order('nombre'):Promise.resolve({data:[profile]}),
+   sb.from('cuotas').select('*').order('created_at',{ascending:false}),
+   sb.from('pagos').select('*').order('created_at',{ascending:false}),
+   sb.from('visitas').select('*').order('created_at',{ascending:false}),
+   ['admin','guardia'].includes(profile.rol)?sb.from('accesos').select('*').order('created_at',{ascending:false}):Promise.resolve({data:[]})
+ ]);
+ profiles=pr.data||[];cuotas=cu.data||[];pagos=pa.data||[];visitas=vi.data||[];accesos=ac.data||[];const ev=await sb.from('eventos').select('*').order('fecha',{ascending:true}).order('hora',{ascending:true});
+ if(!ev.error) eventos=ev.data||[];
+ render();
+}
+function pname(id){return profiles.find(x=>x.id===id)?.nombre||''}
+function calcularDeudas(){
+ const porResidente = new Map();
+ for(const q of cuotas){
+   const total = Number(q.monto || 0);
+   const pagado = pagos
+     .filter(p => String(p.cuota_id) === String(q.id))
+     .reduce((s,p) => s + Number(p.monto || 0), 0);
+   const pendiente = Math.max(0, total - pagado);
+   const key = q.residente_id || 'sin-residente';
+   if(!porResidente.has(key)) porResidente.set(key,{residente_id:q.residente_id,cuotas:0,total:0,pagado:0,pendiente:0});
+   const r = porResidente.get(key);
+   r.cuotas += 1;
+   r.total += total;
+   r.pagado += Math.min(total, pagado);
+   r.pendiente += pendiente;
+ }
+ return [...porResidente.values()].sort((a,b)=>b.pendiente-a.pendiente);
+}
+
+function diasEntre(a,b){
+ const d1=new Date(a+'T00:00:00'), d2=new Date(b+'T00:00:00');
+ return Math.floor((d2-d1)/86400000);
+}
+function deudaVencidaPorResidente(residenteId){
+ const hoy=new Date().toISOString().slice(0,10);
+ let deuda=0;
+ for(const q of cuotas.filter(x=>x.residente_id===residenteId && x.vencimiento < hoy)){
+   const pagado=pagos.filter(p=>String(p.cuota_id)===String(q.id)).reduce((s,p)=>s+Number(p.monto||0),0);
+   deuda += Math.max(0,Number(q.monto||0)-pagado);
+ }
+ return deuda;
+}
+function atrasoMaximo(residenteId){
+ const hoy=new Date().toISOString().slice(0,10);
+ const vencidas=cuotas.filter(x=>x.residente_id===residenteId && x.vencimiento < hoy)
+   .filter(q=>{
+      const pagado=pagos.filter(p=>String(p.cuota_id)===String(q.id)).reduce((s,p)=>s+Number(p.monto||0),0);
+      return Number(q.monto||0)-pagado>0.009;
+   });
+ if(!vencidas.length)return 0;
+ return Math.max(...vencidas.map(q=>diasEntre(q.vencimiento,hoy)));
+}
+function setPortonEstado(id,estado){
+ portonEstados[id]=estado;
+ renderPorton();
+ renderEventos();
+}
+function renderPorton(){
+ const body=document.getElementById('portonRows'); if(!body)return;
+ const grace=Math.max(0,Number(document.getElementById('graceDays')?.value||5));
+ const residentes=profiles.filter(x=>x.rol==='residente');
+ body.innerHTML=residentes.map(r=>{
+   const deuda=deudaVencidaPorResidente(r.id);
+   const atraso=atrasoMaximo(r.id);
+   const sugerido=deuda>0 && atraso>grace ? '⚠️ Revisar suspensión temporal' : '✅ Al corriente';
+   const actual=portonEstados[r.id]||'activo';
+   const badgeActual=actual==='suspendido'?'⛔ Suspendido temporalmente':'✅ Activo';
+   const accion=actual==='suspendido'
+     ? `<button onclick="setPortonEstado('${r.id}','activo')">Reactivar</button>`
+     : `<button class="danger" onclick="if(confirm('¿Confirmar suspensión temporal del control de portón?'))setPortonEstado('${r.id}','suspendido')">Suspender</button>`;
+   return `<tr><td>${esc(r.nombre)}</td><td>${esc(r.unidad||'')}</td><td>${money(deuda)}</td><td>${sugerido}</td><td>${badgeActual}</td><td>${accion}</td></tr>`;
+ }).join('')||'<tr><td colspan="6" class="muted">No hay residentes.</td></tr>';
+}
+
+
+async function addEvento(){
+ if(profile?.rol!=='admin') return alert('Solo el administrador puede crear eventos.');
+ const titulo=document.getElementById('eTitulo').value.trim();
+ const fecha=document.getElementById('eFecha').value;
+ if(!titulo||!fecha) return alert('Escribe el título y la fecha.');
+ const payload={
+   titulo,
+   tipo:document.getElementById('eTipo').value,
+   fecha,
+   hora:document.getElementById('eHora').value||null,
+   lugar:document.getElementById('eLugar').value.trim()||null,
+   descripcion:document.getElementById('eDescripcion').value.trim()||null,
+   creado_por:user.id
+ };
+ const {error}=await sb.from('eventos').insert(payload);
+ if(error) return alert('No se pudo publicar: '+error.message);
+ eTitulo.value='';eFecha.value='';eHora.value='';eLugar.value='';eDescripcion.value='';
+ await loadData();
+}
+async function deleteEvento(id){
+ if(profile?.rol!=='admin') return;
+ if(!confirm('¿Eliminar este evento?')) return;
+ const {error}=await sb.from('eventos').delete().eq('id',id);
+ if(error) return alert('No se pudo eliminar: '+error.message);
+ await loadData();
+}
+function renderEventos(){
+ const body=document.getElementById('eventosRows'); if(!body)return;
+ const hoy=new Date().toISOString().slice(0,10);
+ const lista=eventos.filter(e=>!e.fecha||e.fecha>=hoy);
+ body.innerHTML=lista.map(e=>`<tr>
+   <td>${esc(e.fecha||'')}</td>
+   <td>${esc(e.hora?String(e.hora).slice(0,5):'')}</td>
+   <td><strong>${esc(e.titulo||'')}</strong></td>
+   <td>${esc(e.tipo||'')}</td>
+   <td>${esc(e.lugar||'')}</td>
+   <td>${esc(e.descripcion||'')}</td>
+   <td class="adminOnly">${profile?.rol==='admin'?`<button class="danger" onclick="deleteEvento(${e.id})">Eliminar</button>`:''}</td>
+ </tr>`).join('')||'<tr><td colspan="7" class="muted">No hay próximos eventos.</td></tr>';
+}
+
+async function editarVencimientoCuota(id, fechaActual){
+ if(profile?.rol!=='admin') return;
+ const nueva=prompt('Nueva fecha de vencimiento (AAAA-MM-DD):', fechaActual||'');
+ if(nueva===null) return;
+ const fecha=nueva.trim();
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha)){
+   return alert('Usa el formato AAAA-MM-DD. Ejemplo: 2026-09-30');
+ }
+ const {error}=await sb.from('cuotas').update({vencimiento:fecha}).eq('id',id);
+ if(error) return alert('No se pudo actualizar la fecha: '+error.message);
+ await loadData();
+ alert('Fecha de vencimiento actualizada.');
+}
+function resumenDeudaResidente(residenteId){
+ const hoy=new Date().toISOString().slice(0,10);
+ const qs=cuotas.filter(q=>q.residente_id===residenteId);
+ let deuda=0,pagadoTotal=0,vencidas=0,pendientes=0;
+ const detalle=qs.map(q=>{
+   const pagado=pagos.filter(p=>String(p.cuota_id)===String(q.id))
+     .reduce((s,p)=>s+Number(p.monto||0),0);
+   const monto=Number(q.monto||0);
+   const saldo=Math.max(0,monto-pagado);
+   deuda+=saldo;
+   pagadoTotal+=Math.min(monto,pagado);
+   if(saldo>0.009){
+     pendientes++;
+     if(q.vencimiento && q.vencimiento<hoy) vencidas++;
+   }
+   return {...q,pagado,saldo,estado:saldo<=0.009?'Pagada':(q.vencimiento&&q.vencimiento<hoy?'Vencida':'Pendiente')};
+ });
+ return {deuda,pagadoTotal,vencidas,pendientes,detalle};
+}
+function render(){
+ const isResident=profile?.rol==='residente';
+ const debtBox=document.getElementById('residentDebtSummary');
+ const balanceCard=document.getElementById('residentBalanceCard');
+ if(debtBox) debtBox.style.display=isResident?'block':'none';
+ if(balanceCard) balanceCard.style.display=isResident?'block':'none';
+ if(isResident){
+   const rs=resumenDeudaResidente(user.id);
+   if(document.getElementById('rDebtTotal')) rDebtTotal.textContent=money(rs.deuda);
+   if(document.getElementById('rOverdueCount')) rOverdueCount.textContent=rs.vencidas;
+   if(document.getElementById('rPendingCount')) rPendingCount.textContent=rs.pendientes;
+   if(document.getElementById('rPaidTotal')) rPaidTotal.textContent=money(rs.pagadoTotal);
+   if(document.getElementById('residentBalanceRows')){
+     residentBalanceRows.innerHTML=rs.detalle.map(q=>`<tr>
+       <td>${esc(q.concepto||'')}</td>
+       <td>${esc(q.vencimiento||'')}</td>
+       <td>${money(q.monto)}</td>
+       <td>${money(q.pagado)}</td>
+       <td><strong>${money(q.saldo)}</strong></td>
+       <td>${esc(q.estado)}</td>
+     </tr>`).join('')||'<tr><td colspan="6" class="muted">No tienes cuotas registradas.</td></tr>';
+   }
+ }
+
+ const deudas = calcularDeudas();
+ const deudaGeneral = deudas.reduce((s,d)=>s+d.pendiente,0);
+ kCuotas.textContent=cuotas.length;kPagos.textContent=pagos.length;kVisitas.textContent=visitas.length;kAccesos.textContent=accesos.length;
+ if(document.getElementById('kDeuda')) kDeuda.textContent=money(deudaGeneral);
+ if(document.getElementById('deudaTotal')) deudaTotal.textContent=money(deudaGeneral);
+ if(document.getElementById('deudoresCount')) deudoresCount.textContent=deudas.filter(d=>d.pendiente>0.009).length;
+ if(document.getElementById('deudasRows')){
+   deudasRows.innerHTML=deudas.filter(d=>d.pendiente>0.009).map(d=>{
+     const pr=profiles.find(x=>x.id===d.residente_id)||{};
+     return `<tr><td>${esc(pr.nombre||'Sin nombre')}</td><td>${esc(pr.unidad||'')}</td><td>${d.cuotas}</td><td>${money(d.pagado)}</td><td><strong>${money(d.pendiente)}</strong></td></tr>`;
+   }).join('') || '<tr><td colspan="5" class="muted">No hay deudas pendientes.</td></tr>';
+ }
+ profilesRows.innerHTML=profiles.map(x=>`<tr><td>${esc(x.nombre)}</td><td>${esc(x.unidad)}</td><td>${esc(x.rol)}</td><td>${x.activo?'Sí':'No'}</td></tr>`).join('');
+ const residents=profiles.filter(x=>x.rol==='residente'); cRes.innerHTML=residents.map(x=>`<option value="${x.id}">${esc(x.nombre)} — ${esc(x.unidad)}</option>`).join('');
+ cuotasRows.innerHTML=cuotas.map(x=>`<tr><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td>${esc(x.concepto)}</td><td>${money(x.monto)}</td><td>${esc(x.vencimiento)}</td><td><span class="badge">${esc(x.estado)}</span></td><td class="adminOnly">${profile?.rol==='admin'?`<button onclick="editarVencimientoCuota(${x.id}, '${esc(x.vencimiento||'')}')">Editar vencimiento</button>`:''}</td></tr>`).join('');
+ pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>`<option value="${x.id}">${esc(pname(x.residente_id))} — ${esc(x.concepto)} — ${money(x.monto)}</option>`).join('');
+ pagosRows.innerHTML=pagos.map(x=>`<tr><td>${esc(x.fecha)}</td><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td>${money(x.monto)}</td><td>${esc(x.metodo)}</td><td>${esc(x.referencia)}</td></tr>`).join('');
+ visitasRows.innerHTML=visitas.map(x=>`<tr><td>${esc(x.fecha)} ${esc(x.hora)}</td><td>${esc(x.visitante)}</td><td>${esc(x.unidad)}</td><td>${esc(x.placas)}</td><td><span class="badge">${esc(x.estado)}</span></td></tr>`).join('');
+ accesosRows.innerHTML=accesos.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString('es-MX')}</td><td>${esc(x.persona)}</td><td>${esc(x.tipo)}</td><td>${esc(x.movimiento)}</td><td>${esc(x.unidad)}</td></tr>`).join('');
+ renderPorton();
+}
+async function addProfile(){
+ const row={id:rId.value.trim(),nombre:rNombre.value.trim(),unidad:rUnidad.value.trim()||null,rol:rRol.value,activo:true};
+ const {error}=await sb.from('profiles').insert(row); if(error)return alert(error.message); await loadAll();
+}
+async function addCuota(){
+ const {error}=await sb.from('cuotas').insert({residente_id:cRes.value,concepto:cConcepto.value,monto:Number(cMonto.value),vencimiento:cFecha.value,estado:'pendiente'});
+ if(error)return alert(error.message);await loadAll();
+}
+async function addPago(){
+ const q=cuotas.find(x=>String(x.id)===String(pCuota.value)); if(!q)return alert('Selecciona una cuota');
+ const monto=Number(pMonto.value); const {error}=await sb.from('pagos').insert({cuota_id:q.id,residente_id:q.residente_id,monto,metodo:pMetodo.value,referencia:pRef.value,fecha:new Date().toISOString().slice(0,10)});
+ if(error)return alert(error.message); if(monto>=Number(q.monto)) await sb.from('cuotas').update({estado:'pagada'}).eq('id',q.id); await loadAll();
+}
+async function addVisita(){
+ const rid=profile.rol==='residente'?user.id:null;
+ if(!rid)return alert('En esta versión, el administrador registra visitas desde una cuenta de residente. Próxima mejora: selector de residente.');
+ const {error}=await sb.from('visitas').insert({residente_id:rid,visitante:vNombre.value,unidad:vUnidad.value,placas:vPlacas.value,motivo:vMotivo.value,fecha:vFecha.value,hora:vHora.value,estado:'esperada'});
+ if(error)return alert(error.message);await loadAll();
+}
+async function addAcceso(){
+ const {error}=await sb.from('accesos').insert({persona:aPersona.value,tipo:aTipo.value,movimiento:aMov.value,unidad:aUnidad.value,observaciones:aObs.value,registrado_por:user.id});
+ if(error)return alert(error.message);await loadAll();
+}
+document.getElementById('loginBtn').addEventListener('click', signIn);
+document.getElementById('password').addEventListener('keydown', e => {
+  if(e.key === 'Enter') signIn();
+});
+window.addEventListener('error', e => {
+  const msg = document.getElementById('loginMsg');
+  if(msg && !msg.textContent) msg.textContent = 'Error de la página: ' + (e.message || 'desconocido');
+});
+
+(async()=>{
+  try{
+    const {data,error}=await sb.auth.getSession();
+    if(error) console.error('Session error:', error);
+    if(data?.session){user=data.session.user;await enter()}
+  }catch(err){
+    console.error('Boot error:', err);
+    document.getElementById('loginMsg').textContent='Error al iniciar la aplicación: '+(err?.message||String(err));
+  }
+})();
+</script>
+</body></html>
