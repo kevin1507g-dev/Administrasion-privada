@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Administración Residencial</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#0f172a;--p:#111827;--p2:#1e293b;--t:#f8fafc;--m:#94a3b8;--g:#22c55e;--r:#ef4444;--b:#38bdf8}
+*{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--t)}
+.hidden{display:none!important} input,select,button{font:inherit} input,select{width:100%;padding:12px;border:1px solid #334155;border-radius:10px;background:#020617;color:white}
+button{border:0;border-radius:10px;padding:11px 14px;font-weight:700;cursor:pointer;background:#334155;color:white} .primary{background:var(--g);color:#052e16} .danger{background:var(--r)}
+.login{min-height:100vh;display:grid;place-items:center;padding:20px} .card{background:var(--p);border:1px solid #334155;border-radius:18px;padding:20px}
+.login .card{width:min(430px,100%)} label{display:block;color:#cbd5e1;margin:14px 0 6px} .muted{color:var(--m)} .err{margin-top:12px;color:#fecaca}
+.app{display:grid;grid-template-columns:245px 1fr;min-height:100vh} aside{padding:18px;background:#020617;border-right:1px solid #334155} main{padding:24px;overflow:auto}
+.nav button{display:block;width:100%;margin:7px 0;text-align:left} section{display:none} section.active{display:block}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px} .kpi{font-size:28px;font-weight:900} .form{display:grid;grid-template-columns:repeat(2,1fr);gap:12px} .full{grid-column:1/-1}
+table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;border-bottom:1px solid #334155;text-align:left} .table{overflow:auto}
+.badge{padding:4px 8px;border-radius:99px;background:#334155} h1,h2,h3{margin-top:0}
+@media(max-width:800px){.app{grid-template-columns:1fr} aside{border-right:0;border-bottom:1px solid #334155} .grid,.form{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.grid,.form{grid-template-columns:1fr} main{padding:14px}}
+</style>
+</head>
+<body>
+<div id="login" class="login"><div class="card">
+<h2>Administración Residencial</h2><p class="muted">Acceso seguro con Supabase</p>
+<label>Correo</label><input id="email" type="email" autocomplete="username">
+<label>Contraseña</label><input id="password" type="password" autocomplete="current-password">
+<button id="loginBtn" class="primary" style="width:100%;margin-top:16px" type="button">Iniciar sesión</button>
+<div id="loginMsg" class="err"></div>
+</div></div>
+
+<div id="app" class="app hidden">
+<aside><h3>🏢 Condominio</h3><div id="who" class="muted"></div>
+<div class="nav">
+<button onclick="show('inicio')">🏠 Inicio</button>
+<button class="adminOnly" onclick="show('residentes')">👥 Residentes</button>
+<button onclick="show('cuotas')">🧾 Cuotas</button>
+<button onclick="show('pagos')">💳 Pagos</button>
+<button onclick="show('visitas')">🚗 Visitas</button>
+<button class="staffOnly" onclick="show('accesos')">🚪 Accesos</button>
+</div><button class="danger" style="width:100%;margin-top:15px" onclick="signOut()">Cerrar sesión</button></aside>
+
+<main>
+<section id="inicio" class="active"><h1>Panel principal</h1><div class="grid">
+<div class="card"><div class="muted">Cuotas</div><div id="kCuotas" class="kpi">0</div></div>
+<div class="card"><div class="muted">Pagos</div><div id="kPagos" class="kpi">0</div></div>
+<div class="card"><div class="muted">Visitas</div><div id="kVisitas" class="kpi">0</div></div>
+<div class="card"><div class="muted">Accesos</div><div id="kAccesos" class="kpi">0</div></div>
+</div></section>
+
+<section id="residentes"><h2>Residentes</h2><div class="card"><p class="muted">Los usuarios se crean primero en Authentication → Users. Después agrega su perfil aquí usando su UUID.</p>
+<div class="form"><div><label>UUID del usuario</label><input id="rId"></div><div><label>Nombre</label><input id="rNombre"></div>
+<div><label>Unidad</label><input id="rUnidad"></div><div><label>Rol</label><select id="rRol"><option value="residente">Residente</option><option value="guardia">Guardia</option><option value="admin">Administrador</option></select></div></div>
+<button class="primary" style="margin-top:12px" onclick="addProfile()">Guardar perfil</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Nombre</th><th>Unidad</th><th>Rol</th><th>Activo</th></tr></thead><tbody id="profilesRows"></tbody></table></div></section>
+
+<section id="cuotas"><h2>Cuotas</h2><div class="card adminOnly"><div class="form">
+<div><label>Residente</label><select id="cRes"></select></div><div><label>Concepto</label><input id="cConcepto" value="Mantenimiento"></div>
+<div><label>Monto</label><input id="cMonto" type="number" step=".01"></div><div><label>Vencimiento</label><input id="cFecha" type="date"></div></div>
+<button class="primary" style="margin-top:12px" onclick="addCuota()">Crear cuota</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Residente</th><th>Concepto</th><th>Monto</th><th>Vencimiento</th><th>Estado</th></tr></thead><tbody id="cuotasRows"></tbody></table></div></section>
+
+<section id="pagos"><h2>Pagos</h2><div class="card adminOnly"><div class="form">
+<div><label>Cuota</label><select id="pCuota"></select></div><div><label>Monto</label><input id="pMonto" type="number" step=".01"></div>
+<div><label>Método</label><select id="pMetodo"><option>Transferencia</option><option>Efectivo</option><option>Tarjeta</option><option>Otro</option></select></div><div><label>Referencia</label><input id="pRef"></div></div>
+<button class="primary" style="margin-top:12px" onclick="addPago()">Registrar pago</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Residente</th><th>Monto</th><th>Método</th><th>Referencia</th></tr></thead><tbody id="pagosRows"></tbody></table></div></section>
+
+<section id="visitas"><h2>Visitas</h2><div class="card"><div class="form">
+<div><label>Visitante</label><input id="vNombre"></div><div><label>Unidad</label><input id="vUnidad"></div><div><label>Placas</label><input id="vPlacas"></div><div><label>Motivo</label><input id="vMotivo"></div>
+<div><label>Fecha</label><input id="vFecha" type="date"></div><div><label>Hora</label><input id="vHora" type="time"></div></div>
+<button id="visitCreate" class="primary" style="margin-top:12px" onclick="addVisita()">Registrar visita</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Visitante</th><th>Unidad</th><th>Placas</th><th>Estado</th></tr></thead><tbody id="visitasRows"></tbody></table></div></section>
+
+<section id="accesos"><h2>Accesos</h2><div class="card"><div class="form">
+<div><label>Persona</label><input id="aPersona"></div><div><label>Tipo</label><select id="aTipo"><option>Residente</option><option>Visita</option><option>Proveedor</option><option>Personal</option></select></div>
+<div><label>Movimiento</label><select id="aMov"><option>Entrada</option><option>Salida</option></select></div><div><label>Unidad</label><input id="aUnidad"></div><div class="full"><label>Observaciones</label><input id="aObs"></div></div>
+<button class="primary" style="margin-top:12px" onclick="addAcceso()">Registrar acceso</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Persona</th><th>Tipo</th><th>Movimiento</th><th>Unidad</th></tr></thead><tbody id="accesosRows"></tbody></table></div></section>
+</main></div>
+
+<script>
+const SB_URL='https://nndlfkuelwpwklldvtfo.supabase.co';
+const SB_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+let user=null, profile=null, profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[];
+const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+const money=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(n||0));
+function show(id){document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));$(id).classList.add('active')}
+async function signIn(){
+ const msg = document.getElementById('loginMsg');
+ const btn = document.getElementById('loginBtn');
+ const emailEl = document.getElementById('email');
+ const passEl = document.getElementById('password');
+
+ msg.textContent = '';
+ if(!emailEl.value.trim() || !passEl.value){
+   msg.textContent = 'Escribe tu correo y contraseña.';
+   return;
+ }
+ if(!window.supabase){
+   msg.textContent = 'No se pudo cargar la conexión con Supabase. Revisa tu conexión a Internet y vuelve a abrir la página.';
+   return;
+ }
+
+ btn.disabled = true;
+ btn.textContent = 'Conectando...';
+ msg.textContent = 'Intentando iniciar sesión...';
+
+ try{
+   const {data,error}=await sb.auth.signInWithPassword({
+     email: emailEl.value.trim(),
+     password: passEl.value
+   });
+   if(error){
+     console.error('Supabase login error:', error);
+     msg.textContent = 'Error de acceso: ' + (error.message || 'No se pudo iniciar sesión.');
+     return;
+   }
+   if(!data || !data.user){
+     msg.textContent = 'Supabase no devolvió un usuario. Intenta nuevamente.';
+     return;
+   }
+   user=data.user;
+   msg.textContent='Sesión iniciada. Cargando panel...';
+   await enter();
+ }catch(err){
+   console.error('Login exception:', err);
+   msg.textContent='Error técnico: ' + (err?.message || String(err));
+ }finally{
+   btn.disabled=false;
+   btn.textContent='Iniciar sesión';
+ }
+}
+async function signOut(){await sb.auth.signOut();location.reload()}
+async function enter(){
+ const {data,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
+ if(error||!data){loginMsg.textContent='Tu usuario existe, pero no tiene un perfil en la tabla profiles.';await sb.auth.signOut();return}
+ profile=data; login.classList.add('hidden');app.classList.remove('hidden');
+ who.textContent=`${profile.nombre} · ${profile.rol}${profile.unidad?' · '+profile.unidad:''}`;
+ document.querySelectorAll('.adminOnly').forEach(x=>x.classList.toggle('hidden',profile.rol!=='admin'));
+ document.querySelectorAll('.staffOnly').forEach(x=>x.classList.toggle('hidden',!['admin','guardia'].includes(profile.rol)));
+ if(profile.rol==='guardia') visitCreate.classList.add('hidden');
+ vFecha.value=new Date().toISOString().slice(0,10); cFecha.value=new Date().toISOString().slice(0,10);
+ await loadAll();
+}
+async function loadAll(){
+ const [pr,cu,pa,vi,ac]=await Promise.all([
+   profile.rol==='admin'?sb.from('profiles').select('*').order('nombre'):Promise.resolve({data:[profile]}),
+   sb.from('cuotas').select('*').order('created_at',{ascending:false}),
+   sb.from('pagos').select('*').order('created_at',{ascending:false}),
+   sb.from('visitas').select('*').order('created_at',{ascending:false}),
+   ['admin','guardia'].includes(profile.rol)?sb.from('accesos').select('*').order('created_at',{ascending:false}):Promise.resolve({data:[]})
+ ]);
+ profiles=pr.data||[];cuotas=cu.data||[];pagos=pa.data||[];visitas=vi.data||[];accesos=ac.data||[];render();
+}
+function pname(id){return profiles.find(x=>x.id===id)?.nombre||''}
+function render(){
+ kCuotas.textContent=cuotas.length;kPagos.textContent=pagos.length;kVisitas.textContent=visitas.length;kAccesos.textContent=accesos.length;
+ profilesRows.innerHTML=profiles.map(x=>`<tr><td>${esc(x.nombre)}</td><td>${esc(x.unidad)}</td><td>${esc(x.rol)}</td><td>${x.activo?'Sí':'No'}</td></tr>`).join('');
+ const residents=profiles.filter(x=>x.rol==='residente'); cRes.innerHTML=residents.map(x=>`<option value="${x.id}">${esc(x.nombre)} — ${esc(x.unidad)}</option>`).join('');
+ cuotasRows.innerHTML=cuotas.map(x=>`<tr><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td>${esc(x.concepto)}</td><td>${money(x.monto)}</td><td>${esc(x.vencimiento)}</td><td><span class="badge">${esc(x.estado)}</span></td></tr>`).join('');
+ pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>`<option value="${x.id}">${esc(pname(x.residente_id))} — ${esc(x.concepto)} — ${money(x.monto)}</option>`).join('');
+ pagosRows.innerHTML=pagos.map(x=>`<tr><td>${esc(x.fecha)}</td><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td>${money(x.monto)}</td><td>${esc(x.metodo)}</td><td>${esc(x.referencia)}</td></tr>`).join('');
+ visitasRows.innerHTML=visitas.map(x=>`<tr><td>${esc(x.fecha)} ${esc(x.hora)}</td><td>${esc(x.visitante)}</td><td>${esc(x.unidad)}</td><td>${esc(x.placas)}</td><td><span class="badge">${esc(x.estado)}</span></td></tr>`).join('');
+ accesosRows.innerHTML=accesos.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString('es-MX')}</td><td>${esc(x.persona)}</td><td>${esc(x.tipo)}</td><td>${esc(x.movimiento)}</td><td>${esc(x.unidad)}</td></tr>`).join('');
+}
+async function addProfile(){
+ const row={id:rId.value.trim(),nombre:rNombre.value.trim(),unidad:rUnidad.value.trim()||null,rol:rRol.value,activo:true};
+ const {error}=await sb.from('profiles').insert(row); if(error)return alert(error.message); await loadAll();
+}
+async function addCuota(){
+ const {error}=await sb.from('cuotas').insert({residente_id:cRes.value,concepto:cConcepto.value,monto:Number(cMonto.value),vencimiento:cFecha.value,estado:'pendiente'});
+ if(error)return alert(error.message);await loadAll();
+}
+async function addPago(){
+ const q=cuotas.find(x=>String(x.id)===String(pCuota.value)); if(!q)return alert('Selecciona una cuota');
+ const monto=Number(pMonto.value); const {error}=await sb.from('pagos').insert({cuota_id:q.id,residente_id:q.residente_id,monto,metodo:pMetodo.value,referencia:pRef.value,fecha:new Date().toISOString().slice(0,10)});
+ if(error)return alert(error.message); if(monto>=Number(q.monto)) await sb.from('cuotas').update({estado:'pagada'}).eq('id',q.id); await loadAll();
+}
+async function addVisita(){
+ const rid=profile.rol==='residente'?user.id:null;
+ if(!rid)return alert('En esta versión, el administrador registra visitas desde una cuenta de residente. Próxima mejora: selector de residente.');
+ const {error}=await sb.from('visitas').insert({residente_id:rid,visitante:vNombre.value,unidad:vUnidad.value,placas:vPlacas.value,motivo:vMotivo.value,fecha:vFecha.value,hora:vHora.value,estado:'esperada'});
+ if(error)return alert(error.message);await loadAll();
+}
+async function addAcceso(){
+ const {error}=await sb.from('accesos').insert({persona:aPersona.value,tipo:aTipo.value,movimiento:aMov.value,unidad:aUnidad.value,observaciones:aObs.value,registrado_por:user.id});
+ if(error)return alert(error.message);await loadAll();
+}
+document.getElementById('loginBtn').addEventListener('click', signIn);
+document.getElementById('password').addEventListener('keydown', e => {
+  if(e.key === 'Enter') signIn();
+});
+window.addEventListener('error', e => {
+  const msg = document.getElementById('loginMsg');
+  if(msg && !msg.textContent) msg.textContent = 'Error de la página: ' + (e.message || 'desconocido');
+});
+
+(async()=>{
+  try{
+    const {data,error}=await sb.auth.getSession();
+    if(error) console.error('Session error:', error);
+    if(data?.session){user=data.session.user;await enter()}
+  }catch(err){
+    console.error('Boot error:', err);
+    document.getElementById('loginMsg').textContent='Error al iniciar la aplicación: '+(err?.message||String(err));
+  }
+})();
+</script>
+</body></html>
