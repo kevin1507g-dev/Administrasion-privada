@@ -39,6 +39,7 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 <button onclick="show('cuotas')">🧾 Cuotas</button>
 <button onclick="show('pagos')">💳 Pagos</button>
 <button onclick="show('visitas')">🚗 Visitas</button>
+<button onclick="show('eventos')">📅 Eventos</button>
 <button class="staffOnly" onclick="show('accesos')">🚪 Accesos</button>
 </div><button class="danger" style="width:100%;margin-top:15px" onclick="signOut()">Cerrar sesión</button></aside>
 
@@ -96,15 +97,53 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 <div><label>Monto</label><input id="cMonto" type="number" step=".01"></div><div><label>Vencimiento</label><input id="cFecha" type="date"></div></div>
 <button class="primary" style="margin-top:12px" onclick="addCuota()">Crear cuota</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Residente</th><th>Concepto</th><th>Monto</th><th>Vencimiento</th><th>Estado</th></tr></thead><tbody id="cuotasRows"></tbody></table></div></section>
 
-<section id="pagos"><h2>Pagos</h2><div class="card adminOnly"><div class="form">
+<section id="pagos"><h2>Pagos</h2>
+<div id="residentDebtSummary" class="card" style="margin-bottom:14px;display:none">
+  <div class="grid">
+    <div><div class="muted">Deuda total pendiente</div><div id="rDebtTotal" class="kpi">$0.00</div></div>
+    <div><div class="muted">Cuotas vencidas</div><div id="rOverdueCount" class="kpi">0</div></div>
+    <div><div class="muted">Cuotas pendientes</div><div id="rPendingCount" class="kpi">0</div></div>
+    <div><div class="muted">Total pagado</div><div id="rPaidTotal" class="kpi">$0.00</div></div>
+  </div>
+  <div class="muted" style="margin-top:10px">Aquí puedes ver cuánto debes actualmente y el saldo restante de cada cuota.</div>
+</div><div class="card adminOnly"><div class="form">
 <div><label>Cuota</label><select id="pCuota"></select></div><div><label>Monto</label><input id="pMonto" type="number" step=".01"></div>
 <div><label>Método</label><select id="pMetodo"><option>Transferencia</option><option>Efectivo</option><option>Tarjeta</option><option>Otro</option></select></div><div><label>Referencia</label><input id="pRef"></div></div>
-<button class="primary" style="margin-top:12px" onclick="addPago()">Registrar pago</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Residente</th><th>Monto</th><th>Método</th><th>Referencia</th></tr></thead><tbody id="pagosRows"></tbody></table></div></section>
+<button class="primary" style="margin-top:12px" onclick="addPago()">Registrar pago</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Residente</th><th>Monto</th><th>Método</th><th>Referencia</th></tr></thead><tbody id="pagosRows"></tbody></table></div>
+<div id="residentBalanceCard" class="card table" style="margin-top:14px;display:none">
+  <h3 style="padding:14px 14px 0">Detalle de lo que debes</h3>
+  <table>
+    <thead><tr><th>Concepto</th><th>Vencimiento</th><th>Cuota</th><th>Pagado</th><th>Saldo</th><th>Estado</th></tr></thead>
+    <tbody id="residentBalanceRows"></tbody>
+  </table>
+</div></section>
 
 <section id="visitas"><h2>Visitas</h2><div class="card"><div class="form">
 <div><label>Visitante</label><input id="vNombre"></div><div><label>Unidad</label><input id="vUnidad"></div><div><label>Placas</label><input id="vPlacas"></div><div><label>Motivo</label><input id="vMotivo"></div>
 <div><label>Fecha</label><input id="vFecha" type="date"></div><div><label>Hora</label><input id="vHora" type="time"></div></div>
 <button id="visitCreate" class="primary" style="margin-top:12px" onclick="addVisita()">Registrar visita</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Visitante</th><th>Unidad</th><th>Placas</th><th>Estado</th></tr></thead><tbody id="visitasRows"></tbody></table></div></section>
+
+
+<section id="eventos"><h2>Eventos</h2>
+<div id="eventAdminForm" class="card adminOnly">
+  <h3>Crear evento</h3>
+  <div class="form">
+    <div><label>Título</label><input id="eTitulo" placeholder="Ej. Junta general"></div>
+    <div><label>Tipo</label><select id="eTipo"><option>Fiesta</option><option>Junta</option><option>Otro</option></select></div>
+    <div><label>Fecha</label><input id="eFecha" type="date"></div>
+    <div><label>Hora</label><input id="eHora" type="time"></div>
+    <div><label>Lugar</label><input id="eLugar" placeholder="Ej. Salón de usos múltiples"></div>
+    <div class="full"><label>Descripción</label><input id="eDescripcion" placeholder="Información del evento"></div>
+  </div>
+  <button class="primary" style="margin-top:12px" onclick="addEvento()">Publicar evento</button>
+</div>
+<div class="card table" style="margin-top:14px">
+  <table>
+    <thead><tr><th>Fecha</th><th>Hora</th><th>Evento</th><th>Tipo</th><th>Lugar</th><th>Descripción</th><th class="adminOnly">Acción</th></tr></thead>
+    <tbody id="eventosRows"></tbody>
+  </table>
+</div>
+</section>
 
 <section id="accesos"><h2>Accesos</h2><div class="card"><div class="form">
 <div><label>Persona</label><input id="aPersona"></div><div><label>Tipo</label><select id="aTipo"><option>Residente</option><option>Visita</option><option>Proveedor</option><option>Personal</option></select></div>
@@ -116,7 +155,7 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 const SB_URL='https://nndlfkuelwpwklldvtfo.supabase.co';
 const SB_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
 const sb=supabase.createClient(SB_URL,SB_KEY);
-let user=null, profile=null, profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[];
+let user=null, profile=null, profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[];
 let portonEstados={};
 const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const money=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(n||0));
@@ -186,7 +225,9 @@ async function loadAll(){
    sb.from('visitas').select('*').order('created_at',{ascending:false}),
    ['admin','guardia'].includes(profile.rol)?sb.from('accesos').select('*').order('created_at',{ascending:false}):Promise.resolve({data:[]})
  ]);
- profiles=pr.data||[];cuotas=cu.data||[];pagos=pa.data||[];visitas=vi.data||[];accesos=ac.data||[];render();
+ profiles=pr.data||[];cuotas=cu.data||[];pagos=pa.data||[];visitas=vi.data||[];accesos=ac.data||[];const ev=await sb.from('eventos').select('*').order('fecha',{ascending:true}).order('hora',{ascending:true});
+ if(!ev.error) eventos=ev.data||[];
+ render();
 }
 function pname(id){return profiles.find(x=>x.id===id)?.nombre||''}
 function calcularDeudas(){
@@ -234,6 +275,7 @@ function atrasoMaximo(residenteId){
 function setPortonEstado(id,estado){
  portonEstados[id]=estado;
  renderPorton();
+ renderEventos();
 }
 function renderPorton(){
  const body=document.getElementById('portonRows'); if(!body)return;
@@ -251,7 +293,91 @@ function renderPorton(){
    return `<tr><td>${esc(r.nombre)}</td><td>${esc(r.unidad||'')}</td><td>${money(deuda)}</td><td>${sugerido}</td><td>${badgeActual}</td><td>${accion}</td></tr>`;
  }).join('')||'<tr><td colspan="6" class="muted">No hay residentes.</td></tr>';
 }
+
+
+async function addEvento(){
+ if(profile?.rol!=='admin') return alert('Solo el administrador puede crear eventos.');
+ const titulo=document.getElementById('eTitulo').value.trim();
+ const fecha=document.getElementById('eFecha').value;
+ if(!titulo||!fecha) return alert('Escribe el título y la fecha.');
+ const payload={
+   titulo,
+   tipo:document.getElementById('eTipo').value,
+   fecha,
+   hora:document.getElementById('eHora').value||null,
+   lugar:document.getElementById('eLugar').value.trim()||null,
+   descripcion:document.getElementById('eDescripcion').value.trim()||null,
+   creado_por:user.id
+ };
+ const {error}=await sb.from('eventos').insert(payload);
+ if(error) return alert('No se pudo publicar: '+error.message);
+ eTitulo.value='';eFecha.value='';eHora.value='';eLugar.value='';eDescripcion.value='';
+ await loadData();
+}
+async function deleteEvento(id){
+ if(profile?.rol!=='admin') return;
+ if(!confirm('¿Eliminar este evento?')) return;
+ const {error}=await sb.from('eventos').delete().eq('id',id);
+ if(error) return alert('No se pudo eliminar: '+error.message);
+ await loadData();
+}
+function renderEventos(){
+ const body=document.getElementById('eventosRows'); if(!body)return;
+ const hoy=new Date().toISOString().slice(0,10);
+ const lista=eventos.filter(e=>!e.fecha||e.fecha>=hoy);
+ body.innerHTML=lista.map(e=>`<tr>
+   <td>${esc(e.fecha||'')}</td>
+   <td>${esc(e.hora?String(e.hora).slice(0,5):'')}</td>
+   <td><strong>${esc(e.titulo||'')}</strong></td>
+   <td>${esc(e.tipo||'')}</td>
+   <td>${esc(e.lugar||'')}</td>
+   <td>${esc(e.descripcion||'')}</td>
+   <td class="adminOnly">${profile?.rol==='admin'?`<button class="danger" onclick="deleteEvento(${e.id})">Eliminar</button>`:''}</td>
+ </tr>`).join('')||'<tr><td colspan="7" class="muted">No hay próximos eventos.</td></tr>';
+}
+function resumenDeudaResidente(residenteId){
+ const hoy=new Date().toISOString().slice(0,10);
+ const qs=cuotas.filter(q=>q.residente_id===residenteId);
+ let deuda=0,pagadoTotal=0,vencidas=0,pendientes=0;
+ const detalle=qs.map(q=>{
+   const pagado=pagos.filter(p=>String(p.cuota_id)===String(q.id))
+     .reduce((s,p)=>s+Number(p.monto||0),0);
+   const monto=Number(q.monto||0);
+   const saldo=Math.max(0,monto-pagado);
+   deuda+=saldo;
+   pagadoTotal+=Math.min(monto,pagado);
+   if(saldo>0.009){
+     pendientes++;
+     if(q.vencimiento && q.vencimiento<hoy) vencidas++;
+   }
+   return {...q,pagado,saldo,estado:saldo<=0.009?'Pagada':(q.vencimiento&&q.vencimiento<hoy?'Vencida':'Pendiente')};
+ });
+ return {deuda,pagadoTotal,vencidas,pendientes,detalle};
+}
 function render(){
+ const isResident=profile?.rol==='residente';
+ const debtBox=document.getElementById('residentDebtSummary');
+ const balanceCard=document.getElementById('residentBalanceCard');
+ if(debtBox) debtBox.style.display=isResident?'block':'none';
+ if(balanceCard) balanceCard.style.display=isResident?'block':'none';
+ if(isResident){
+   const rs=resumenDeudaResidente(user.id);
+   if(document.getElementById('rDebtTotal')) rDebtTotal.textContent=money(rs.deuda);
+   if(document.getElementById('rOverdueCount')) rOverdueCount.textContent=rs.vencidas;
+   if(document.getElementById('rPendingCount')) rPendingCount.textContent=rs.pendientes;
+   if(document.getElementById('rPaidTotal')) rPaidTotal.textContent=money(rs.pagadoTotal);
+   if(document.getElementById('residentBalanceRows')){
+     residentBalanceRows.innerHTML=rs.detalle.map(q=>`<tr>
+       <td>${esc(q.concepto||'')}</td>
+       <td>${esc(q.vencimiento||'')}</td>
+       <td>${money(q.monto)}</td>
+       <td>${money(q.pagado)}</td>
+       <td><strong>${money(q.saldo)}</strong></td>
+       <td>${esc(q.estado)}</td>
+     </tr>`).join('')||'<tr><td colspan="6" class="muted">No tienes cuotas registradas.</td></tr>';
+   }
+ }
+
  const deudas = calcularDeudas();
  const deudaGeneral = deudas.reduce((s,d)=>s+d.pendiente,0);
  kCuotas.textContent=cuotas.length;kPagos.textContent=pagos.length;kVisitas.textContent=visitas.length;kAccesos.textContent=accesos.length;
