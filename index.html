@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Administración Residencial</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{--bg:#0f172a;--p:#111827;--p2:#1e293b;--t:#f8fafc;--m:#94a3b8;--g:#22c55e;--r:#ef4444;--b:#38bdf8}
 *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--t)}
@@ -266,6 +267,7 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
   <p class="muted">Genera un reporte con el historial de pagos recibidos, gastos registrados y balance.</p>
   <div style="display:flex;gap:10px;flex-wrap:wrap">
     <button class="primary" onclick="generarAclaracionGastos()">📄 Generar aclaración de gastos</button>
+    <button class="primary" onclick="generarExcelAdministracion()">📊 Generar Excel</button>
     <button onclick="window.print()">🖨️ Imprimir pantalla</button>
   </div>
 </div>
@@ -910,6 +912,68 @@ function renderGastos(){
      </tr>`;
    }).join('')||'<tr><td colspan="6" class="muted">No hay pagos registrados.</td></tr>';
  }
+}
+
+function generarExcelAdministracion(){
+ if(profile?.rol!=='admin') return alert('Solo el administrador puede generar este Excel.');
+ if(typeof XLSX==='undefined') return alert('No se pudo cargar el generador de Excel. Revisa tu conexión a Internet.');
+
+ const wb=XLSX.utils.book_new();
+ const suspendidos=controles.filter(c=>c.estado==='suspendido').map(c=>{
+   const r=profiles.find(p=>p.id===c.residente_id)||{};
+   return {
+     'Casa / Unidad':c.unidad||r.unidad||'',
+     'Residente':r.nombre||'',
+     'Número de control':c.numero_control||'',
+     'Estado':'Suspendido temporalmente',
+     'Última actualización':c.actualizado_en?new Date(c.actualizado_en).toLocaleString('es-MX'):'',
+     'Observación':'Control suspendido desde Administración Residencial'
+   };
+ });
+
+ const pagosExcel=pagos.map(p=>{
+   const r=profiles.find(x=>x.id===p.residente_id)||{};
+   const q=cuotas.find(x=>String(x.id)===String(p.cuota_id))||{};
+   return {
+     'Fecha':p.fecha||'', 'Casa / Unidad':r.unidad||'', 'Residente':r.nombre||'',
+     'Concepto':q.concepto||'', 'Método':p.metodo||'', 'Monto':Number(p.monto||0),
+     'Referencia':p.referencia||''
+   };
+ });
+
+ const gastosExcel=gastos.map(g=>({
+   'Fecha':g.fecha||'', 'Categoría':g.categoria||'', 'Concepto':g.concepto||'',
+   'Proveedor / Beneficiario':g.proveedor||'', 'Referencia / Folio':g.referencia||'',
+   'Monto':Number(g.monto||0), 'Descripción / Aclaración':g.descripcion||'',
+   'Registrado por':profile.nombre||'Administrador'
+ }));
+
+ const ingresos=pagos.reduce((s,p)=>s+Number(p.monto||0),0);
+ const egresos=gastos.reduce((s,g)=>s+Number(g.monto||0),0);
+ const resumen=[
+   ['ADMINISTRACIÓN RESIDENCIAL — REPORTE GENERAL',''],
+   ['Generado',new Date().toLocaleString('es-MX')],[],
+   ['Indicador','Total'],['Pagos recibidos',ingresos],['Gastos registrados',egresos],
+   ['Balance',ingresos-egresos],['Controles suspendidos',suspendidos.length]
+ ];
+
+ const wsResumen=XLSX.utils.aoa_to_sheet(resumen);
+ const wsControles=XLSX.utils.json_to_sheet(suspendidos.length?suspendidos:[{'Casa / Unidad':'','Residente':'','Número de control':'','Estado':'Sin controles suspendidos','Última actualización':'','Observación':''}]);
+ const wsPagos=XLSX.utils.json_to_sheet(pagosExcel.length?pagosExcel:[{'Fecha':'','Casa / Unidad':'','Residente':'','Concepto':'','Método':'','Monto':0,'Referencia':''}]);
+ const wsGastos=XLSX.utils.json_to_sheet(gastosExcel.length?gastosExcel:[{'Fecha':'','Categoría':'','Concepto':'','Proveedor / Beneficiario':'','Referencia / Folio':'','Monto':0,'Descripción / Aclaración':'','Registrado por':''}]);
+
+ wsResumen['!cols']=[{wch:30},{wch:22}];
+ wsControles['!cols']=[{wch:16},{wch:25},{wch:20},{wch:27},{wch:24},{wch:42}];
+ wsPagos['!cols']=[{wch:14},{wch:16},{wch:25},{wch:28},{wch:18},{wch:16},{wch:24}];
+ wsGastos['!cols']=[{wch:14},{wch:18},{wch:28},{wch:28},{wch:22},{wch:16},{wch:42},{wch:24}];
+
+ XLSX.utils.book_append_sheet(wb,wsResumen,'Resumen');
+ XLSX.utils.book_append_sheet(wb,wsControles,'Controles suspendidos');
+ XLSX.utils.book_append_sheet(wb,wsPagos,'Pagos');
+ XLSX.utils.book_append_sheet(wb,wsGastos,'Gastos');
+
+ const hoy=new Date().toISOString().slice(0,10);
+ XLSX.writeFile(wb,`Administracion_Residencial_${hoy}.xlsx`);
 }
 
 function generarAclaracionGastos(){
