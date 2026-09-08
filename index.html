@@ -47,6 +47,7 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 <button class="controlAccessOnly" onclick="show('porton')">🚧 Controles de portón</button>
 <button onclick="show('cuotas')">🧾 Cuotas</button>
 <button onclick="show('pagos')">💳 Pagos</button>
+<button class="adminOnly" onclick="show('gastos')">🧾 Aclaración de gastos</button>
 <button onclick="show('visitas')">🚗 Visitas</button>
 <button onclick="show('eventos')">📅 Eventos</button>
 <button class="staffOnly" onclick="show('accesos')">🚪 Accesos</button>
@@ -197,6 +198,102 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
   </table>
 </div></section>
 
+
+<section id="gastos"><h2>Aclaración de gastos</h2>
+
+<div class="adminOnly card">
+  <h3>Registrar gasto</h3>
+  <p class="muted">Agrega aquí los gastos del condominio para llevar un historial y poder generar una aclaración de ingresos y egresos.</p>
+  <div class="form">
+    <div>
+      <label>Fecha</label>
+      <input id="gFecha" type="date">
+    </div>
+    <div>
+      <label>Categoría</label>
+      <select id="gCategoria">
+        <option>Mantenimiento</option>
+        <option>Servicios</option>
+        <option>Seguridad</option>
+        <option>Limpieza</option>
+        <option>Reparaciones</option>
+        <option>Administración</option>
+        <option>Eventos</option>
+        <option>Otro</option>
+      </select>
+    </div>
+    <div>
+      <label>Concepto</label>
+      <input id="gConcepto" placeholder="Ej. Reparación de portón">
+    </div>
+    <div>
+      <label>Monto</label>
+      <input id="gMonto" type="number" min="0" step="0.01" placeholder="0.00">
+    </div>
+    <div>
+      <label>Proveedor / Beneficiario</label>
+      <input id="gProveedor" placeholder="Opcional">
+    </div>
+    <div>
+      <label>Referencia / Folio</label>
+      <input id="gReferencia" placeholder="Opcional">
+    </div>
+    <div class="full">
+      <label>Descripción / Aclaración</label>
+      <input id="gDescripcion" placeholder="Describe el motivo del gasto">
+    </div>
+  </div>
+  <button class="primary" style="margin-top:12px" onclick="addGasto()">Registrar gasto</button>
+</div>
+
+<div class="adminOnly grid" style="margin-top:14px">
+  <div class="card">
+    <div class="muted">Total de pagos registrados</div>
+    <div id="repIngresos" class="kpi">$0.00</div>
+  </div>
+  <div class="card">
+    <div class="muted">Total de gastos registrados</div>
+    <div id="repGastos" class="kpi">$0.00</div>
+  </div>
+  <div class="card">
+    <div class="muted">Balance</div>
+    <div id="repBalance" class="kpi">$0.00</div>
+  </div>
+</div>
+
+<div class="adminOnly card" style="margin-top:14px">
+  <h3>Generar aclaración</h3>
+  <p class="muted">Genera un reporte con el historial de pagos recibidos, gastos registrados y balance.</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button class="primary" onclick="generarAclaracionGastos()">📄 Generar aclaración de gastos</button>
+    <button onclick="window.print()">🖨️ Imprimir pantalla</button>
+  </div>
+</div>
+
+<div class="adminOnly card table" style="margin-top:14px">
+  <h3 style="padding:14px 14px 0">Historial de gastos</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Fecha</th><th>Categoría</th><th>Concepto</th><th>Proveedor</th>
+        <th>Referencia</th><th>Monto</th><th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="gastosRows"></tbody>
+  </table>
+</div>
+
+<div class="adminOnly card table" style="margin-top:14px">
+  <h3 style="padding:14px 14px 0">Historial de pagos recibidos</h3>
+  <table>
+    <thead>
+      <tr><th>Fecha</th><th>Residente</th><th>Concepto</th><th>Método</th><th>Referencia</th><th>Monto</th></tr>
+    </thead>
+    <tbody id="historialPagosRows"></tbody>
+  </table>
+</div>
+</section>
+
 <section id="visitas"><h2>Visitas</h2><div class="card"><div class="form">
 <div><label>Visitante</label><input id="vNombre"></div><div><label>Unidad</label><input id="vUnidad"></div><div><label>Placas</label><input id="vPlacas"></div><div><label>Motivo</label><input id="vMotivo"></div>
 <div><label>Fecha</label><input id="vFecha" type="date"></div><div><label>Hora</label><input id="vHora" type="time"></div></div>
@@ -234,7 +331,7 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 const SB_URL='https://nndlfkuelwpwklldvtfo.supabase.co';
 const SB_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
 const sb=supabase.createClient(SB_URL,SB_KEY);
-let user=null, profile=null, profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[];
+let user=null, profile=null, profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[];
 const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const money=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(n||0));
 function show(id){document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));$(id).classList.add('active')}
@@ -298,14 +395,15 @@ async function enter(){
  await loadAll();
 }
 async function loadAll(){
- const [pr,cu,pa,vi,ac,ev,ct]=await Promise.all([
+ const [pr,cu,pa,vi,ac,ev,ct,ga]=await Promise.all([
    profile.rol==='admin'?sb.from('profiles').select('*').order('nombre'):Promise.resolve({data:[profile]}),
    sb.from('cuotas').select('*').order('created_at',{ascending:false}),
    sb.from('pagos').select('*').order('created_at',{ascending:false}),
    sb.from('visitas').select('*').order('created_at',{ascending:false}),
    ['admin','guardia'].includes(profile.rol)?sb.from('accesos').select('*').order('created_at',{ascending:false}):Promise.resolve({data:[]}),
    sb.from('eventos').select('*').order('fecha',{ascending:true}).order('hora',{ascending:true}),
-   ['admin','residente'].includes(profile.rol)?sb.from('controles_residenciales').select('*').order('numero_control',{ascending:true}):Promise.resolve({data:[]})
+   ['admin','residente'].includes(profile.rol)?sb.from('controles_residenciales').select('*').order('numero_control',{ascending:true}):Promise.resolve({data:[]}),
+   profile.rol==='admin'?sb.from('gastos').select('*').order('fecha',{ascending:false}).order('created_at',{ascending:false}):Promise.resolve({data:[]})
  ]);
  profiles=pr.data||[];
  cuotas=cu.data||[];
@@ -314,12 +412,8 @@ async function loadAll(){
  accesos=ac.data||[];
  eventos=ev.data||[];
  controles=ct.data||[];
-
- if(ct.error && ['admin','residente'].includes(profile.rol)){
-   console.warn('Controles residenciales:',ct.error);
-   const msg=document.getElementById('ctrlMsg');
-   if(msg && profile.rol==='admin') msg.textContent='Falta crear la tabla de controles en Supabase. Ejecuta el archivo SQL incluido.';
- }
+ gastos=ga.data||[];
+ if(ga.error && profile.rol==='admin') console.warn('Gastos:',ga.error);
  render();
 }
 function pname(id){return profiles.find(x=>x.id===id)?.nombre||''}
@@ -626,6 +720,7 @@ function render(){
  accesosRows.innerHTML=accesos.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString('es-MX')}</td><td>${esc(x.persona)}</td><td>${esc(x.tipo)}</td><td>${esc(x.movimiento)}</td><td>${esc(x.unidad)}</td></tr>`).join('');
  renderPorton();
  renderEventos();
+ renderGastos();
 }
 
 function abrirEdicionResidente(id){
@@ -704,6 +799,200 @@ async function eliminarResidente(id){
  alert('Residente eliminado.');
 }
 
+
+async function addGasto(){
+ if(profile?.rol!=='admin') return;
+
+ const fecha=document.getElementById('gFecha')?.value;
+ const categoria=document.getElementById('gCategoria')?.value||'Otro';
+ const concepto=document.getElementById('gConcepto')?.value.trim();
+ const monto=Number(document.getElementById('gMonto')?.value||0);
+ const proveedor=document.getElementById('gProveedor')?.value.trim()||null;
+ const referencia=document.getElementById('gReferencia')?.value.trim()||null;
+ const descripcion=document.getElementById('gDescripcion')?.value.trim()||null;
+
+ if(!fecha) return alert('Selecciona la fecha del gasto.');
+ if(!concepto) return alert('Escribe el concepto del gasto.');
+ if(!(monto>0)) return alert('Escribe un monto mayor a 0.');
+
+ const {error}=await sb.from('gastos').insert({
+   fecha,categoria,concepto,monto,proveedor,referencia,descripcion,
+   creado_por:user.id
+ });
+
+ if(error) return alert('No se pudo registrar el gasto: '+error.message);
+
+ gFecha.value='';
+ gConcepto.value='';
+ gMonto.value='';
+ gProveedor.value='';
+ gReferencia.value='';
+ gDescripcion.value='';
+
+ await loadAll();
+ alert('Gasto registrado correctamente.');
+}
+
+async function editarGasto(id){
+ if(profile?.rol!=='admin') return;
+ const g=gastos.find(x=>String(x.id)===String(id));
+ if(!g) return alert('No se encontró el gasto.');
+
+ const concepto=prompt('Concepto del gasto:',g.concepto||'');
+ if(concepto===null) return;
+ const montoTxt=prompt('Monto:',String(g.monto||0));
+ if(montoTxt===null) return;
+ const monto=Number(montoTxt);
+
+ if(!concepto.trim()) return alert('El concepto no puede quedar vacío.');
+ if(!(monto>0)) return alert('El monto debe ser mayor a 0.');
+
+ const {error}=await sb.from('gastos')
+   .update({concepto:concepto.trim(),monto})
+   .eq('id',id);
+
+ if(error) return alert('No se pudo editar el gasto: '+error.message);
+ await loadAll();
+}
+
+async function eliminarGasto(id){
+ if(profile?.rol!=='admin') return;
+ if(!confirm('¿Eliminar este gasto del historial?')) return;
+
+ const {error}=await sb.from('gastos').delete().eq('id',id);
+ if(error) return alert('No se pudo eliminar el gasto: '+error.message);
+
+ await loadAll();
+}
+
+function renderGastos(){
+ if(profile?.rol!=='admin') return;
+
+ const ingresos=pagos.reduce((s,p)=>s+Number(p.monto||0),0);
+ const egresos=gastos.reduce((s,g)=>s+Number(g.monto||0),0);
+ const balance=ingresos-egresos;
+
+ const ing=document.getElementById('repIngresos');
+ const gas=document.getElementById('repGastos');
+ const bal=document.getElementById('repBalance');
+ if(ing) ing.textContent=money(ingresos);
+ if(gas) gas.textContent=money(egresos);
+ if(bal) bal.textContent=money(balance);
+
+ const gastosBody=document.getElementById('gastosRows');
+ if(gastosBody){
+   gastosBody.innerHTML=gastos.map(g=>`<tr>
+     <td>${esc(g.fecha||'')}</td>
+     <td>${esc(g.categoria||'')}</td>
+     <td>${esc(g.concepto||'')}</td>
+     <td>${esc(g.proveedor||'')}</td>
+     <td>${esc(g.referencia||'')}</td>
+     <td><strong>${money(g.monto)}</strong></td>
+     <td>
+       <button onclick="editarGasto(${g.id})">Editar</button>
+       <button class="danger" onclick="eliminarGasto(${g.id})">Eliminar</button>
+     </td>
+   </tr>`).join('')||'<tr><td colspan="7" class="muted">No hay gastos registrados.</td></tr>';
+ }
+
+ const pagosBody=document.getElementById('historialPagosRows');
+ if(pagosBody){
+   pagosBody.innerHTML=pagos.map(p=>{
+     const r=profiles.find(x=>x.id===p.residente_id)||{};
+     const q=cuotas.find(x=>String(x.id)===String(p.cuota_id))||{};
+     return `<tr>
+       <td>${esc(p.fecha||'')}</td>
+       <td>${esc(r.nombre||'')}</td>
+       <td>${esc(q.concepto||'')}</td>
+       <td>${esc(p.metodo||'')}</td>
+       <td>${esc(p.referencia||'')}</td>
+       <td><strong>${money(p.monto)}</strong></td>
+     </tr>`;
+   }).join('')||'<tr><td colspan="6" class="muted">No hay pagos registrados.</td></tr>';
+ }
+}
+
+function generarAclaracionGastos(){
+ if(profile?.rol!=='admin') return;
+
+ const ingresos=pagos.reduce((s,p)=>s+Number(p.monto||0),0);
+ const egresos=gastos.reduce((s,g)=>s+Number(g.monto||0),0);
+ const balance=ingresos-egresos;
+ const fechaGeneracion=new Date().toLocaleString('es-MX');
+
+ const pagosHtml=pagos.map(p=>{
+   const r=profiles.find(x=>x.id===p.residente_id)||{};
+   const q=cuotas.find(x=>String(x.id)===String(p.cuota_id))||{};
+   return `<tr>
+     <td>${esc(p.fecha||'')}</td>
+     <td>${esc(r.nombre||'')}</td>
+     <td>${esc(q.concepto||'')}</td>
+     <td>${esc(p.metodo||'')}</td>
+     <td>${esc(p.referencia||'')}</td>
+     <td>${money(p.monto)}</td>
+   </tr>`;
+ }).join('') || '<tr><td colspan="6">Sin pagos registrados.</td></tr>';
+
+ const gastosHtml=gastos.map(g=>`<tr>
+   <td>${esc(g.fecha||'')}</td>
+   <td>${esc(g.categoria||'')}</td>
+   <td>${esc(g.concepto||'')}</td>
+   <td>${esc(g.proveedor||'')}</td>
+   <td>${esc(g.referencia||'')}</td>
+   <td>${money(g.monto)}</td>
+ </tr>`).join('') || '<tr><td colspan="6">Sin gastos registrados.</td></tr>';
+
+ const reporte=`<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Aclaración de gastos</title>
+<style>
+body{font-family:Arial,sans-serif;padding:36px;color:#111}
+h1{margin-bottom:4px}
+h2{margin-top:30px}
+.muted{color:#666}
+.resumen{display:flex;gap:14px;flex-wrap:wrap;margin:24px 0}
+.caja{border:1px solid #ccc;padding:15px;min-width:190px;border-radius:8px}
+table{width:100%;border-collapse:collapse;margin-top:12px}
+th,td{border:1px solid #ccc;padding:8px;text-align:left}
+th{background:#f2f2f2}
+@media print{button{display:none}}
+</style>
+</head>
+<body>
+<h1>Aclaración de gastos del condominio</h1>
+<div class="muted">Generado: ${fechaGeneracion}</div>
+
+<div class="resumen">
+  <div class="caja"><strong>Total pagos recibidos</strong><br>${money(ingresos)}</div>
+  <div class="caja"><strong>Total gastos</strong><br>${money(egresos)}</div>
+  <div class="caja"><strong>Balance</strong><br>${money(balance)}</div>
+</div>
+
+<h2>Historial de pagos recibidos</h2>
+<table>
+<thead><tr><th>Fecha</th><th>Residente</th><th>Concepto</th><th>Método</th><th>Referencia</th><th>Monto</th></tr></thead>
+<tbody>${pagosHtml}</tbody>
+</table>
+
+<h2>Historial de gastos</h2>
+<table>
+<thead><tr><th>Fecha</th><th>Categoría</th><th>Concepto</th><th>Proveedor</th><th>Referencia</th><th>Monto</th></tr></thead>
+<tbody>${gastosHtml}</tbody>
+</table>
+
+<p style="margin-top:28px"><strong>Balance final: ${money(balance)}</strong></p>
+<button onclick="window.print()">Imprimir / Guardar como PDF</button>
+</body>
+</html>`;
+
+ const w=window.open('','_blank');
+ if(!w) return alert('Permite ventanas emergentes para generar el reporte.');
+ w.document.open();
+ w.document.write(reporte);
+ w.document.close();
+}
 async function addProfile(){
  const row={id:rId.value.trim(),nombre:rNombre.value.trim(),unidad:rUnidad.value.trim()||null,rol:rRol.value,activo:true};
  const {error}=await sb.from('profiles').insert(row); if(error)return alert(error.message); await loadAll();
