@@ -18,6 +18,15 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 .badge{padding:4px 8px;border-radius:99px;background:#334155} h1,h2,h3{margin-top:0}
 @media(max-width:800px){.app{grid-template-columns:1fr} aside{border-right:0;border-bottom:1px solid #334155} .grid,.form{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.grid,.form{grid-template-columns:1fr} main{padding:14px}}
+
+.modal{
+  position:fixed; inset:0; background:rgba(0,0,0,.62);
+  display:flex; align-items:center; justify-content:center;
+  padding:20px; z-index:9999;
+}
+.modal.hidden{display:none!important}
+.modalBox{width:min(560px,100%); max-height:90vh; overflow:auto}
+
 </style>
 </head>
 <body>
@@ -132,7 +141,35 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 <section id="residentes"><h2>Residentes</h2><div class="card"><p class="muted">Los usuarios se crean primero en Authentication → Users. Después agrega su perfil aquí usando su UUID.</p>
 <div class="form"><div><label>UUID del usuario</label><input id="rId"></div><div><label>Nombre</label><input id="rNombre"></div>
 <div><label>Unidad</label><input id="rUnidad"></div><div><label>Rol</label><select id="rRol"><option value="residente">Residente</option><option value="guardia">Guardia</option><option value="admin">Administrador</option></select></div></div>
-<button class="primary" style="margin-top:12px" onclick="addProfile()">Guardar perfil</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Nombre</th><th>Unidad</th><th>Rol</th><th>Activo</th></tr></thead><tbody id="profilesRows"></tbody></table></div></section>
+<button class="primary" style="margin-top:12px" onclick="addProfile()">Guardar perfil</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Nombre</th><th>Unidad</th><th>Rol</th><th>Activo</th></tr></thead><tbody id="profilesRows"></tbody></table></div>
+<div id="editResidentModal" class="modal hidden">
+  <div class="modalBox card">
+    <h3>Editar residente</h3>
+    <input id="editResidentId" type="hidden">
+    <div class="form">
+      <div>
+        <label>Nombre</label>
+        <input id="editResidentNombre" placeholder="Nombre del residente">
+      </div>
+      <div>
+        <label>Unidad / Casa</label>
+        <input id="editResidentUnidad" placeholder="Ej. A-12">
+      </div>
+      <div>
+        <label>Estado</label>
+        <select id="editResidentActivo">
+          <option value="true">Activo</option>
+          <option value="false">Inactivo</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="primary" onclick="guardarEdicionResidente()">Guardar cambios</button>
+      <button onclick="cerrarEdicionResidente()">Cancelar</button>
+    </div>
+  </div>
+</div>
+</section>
 
 <section id="cuotas"><h2>Cuotas</h2><div class="card adminOnly"><div class="form">
 <div><label>Residente</label><select id="cRes"></select></div><div><label>Concepto</label><input id="cConcepto" value="Mantenimiento"></div>
@@ -571,7 +608,16 @@ function render(){
      return `<tr><td>${esc(pr.nombre||'Sin nombre')}</td><td>${esc(pr.unidad||'')}</td><td>${d.cuotas}</td><td>${money(d.pagado)}</td><td><strong>${money(d.pendiente)}</strong></td></tr>`;
    }).join('') || '<tr><td colspan="5" class="muted">No hay deudas pendientes.</td></tr>';
  }
- profilesRows.innerHTML=profiles.map(x=>`<tr><td>${esc(x.nombre)}</td><td>${esc(x.unidad)}</td><td>${esc(x.rol)}</td><td>${x.activo?'Sí':'No'}</td></tr>`).join('');
+ profilesRows.innerHTML=profiles.map(x=>`<tr>
+   <td>${esc(x.nombre||'')}</td>
+   <td>${esc(x.rol||'')}</td>
+   <td>${esc(x.unidad||'')}</td>
+   <td>${x.activo!==false?'<span class="badge">Activo</span>':'<span class="badge">Inactivo</span>'}</td>
+   <td>${x.rol==='residente'
+     ? `<button onclick="abrirEdicionResidente('${x.id}')">Editar</button> <button class="danger" onclick="eliminarResidente('${x.id}')">Eliminar</button>`
+     : '<span class="muted">—</span>'}
+   </td>
+ </tr>`).join('');
  const residents=profiles.filter(x=>x.rol==='residente'); cRes.innerHTML=residents.map(x=>`<option value="${x.id}">${esc(x.nombre)} — ${esc(x.unidad)}</option>`).join('');
  cuotasRows.innerHTML=cuotas.map(x=>`<tr><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td>${esc(x.concepto)}</td><td>${money(x.monto)}</td><td>${esc(x.vencimiento)}</td><td><span class="badge">${esc(x.estado)}</span></td><td class="adminOnly">${profile?.rol==='admin'?`<button onclick="editarVencimientoCuota(${x.id}, '${esc(x.vencimiento||'')}')">Editar vencimiento</button>`:''}</td></tr>`).join('');
  pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>`<option value="${x.id}">${esc(pname(x.residente_id))} — ${esc(x.concepto)} — ${money(x.monto)}</option>`).join('');
@@ -581,6 +627,83 @@ function render(){
  renderPorton();
  renderEventos();
 }
+
+function abrirEdicionResidente(id){
+ if(profile?.rol!=='admin') return;
+ const r=profiles.find(p=>p.id===id && p.rol==='residente');
+ if(!r) return alert('No se encontró el residente.');
+
+ document.getElementById('editResidentId').value=r.id;
+ document.getElementById('editResidentNombre').value=r.nombre||'';
+ document.getElementById('editResidentUnidad').value=r.unidad||'';
+ document.getElementById('editResidentActivo').value=String(r.activo!==false);
+ document.getElementById('editResidentModal').classList.remove('hidden');
+}
+
+function cerrarEdicionResidente(){
+ document.getElementById('editResidentModal')?.classList.add('hidden');
+}
+
+async function guardarEdicionResidente(){
+ if(profile?.rol!=='admin') return;
+
+ const id=document.getElementById('editResidentId').value;
+ const nombre=document.getElementById('editResidentNombre').value.trim();
+ const unidad=document.getElementById('editResidentUnidad').value.trim();
+ const activo=document.getElementById('editResidentActivo').value==='true';
+
+ if(!id) return alert('Falta seleccionar el residente.');
+ if(!nombre) return alert('Escribe el nombre del residente.');
+ if(!unidad) return alert('Escribe la unidad o casa.');
+
+ const original=profiles.find(p=>p.id===id);
+ const unidadAnterior=original?.unidad||'';
+
+ const {error}=await sb.from('profiles')
+   .update({nombre,unidad,activo})
+   .eq('id',id)
+   .eq('rol','residente');
+
+ if(error) return alert('No se pudo editar el residente: '+error.message);
+
+ // Si la unidad cambió, actualiza también los controles asignados.
+ if(unidadAnterior!==unidad){
+   const {error:ctrlError}=await sb.from('controles_residenciales')
+     .update({residente_id:id, actualizado_por:user.id, actualizado_en:new Date().toISOString()})
+     .eq('residente_id',id);
+   if(ctrlError){
+     console.warn('No se pudieron sincronizar los controles:',ctrlError);
+   }
+ }
+
+ cerrarEdicionResidente();
+ await loadAll();
+ alert('Residente actualizado correctamente.');
+}
+
+async function eliminarResidente(id){
+ if(profile?.rol!=='admin') return;
+
+ const r=profiles.find(p=>p.id===id && p.rol==='residente');
+ if(!r) return alert('No se encontró el residente.');
+
+ const ok=confirm(
+   `¿Eliminar a ${r.nombre} (${r.unidad||'sin unidad'})?\n\n`+
+   'Esta acción eliminará su perfil y los registros relacionados que dependan de él. No se puede deshacer.'
+ );
+ if(!ok) return;
+
+ const {error}=await sb.from('profiles')
+   .delete()
+   .eq('id',id)
+   .eq('rol','residente');
+
+ if(error) return alert('No se pudo eliminar el residente: '+error.message);
+
+ await loadAll();
+ alert('Residente eliminado.');
+}
+
 async function addProfile(){
  const row={id:rId.value.trim(),nombre:rNombre.value.trim(),unidad:rUnidad.value.trim()||null,rol:rRol.value,activo:true};
  const {error}=await sb.from('profiles').insert(row); if(error)return alert(error.message); await loadAll();
