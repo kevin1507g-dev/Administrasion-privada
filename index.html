@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Administración Residencial</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{--bg:#0f172a;--p:#111827;--p2:#1e293b;--t:#f8fafc;--m:#94a3b8;--g:#22c55e;--r:#ef4444;--b:#38bdf8}
 *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--t)}
@@ -47,6 +48,7 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 <button class="controlAccessOnly" onclick="show('porton')">🚧 Controles de portón</button>
 <button onclick="show('cuotas')">🧾 Cuotas</button>
 <button onclick="show('pagos')">💳 Pagos</button>
+<button class="paymentMethodsOnly" onclick="show('metodosPago')">💵 Métodos de pago</button>
 <button class="adminOnly" onclick="show('gastos')">🧾 Aclaración de gastos</button>
 <button onclick="show('visitas')">🚗 Visitas</button>
 <button onclick="show('eventos')">📅 Eventos</button>
@@ -199,6 +201,24 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 </div></section>
 
 
+<section id="metodosPago" class="paymentMethodsOnly"><h2>💵 Métodos de pago</h2>
+<div class="adminOnly card">
+  <h3>Administrar métodos de pago</h3>
+  <p class="muted">Agrega las formas de pago que podrán consultar los residentes. Puedes incluir instrucciones para efectivo o datos bancarios para transferencias.</p>
+  <div class="form">
+    <div><label>Método</label><input id="mpNombre" placeholder="Ej. Efectivo o Transferencia"></div>
+    <div><label>Banco</label><input id="mpBanco" placeholder="Ej. BBVA (opcional)"></div>
+    <div><label>Beneficiario</label><input id="mpBeneficiario" placeholder="Nombre del beneficiario (opcional)"></div>
+    <div><label>Número de cuenta / CLABE</label><input id="mpCuenta" placeholder="Cuenta o CLABE (opcional)"></div>
+    <div class="full"><label>Descripción</label><input id="mpDescripcion" placeholder="Ej. Pagar directamente en administración"></div>
+    <div class="full"><label>Instrucciones</label><input id="mpInstrucciones" placeholder="Ej. Escribir número de casa en el concepto"></div>
+  </div>
+  <button class="primary" style="margin-top:12px" onclick="addMetodoPago()">➕ Agregar método</button>
+</div>
+<div id="metodosPagoLista" style="margin-top:14px"></div>
+</section>
+
+
 <section id="gastos"><h2>Aclaración de gastos</h2>
 
 <div class="adminOnly card">
@@ -266,6 +286,7 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
   <p class="muted">Genera un reporte con el historial de pagos recibidos, gastos registrados y balance.</p>
   <div style="display:flex;gap:10px;flex-wrap:wrap">
     <button class="primary" onclick="generarAclaracionGastos()">📄 Generar aclaración de gastos</button>
+    <button class="primary" onclick="generarExcelAdministracion()">📊 Generar Excel</button>
     <button onclick="window.print()">🖨️ Imprimir pantalla</button>
   </div>
 </div>
@@ -331,7 +352,7 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 const SB_URL='https://nndlfkuelwpwklldvtfo.supabase.co';
 const SB_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
 const sb=supabase.createClient(SB_URL,SB_KEY);
-let user=null, profile=null, profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[];
+let user=null, profile=null, profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[];
 const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const money=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(n||0));
 function show(id){document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));$(id).classList.add('active')}
@@ -390,12 +411,13 @@ async function enter(){
  document.querySelectorAll('.staffOnly').forEach(x=>x.classList.toggle('hidden',!['admin','guardia'].includes(profile.rol)));
  document.querySelectorAll('.residentOnly').forEach(x=>x.classList.toggle('hidden',profile.rol!=='residente'));
  document.querySelectorAll('.controlAccessOnly').forEach(x=>x.classList.toggle('hidden',!['admin','residente'].includes(profile.rol)));
+ document.querySelectorAll('.paymentMethodsOnly').forEach(x=>x.classList.toggle('hidden',!['admin','residente'].includes(profile.rol)));
  if(profile.rol==='guardia') visitCreate.classList.add('hidden');
  vFecha.value=new Date().toISOString().slice(0,10); cFecha.value=new Date().toISOString().slice(0,10);
  await loadAll();
 }
 async function loadAll(){
- const [pr,cu,pa,vi,ac,ev,ct,ga]=await Promise.all([
+ const [pr,cu,pa,vi,ac,ev,ct,ga,mp]=await Promise.all([
    profile.rol==='admin'?sb.from('profiles').select('*').order('nombre'):Promise.resolve({data:[profile]}),
    sb.from('cuotas').select('*').order('created_at',{ascending:false}),
    sb.from('pagos').select('*').order('created_at',{ascending:false}),
@@ -403,7 +425,8 @@ async function loadAll(){
    ['admin','guardia'].includes(profile.rol)?sb.from('accesos').select('*').order('created_at',{ascending:false}):Promise.resolve({data:[]}),
    sb.from('eventos').select('*').order('fecha',{ascending:true}).order('hora',{ascending:true}),
    ['admin','residente'].includes(profile.rol)?sb.from('controles_residenciales').select('*').order('numero_control',{ascending:true}):Promise.resolve({data:[]}),
-   profile.rol==='admin'?sb.from('gastos').select('*').order('fecha',{ascending:false}).order('created_at',{ascending:false}):Promise.resolve({data:[]})
+   profile.rol==='admin'?sb.from('gastos').select('*').order('fecha',{ascending:false}).order('created_at',{ascending:false}):Promise.resolve({data:[]}),
+   ['admin','residente'].includes(profile.rol)?sb.from('metodos_pago').select('*').order('created_at',{ascending:true}):Promise.resolve({data:[]})
  ]);
  profiles=pr.data||[];
  cuotas=cu.data||[];
@@ -413,7 +436,9 @@ async function loadAll(){
  eventos=ev.data||[];
  controles=ct.data||[];
  gastos=ga.data||[];
+ metodosPago=mp.data||[];
  if(ga.error && profile.rol==='admin') console.warn('Gastos:',ga.error);
+ if(mp.error && ['admin','residente'].includes(profile.rol)) console.warn('Métodos de pago:',mp.error);
  render();
 }
 function pname(id){return profiles.find(x=>x.id===id)?.nombre||''}
@@ -721,6 +746,7 @@ function render(){
  renderPorton();
  renderEventos();
  renderGastos();
+ renderMetodosPago();
 }
 
 function abrirEdicionResidente(id){
@@ -912,6 +938,68 @@ function renderGastos(){
  }
 }
 
+function generarExcelAdministracion(){
+ if(profile?.rol!=='admin') return alert('Solo el administrador puede generar este Excel.');
+ if(typeof XLSX==='undefined') return alert('No se pudo cargar el generador de Excel. Revisa tu conexión a Internet.');
+
+ const wb=XLSX.utils.book_new();
+ const suspendidos=controles.filter(c=>c.estado==='suspendido').map(c=>{
+   const r=profiles.find(p=>p.id===c.residente_id)||{};
+   return {
+     'Casa / Unidad':c.unidad||r.unidad||'',
+     'Residente':r.nombre||'',
+     'Número de control':c.numero_control||'',
+     'Estado':'Suspendido temporalmente',
+     'Última actualización':c.actualizado_en?new Date(c.actualizado_en).toLocaleString('es-MX'):'',
+     'Observación':'Control suspendido desde Administración Residencial'
+   };
+ });
+
+ const pagosExcel=pagos.map(p=>{
+   const r=profiles.find(x=>x.id===p.residente_id)||{};
+   const q=cuotas.find(x=>String(x.id)===String(p.cuota_id))||{};
+   return {
+     'Fecha':p.fecha||'', 'Casa / Unidad':r.unidad||'', 'Residente':r.nombre||'',
+     'Concepto':q.concepto||'', 'Método':p.metodo||'', 'Monto':Number(p.monto||0),
+     'Referencia':p.referencia||''
+   };
+ });
+
+ const gastosExcel=gastos.map(g=>({
+   'Fecha':g.fecha||'', 'Categoría':g.categoria||'', 'Concepto':g.concepto||'',
+   'Proveedor / Beneficiario':g.proveedor||'', 'Referencia / Folio':g.referencia||'',
+   'Monto':Number(g.monto||0), 'Descripción / Aclaración':g.descripcion||'',
+   'Registrado por':profile.nombre||'Administrador'
+ }));
+
+ const ingresos=pagos.reduce((s,p)=>s+Number(p.monto||0),0);
+ const egresos=gastos.reduce((s,g)=>s+Number(g.monto||0),0);
+ const resumen=[
+   ['ADMINISTRACIÓN RESIDENCIAL — REPORTE GENERAL',''],
+   ['Generado',new Date().toLocaleString('es-MX')],[],
+   ['Indicador','Total'],['Pagos recibidos',ingresos],['Gastos registrados',egresos],
+   ['Balance',ingresos-egresos],['Controles suspendidos',suspendidos.length]
+ ];
+
+ const wsResumen=XLSX.utils.aoa_to_sheet(resumen);
+ const wsControles=XLSX.utils.json_to_sheet(suspendidos.length?suspendidos:[{'Casa / Unidad':'','Residente':'','Número de control':'','Estado':'Sin controles suspendidos','Última actualización':'','Observación':''}]);
+ const wsPagos=XLSX.utils.json_to_sheet(pagosExcel.length?pagosExcel:[{'Fecha':'','Casa / Unidad':'','Residente':'','Concepto':'','Método':'','Monto':0,'Referencia':''}]);
+ const wsGastos=XLSX.utils.json_to_sheet(gastosExcel.length?gastosExcel:[{'Fecha':'','Categoría':'','Concepto':'','Proveedor / Beneficiario':'','Referencia / Folio':'','Monto':0,'Descripción / Aclaración':'','Registrado por':''}]);
+
+ wsResumen['!cols']=[{wch:30},{wch:22}];
+ wsControles['!cols']=[{wch:16},{wch:25},{wch:20},{wch:27},{wch:24},{wch:42}];
+ wsPagos['!cols']=[{wch:14},{wch:16},{wch:25},{wch:28},{wch:18},{wch:16},{wch:24}];
+ wsGastos['!cols']=[{wch:14},{wch:18},{wch:28},{wch:28},{wch:22},{wch:16},{wch:42},{wch:24}];
+
+ XLSX.utils.book_append_sheet(wb,wsResumen,'Resumen');
+ XLSX.utils.book_append_sheet(wb,wsControles,'Controles suspendidos');
+ XLSX.utils.book_append_sheet(wb,wsPagos,'Pagos');
+ XLSX.utils.book_append_sheet(wb,wsGastos,'Gastos');
+
+ const hoy=new Date().toISOString().slice(0,10);
+ XLSX.writeFile(wb,`Administracion_Residencial_${hoy}.xlsx`);
+}
+
 function generarAclaracionGastos(){
  if(profile?.rol!=='admin') return;
 
@@ -993,6 +1081,80 @@ th{background:#f2f2f2}
  w.document.write(reporte);
  w.document.close();
 }
+async function addMetodoPago(){
+ if(profile?.rol!=='admin') return;
+ const nombre=document.getElementById('mpNombre')?.value.trim();
+ const banco=document.getElementById('mpBanco')?.value.trim()||null;
+ const beneficiario=document.getElementById('mpBeneficiario')?.value.trim()||null;
+ const numero_cuenta=document.getElementById('mpCuenta')?.value.trim()||null;
+ const descripcion=document.getElementById('mpDescripcion')?.value.trim()||null;
+ const instrucciones=document.getElementById('mpInstrucciones')?.value.trim()||null;
+ if(!nombre) return alert('Escribe el nombre del método de pago.');
+ const {error}=await sb.from('metodos_pago').insert({nombre,banco,beneficiario,numero_cuenta,descripcion,instrucciones,activo:true,creado_por:user.id});
+ if(error) return alert('No se pudo guardar: '+error.message);
+ ['mpNombre','mpBanco','mpBeneficiario','mpCuenta','mpDescripcion','mpInstrucciones'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+ await loadAll();
+ alert('Método de pago agregado correctamente.');
+}
+
+async function editarMetodoPago(id){
+ if(profile?.rol!=='admin') return;
+ const m=metodosPago.find(x=>String(x.id)===String(id));
+ if(!m) return alert('No se encontró el método de pago.');
+ const nombre=prompt('Nombre del método:',m.nombre||''); if(nombre===null)return;
+ const descripcion=prompt('Descripción:',m.descripcion||''); if(descripcion===null)return;
+ const banco=prompt('Banco:',m.banco||''); if(banco===null)return;
+ const beneficiario=prompt('Beneficiario:',m.beneficiario||''); if(beneficiario===null)return;
+ const cuenta=prompt('Número de cuenta / CLABE:',m.numero_cuenta||''); if(cuenta===null)return;
+ const instrucciones=prompt('Instrucciones:',m.instrucciones||''); if(instrucciones===null)return;
+ if(!nombre.trim()) return alert('El nombre no puede quedar vacío.');
+ const {error}=await sb.from('metodos_pago').update({
+   nombre:nombre.trim(), descripcion:descripcion.trim()||null, banco:banco.trim()||null,
+   beneficiario:beneficiario.trim()||null, numero_cuenta:cuenta.trim()||null,
+   instrucciones:instrucciones.trim()||null
+ }).eq('id',id);
+ if(error) return alert('No se pudo editar: '+error.message);
+ await loadAll();
+}
+
+async function cambiarEstadoMetodoPago(id,activo){
+ if(profile?.rol!=='admin') return;
+ if(!confirm(`¿Quieres ${activo?'activar':'suspender'} este método de pago?`)) return;
+ const {error}=await sb.from('metodos_pago').update({activo}).eq('id',id);
+ if(error) return alert('No se pudo actualizar: '+error.message);
+ await loadAll();
+}
+
+async function eliminarMetodoPago(id){
+ if(profile?.rol!=='admin') return;
+ if(!confirm('¿Eliminar este método de pago?')) return;
+ const {error}=await sb.from('metodos_pago').delete().eq('id',id);
+ if(error) return alert('No se pudo eliminar: '+error.message);
+ await loadAll();
+}
+
+async function copiarCuenta(texto){
+ if(!texto) return;
+ try{
+   await navigator.clipboard.writeText(texto);
+   alert('Número de cuenta copiado.');
+ }catch(_){
+   prompt('Copia el número de cuenta:',texto);
+ }
+}
+
+function renderMetodosPago(){
+ const caja=document.getElementById('metodosPagoLista');
+ if(!caja || !['admin','residente'].includes(profile?.rol)) return;
+ const lista=profile.rol==='residente'?metodosPago.filter(x=>x.activo!==false):metodosPago;
+ caja.innerHTML=lista.map(m=>{
+   const cuentaCodificada=encodeURIComponent(m.numero_cuenta||'');
+   const cuenta=m.numero_cuenta?`<div style="margin-top:10px"><strong>Cuenta / CLABE:</strong><br><span style="font-size:1.08em">${esc(m.numero_cuenta)}</span><br><button style="margin-top:8px" onclick="copiarCuenta(decodeURIComponent('${cuentaCodificada}'))">📋 Copiar cuenta</button></div>`:'';
+   const acciones=profile.rol==='admin'?`<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button onclick="editarMetodoPago(${m.id})">✏️ Editar</button>${m.activo!==false?`<button class="danger" onclick="cambiarEstadoMetodoPago(${m.id},false)">Suspender</button>`:`<button class="primary" onclick="cambiarEstadoMetodoPago(${m.id},true)">Activar</button>`}<button class="danger" onclick="eliminarMetodoPago(${m.id})">🗑️ Eliminar</button></div>`:'';
+   return `<div class="card" style="margin-bottom:14px"><h3>💳 ${esc(m.nombre||'Método de pago')}</h3>${profile.rol==='admin'?`<div class="badge">${m.activo!==false?'✅ Activo':'⛔ Suspendido'}</div>`:''}${m.descripcion?`<p>${esc(m.descripcion)}</p>`:''}${m.banco?`<p><strong>Banco:</strong> ${esc(m.banco)}</p>`:''}${m.beneficiario?`<p><strong>Beneficiario:</strong> ${esc(m.beneficiario)}</p>`:''}${cuenta}${m.instrucciones?`<p style="margin-top:12px"><strong>Instrucciones:</strong><br>${esc(m.instrucciones)}</p>`:''}${acciones}</div>`;
+ }).join('')||'<div class="card muted">No hay métodos de pago disponibles.</div>';
+}
+
 async function addProfile(){
  const row={id:rId.value.trim(),nombre:rNombre.value.trim(),unidad:rUnidad.value.trim()||null,rol:rRol.value,activo:true};
  const {error}=await sb.from('profiles').insert(row); if(error)return alert(error.message); await loadAll();
