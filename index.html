@@ -191,7 +191,7 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 </div><div class="card adminOnly"><div class="form">
 <div><label>Cuota</label><select id="pCuota"></select></div><div><label>Monto</label><input id="pMonto" type="number" step=".01"></div>
 <div><label>Método</label><select id="pMetodo"><option>Transferencia</option><option>Efectivo</option><option>Tarjeta</option><option>Otro</option></select></div><div><label>Referencia</label><input id="pRef"></div></div>
-<button class="primary" style="margin-top:12px" onclick="addPago()">Registrar pago</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Residente</th><th>Monto</th><th>Método</th><th>Referencia</th></tr></thead><tbody id="pagosRows"></tbody></table></div>
+<button class="primary" style="margin-top:12px" onclick="addPago()">Registrar pago</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Residente</th><th>Monto</th><th>Método</th><th>Referencia</th><th class="adminOnly">Acción</th></tr></thead><tbody id="pagosRows"></tbody></table></div>
 <div id="residentBalanceCard" class="card table" style="margin-top:14px;display:none">
   <h3 style="padding:14px 14px 0">Detalle de lo que debes</h3>
   <table>
@@ -744,7 +744,7 @@ function render(){
  const residents=profiles.filter(x=>x.rol==='residente'); cRes.innerHTML=residents.map(x=>`<option value="${x.id}">${esc(x.nombre)} — ${esc(x.unidad)}</option>`).join('');
  cuotasRows.innerHTML=cuotas.map(x=>`<tr><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td>${esc(x.concepto)}</td><td>${money(x.monto)}</td><td>${esc(x.vencimiento)}</td><td><span class="badge">${esc(x.estado)}</span></td><td class="adminOnly">${profile?.rol==='admin'?`<button onclick="editarVencimientoCuota(${x.id}, '${esc(x.vencimiento||'')}')">Editar vencimiento</button>`:''}</td></tr>`).join('');
  pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>`<option value="${x.id}">${esc(pname(x.residente_id))} — ${esc(x.concepto)} — ${money(x.monto)}</option>`).join('');
- pagosRows.innerHTML=pagos.map(x=>`<tr><td>${esc(x.fecha)}</td><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td>${money(x.monto)}</td><td>${esc(x.metodo)}</td><td>${esc(x.referencia)}</td></tr>`).join('');
+ pagosRows.innerHTML=pagos.map(x=>`<tr><td>${esc(x.fecha)}</td><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td><strong>${money(x.monto)}</strong></td><td>${esc(x.metodo)}</td><td>${esc(x.referencia)}</td><td class="adminOnly">${profile?.rol==='admin'?`<button onclick="editarPago(${x.id})">✏️ Editar total pagado</button>`:''}</td></tr>`).join('');
  visitasRows.innerHTML=visitas.map(x=>`<tr><td>${esc(x.fecha)} ${esc(x.hora)}</td><td>${esc(x.visitante)}</td><td>${esc(x.unidad)}</td><td>${esc(x.placas)}</td><td><span class="badge">${esc(x.estado)}</span></td></tr>`).join('');
  accesosRows.innerHTML=accesos.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString('es-MX')}</td><td>${esc(x.persona)}</td><td>${esc(x.tipo)}</td><td>${esc(x.movimiento)}</td><td>${esc(x.unidad)}</td></tr>`).join('');
  renderPorton();
@@ -1178,6 +1178,37 @@ async function addPago(){
  const q=cuotas.find(x=>String(x.id)===String(pCuota.value)); if(!q)return alert('Selecciona una cuota');
  const monto=Number(pMonto.value); const {error}=await sb.from('pagos').insert({cuota_id:q.id,residente_id:q.residente_id,monto,metodo:pMetodo.value,referencia:pRef.value,fecha:new Date().toISOString().slice(0,10)});
  if(error)return alert(error.message); if(monto>=Number(q.monto)) await sb.from('cuotas').update({estado:'pagada'}).eq('id',q.id); await loadAll();
+}
+
+async function editarPago(id){
+ if(profile?.rol!=='admin') return;
+ const pago=pagos.find(p=>String(p.id)===String(id));
+ if(!pago) return alert('No se encontró el pago.');
+ const residente=pname(pago.residente_id)||'Residente';
+ const actual=Number(pago.monto||0);
+ const valor=prompt(`Editar total pagado de ${residente}:`, String(actual));
+ if(valor===null) return;
+ const nuevoMonto=Number(String(valor).replace(',','.'));
+ if(!Number.isFinite(nuevoMonto) || nuevoMonto<0) return alert('Escribe un monto válido de 0 o mayor.');
+ if(!confirm(`¿Cambiar este pago de ${money(actual)} a ${money(nuevoMonto)}?`)) return;
+
+ const {error}=await sb.from('pagos').update({monto:nuevoMonto}).eq('id',id);
+ if(error) return alert('No se pudo editar el pago: '+error.message);
+
+ if(pago.cuota_id){
+   const q=cuotas.find(x=>String(x.id)===String(pago.cuota_id));
+   if(q){
+     const totalPagado=pagos
+       .filter(p=>String(p.cuota_id)===String(q.id))
+       .reduce((s,p)=>s+(String(p.id)===String(id)?nuevoMonto:Number(p.monto||0)),0);
+     const estado=totalPagado+0.009>=Number(q.monto||0)?'pagada':'pendiente';
+     const {error:qError}=await sb.from('cuotas').update({estado}).eq('id',q.id);
+     if(qError) console.warn('No se pudo actualizar el estado de la cuota:',qError);
+   }
+ }
+
+ await loadAll();
+ alert('Total pagado actualizado correctamente.');
 }
 async function addVisita(){
  const rid=profile.rol==='residente'?user.id:null;
