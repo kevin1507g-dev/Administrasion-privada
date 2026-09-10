@@ -144,7 +144,7 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 <section id="residentes"><h2>Residentes</h2><div class="card"><p class="muted">Los usuarios se crean primero en Authentication → Users. Después agrega su perfil aquí usando su UUID.</p>
 <div class="form"><div><label>UUID del usuario</label><input id="rId"></div><div><label>Nombre</label><input id="rNombre"></div>
 <div><label>Unidad</label><input id="rUnidad"></div><div><label>Rol</label><select id="rRol"><option value="residente">Residente</option><option value="guardia">Guardia</option><option value="admin">Administrador</option></select></div></div>
-<button class="primary" style="margin-top:12px" onclick="addProfile()">Guardar perfil</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Nombre</th><th>Unidad</th><th>Rol</th><th>Activo</th></tr></thead><tbody id="profilesRows"></tbody></table></div>
+<button class="primary" style="margin-top:12px" onclick="addProfile()">Guardar perfil</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Nombre</th><th>Unidad</th><th>Rol</th><th>Activo</th><th>Acciones</th></tr></thead><tbody id="profilesRows"></tbody></table></div>
 <div id="editResidentModal" class="modal hidden">
   <div class="modalBox card">
     <h3>Editar residente</h3>
@@ -734,7 +734,11 @@ function render(){
    <td>${x.activo!==false?'<span class="badge">Activo</span>':'<span class="badge">Inactivo</span>'}</td>
    <td>${x.rol==='residente'
      ? `<button onclick="abrirEdicionResidente('${x.id}')">Editar</button> <button class="danger" onclick="eliminarResidente('${x.id}')">Eliminar</button>`
-     : '<span class="muted">—</span>'}
+     : (x.rol==='admin' && x.id!==user?.id
+       ? `<button class="danger" onclick="eliminarResidente('${x.id}')">Eliminar admin</button>`
+       : (x.rol==='admin' && x.id===user?.id
+         ? '<span class="muted">Cuenta actual</span>'
+         : '<span class="muted">—</span>'))}
    </td>
  </tr>`).join('');
  const residents=profiles.filter(x=>x.rol==='residente'); cRes.innerHTML=residents.map(x=>`<option value="${x.id}">${esc(x.nombre)} — ${esc(x.unidad)}</option>`).join('');
@@ -805,24 +809,31 @@ async function guardarEdicionResidente(){
 async function eliminarResidente(id){
  if(profile?.rol!=='admin') return;
 
- const r=profiles.find(p=>p.id===id && p.rol==='residente');
- if(!r) return alert('No se encontró el residente.');
+ const r=profiles.find(p=>p.id===id && ['residente','admin'].includes(p.rol));
+ if(!r) return alert('No se encontró el usuario.');
 
+ // Protección: el administrador que tiene la sesión abierta no puede eliminarse a sí mismo.
+ if(String(r.id)===String(user?.id)){
+   return alert('No puedes eliminar tu propia cuenta de administrador mientras tienes la sesión abierta.');
+ }
+
+ const tipo=r.rol==='admin'?'administrador':'residente';
+ const detalle=r.unidad?` (${r.unidad})`:'';
  const ok=confirm(
-   `¿Eliminar a ${r.nombre} (${r.unidad||'sin unidad'})?\n\n`+
-   'Esta acción eliminará su perfil y los registros relacionados que dependan de él. No se puede deshacer.'
+   `¿Eliminar al ${tipo} ${r.nombre}${detalle}?\n\n`+
+   'Esta acción eliminará su perfil de la aplicación y los registros relacionados que dependan de él. No se puede deshacer.'
  );
  if(!ok) return;
 
  const {error}=await sb.from('profiles')
    .delete()
    .eq('id',id)
-   .eq('rol','residente');
+   .eq('rol',r.rol);
 
- if(error) return alert('No se pudo eliminar el residente: '+error.message);
+ if(error) return alert(`No se pudo eliminar al ${tipo}: `+error.message);
 
  await loadAll();
- alert('Residente eliminado.');
+ alert(r.rol==='admin'?'Administrador eliminado.':'Residente eliminado.');
 }
 
 
