@@ -73,7 +73,7 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 </div>
 <div class="card table" style="margin-top:14px">
 <table>
-<thead><tr><th>Residente</th><th>Unidad</th><th>Cuotas</th><th>Pagado</th><th>Deuda pendiente</th></tr></thead>
+<thead><tr><th>Residente</th><th>Unidad</th><th>Cuotas</th><th>Pagado</th><th>Deuda pendiente</th><th>Acciones</th></tr></thead>
 <tbody id="deudasRows"></tbody>
 </table>
 </div>
@@ -724,8 +724,8 @@ function render(){
  if(document.getElementById('deudasRows')){
    deudasRows.innerHTML=deudas.filter(d=>d.pendiente>0.009).map(d=>{
      const pr=profiles.find(x=>x.id===d.residente_id)||{};
-     return `<tr><td>${esc(pr.nombre||'Sin nombre')}</td><td>${esc(pr.unidad||'')}</td><td>${d.cuotas}</td><td>${money(d.pagado)}</td><td><strong>${money(d.pendiente)}</strong></td></tr>`;
-   }).join('') || '<tr><td colspan="5" class="muted">No hay deudas pendientes.</td></tr>';
+     return `<tr><td>${esc(pr.nombre||'Sin nombre')}</td><td>${esc(pr.unidad||'')}</td><td>${d.cuotas}</td><td>${money(d.pagado)}</td><td><strong>${money(d.pendiente)}</strong></td><td><button class="danger" onclick="eliminarDeudaResidente('${d.residente_id}')">🗑️ Eliminar deuda</button></td></tr>`;
+   }).join('') || '<tr><td colspan="6" class="muted">No hay deudas pendientes.</td></tr>';
  }
  profilesRows.innerHTML=profiles.map(x=>`<tr>
    <td>${esc(x.nombre||'')}</td>
@@ -751,6 +751,52 @@ function render(){
  renderEventos();
  renderGastos();
  renderMetodosPago();
+}
+
+
+async function eliminarDeudaResidente(residenteId){
+  if(profile?.rol!=='admin') return;
+
+  const residente=profiles.find(p=>String(p.id)===String(residenteId));
+  if(!residente) return alert('No se encontró el residente.');
+
+  const cuotasResidente=cuotas.filter(q=>String(q.residente_id)===String(residenteId));
+  const pendientes=cuotasResidente.map(q=>{
+    const pagado=pagos
+      .filter(p=>String(p.cuota_id)===String(q.id))
+      .reduce((s,p)=>s+Number(p.monto||0),0);
+    const monto=Number(q.monto||0);
+    const saldo=Math.max(0,monto-pagado);
+    return {q,pagado,monto,saldo};
+  }).filter(x=>x.saldo>0.009);
+
+  const total=pendientes.reduce((s,x)=>s+x.saldo,0);
+  if(total<=0.009) return alert('Este residente no tiene deuda pendiente.');
+
+  const detalle=residente.unidad?` · Casa/Unidad ${residente.unidad}`:'';
+  const ok=confirm(
+    `¿Eliminar la deuda pendiente de ${residente.nombre}${detalle}?\n\n`+
+    `Deuda a eliminar: ${money(total)}\n\n`+
+    'Esta acción condonará el saldo pendiente de sus cuotas. Los pagos ya registrados NO se eliminan.'
+  );
+  if(!ok) return;
+
+  for(const item of pendientes){
+    // Ajusta la cuota al importe que ya fue pagado, dejando el saldo pendiente en $0.
+    // Así no se crea un pago falso ni se altera el historial de pagos recibidos.
+    const {error}=await sb.from('cuotas')
+      .update({monto:item.pagado,estado:'pagada'})
+      .eq('id',item.q.id);
+
+    if(error){
+      alert('No se pudo eliminar toda la deuda: '+error.message);
+      await loadAll();
+      return;
+    }
+  }
+
+  await loadAll();
+  alert(`Deuda eliminada correctamente. Se condonaron ${money(total)} a ${residente.nombre}.`);
 }
 
 function abrirEdicionResidente(id){
