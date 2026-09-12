@@ -14,6 +14,9 @@ button{border:0;border-radius:10px;padding:11px 14px;font-weight:700;cursor:poin
 .login .card{width:min(430px,100%)} label{display:block;color:#cbd5e1;margin:14px 0 6px} .muted{color:var(--m)} .err{margin-top:12px;color:#fecaca}
 .app{display:grid;grid-template-columns:245px 1fr;min-height:100vh} aside{padding:18px;background:#020617;border-right:1px solid #334155} main{padding:24px;overflow:auto}
 .nav button{display:block;width:100%;margin:7px 0;text-align:left} section{display:none} section.active{display:block}
+.cameraWrap{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden}
+.cameraWrap iframe{width:100%;height:100%;border:0;background:#000}
+
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px} .kpi{font-size:28px;font-weight:900} .form{display:grid;grid-template-columns:repeat(2,1fr);gap:12px} .full{grid-column:1/-1}
 table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;border-bottom:1px solid #334155;text-align:left} .table{overflow:auto}
 .badge{padding:4px 8px;border-radius:99px;background:#334155} h1,h2,h3{margin-top:0}
@@ -43,6 +46,7 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 <aside><h3>🏢 Condominio</h3><div id="who" class="muted"></div>
 <div class="nav">
 <button onclick="show('inicio')">🏠 Inicio</button>
+<button class="cameraOnly" onclick="show('camaras')">📹 Cámaras</button>
 <button class="adminOnly" onclick="show('residentes')">👥 Residentes</button>
 <button class="adminOnly" onclick="show('deudas')">💰 Deuda total</button>
 <button class="controlAccessOnly" onclick="show('porton')">🚧 Controles de portón</button>
@@ -64,6 +68,25 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 <div class="card adminOnly"><div class="muted">Deuda total de residentes</div><div id="kDeuda" class="kpi">$0.00</div>
 <button class="primary" style="width:100%;margin-top:12px" onclick="show('deudas')">Ver deudas por persona</button></div>
 </div></section>
+
+
+
+<section id="camaras" class="cameraOnly">
+  <h2>📹 Cámaras</h2>
+  <div class="card">
+    <h3>Cámara acceso principal · En vivo</h3>
+    <p class="muted">Vista local. Para que funcione, MediaMTX y FFmpeg deben permanecer ejecutándose en esta computadora.</p>
+    <div class="cameraWrap">
+      <iframe id="cameraFrame" title="Cámara acceso principal" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+      <button class="primary" onclick="cargarCamara()">▶️ Ver cámara</button>
+      <button onclick="recargarCamara()">🔄 Recargar video</button>
+      <button onclick="detenerCamara()">⏹️ Detener vista</button>
+    </div>
+    <p class="muted" style="margin-top:10px">Servidor remoto seguro: camara.administracionresidencial.org · Canal: camaraweb</p>
+  </div>
+</section>
 
 
 <section id="deudas" class="adminOnly"><h2>Deuda total</h2>
@@ -355,7 +378,29 @@ const sb=supabase.createClient(SB_URL,SB_KEY);
 let user=null, profile=null, profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[];
 const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const money=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(n||0));
-function show(id){document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));$(id).classList.add('active')}
+function show(id){
+ document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));
+ $(id).classList.add('active');
+ if(id==='camaras') cargarCamara();
+}
+
+function cargarCamara(){
+ if(!profile || !['admin','residente'].includes(profile.rol)) return;
+ const frame=$('cameraFrame');
+ if(frame && !frame.src) frame.src='https://camara.administracionresidencial.org/camaraweb/';
+}
+function recargarCamara(){
+ if(!profile || !['admin','residente'].includes(profile.rol)) return;
+ const frame=$('cameraFrame');
+ if(!frame) return;
+ frame.src='';
+ setTimeout(()=>{frame.src='https://camara.administracionresidencial.org/camaraweb/';},250);
+}
+function detenerCamara(){
+ const frame=$('cameraFrame');
+ if(frame) frame.src='';
+}
+
 async function signIn(){
  const msg = document.getElementById('loginMsg');
  const btn = document.getElementById('loginBtn');
@@ -401,7 +446,7 @@ async function signIn(){
    btn.textContent='Iniciar sesión';
  }
 }
-async function signOut(){await sb.auth.signOut();location.reload()}
+async function signOut(){detenerCamara();await sb.auth.signOut();location.reload()}
 async function enter(){
  const {data,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
  if(error||!data){loginMsg.textContent='Tu usuario existe, pero no tiene un perfil en la tabla profiles.';await sb.auth.signOut();return}
@@ -412,6 +457,7 @@ async function enter(){
  document.querySelectorAll('.residentOnly').forEach(x=>x.classList.toggle('hidden',profile.rol!=='residente'));
  document.querySelectorAll('.controlAccessOnly').forEach(x=>x.classList.toggle('hidden',!['admin','residente'].includes(profile.rol)));
  document.querySelectorAll('.paymentMethodsOnly').forEach(x=>x.classList.toggle('hidden',!['admin','residente'].includes(profile.rol)));
+ document.querySelectorAll('.cameraOnly').forEach(x=>x.classList.toggle('hidden',!['admin','residente'].includes(profile.rol)));
  if(profile.rol==='guardia') visitCreate.classList.add('hidden');
  vFecha.value=new Date().toISOString().slice(0,10); cFecha.value=new Date().toISOString().slice(0,10);
  await loadAll();
