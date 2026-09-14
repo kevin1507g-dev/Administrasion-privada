@@ -35,11 +35,26 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 </head>
 <body>
 <div id="login" class="login"><div class="card">
+<div id="loginPanel">
 <h2>Administración Residencial</h2><p class="muted">Acceso seguro con Supabase</p>
 <label>Correo</label><input id="email" type="email" autocomplete="username">
 <label>Contraseña</label><input id="password" type="password" autocomplete="current-password">
 <button id="loginBtn" class="primary" style="width:100%;margin-top:16px" type="button">Iniciar sesión</button>
+<button style="width:100%;margin-top:10px" type="button" onclick="mostrarRegistro()">Crear mi cuenta</button>
 <div id="loginMsg" class="err"></div>
+</div>
+<div id="registerPanel" class="hidden">
+<h2>Crear cuenta de residente</h2>
+<p class="muted">Regístrate con tus datos. La administración deberá aprobar tu cuenta antes de que puedas entrar.</p>
+<label>Nombre completo</label><input id="regNombre" autocomplete="name" placeholder="Nombre y apellidos">
+<label>Casa / Unidad</label><input id="regUnidad" placeholder="Ej. Casa 24">
+<label>Correo</label><input id="regEmail" type="email" autocomplete="email" placeholder="correo@ejemplo.com">
+<label>Contraseña</label><input id="regPassword" type="password" autocomplete="new-password" minlength="6" placeholder="Mínimo 6 caracteres">
+<label>Confirmar contraseña</label><input id="regPassword2" type="password" autocomplete="new-password" minlength="6">
+<button id="registerBtn" class="primary" style="width:100%;margin-top:16px" type="button" onclick="registrarResidente()">Enviar solicitud</button>
+<button style="width:100%;margin-top:10px" type="button" onclick="mostrarLogin()">Volver a iniciar sesión</button>
+<div id="registerMsg" class="err"></div>
+</div>
 </div></div>
 
 <div id="app" class="app hidden">
@@ -48,6 +63,7 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 <button onclick="show('inicio')">🏠 Inicio</button>
 <button class="cameraOnly" onclick="show('camaras')">📹 Cámaras</button>
 <button class="adminOnly" onclick="show('residentes')">👥 Residentes</button>
+<button class="adminOnly" onclick="show('solicitudes')">📝 Solicitudes</button>
 <button class="adminOnly" onclick="show('deudas')">💰 Deuda total</button>
 <button class="controlAccessOnly" onclick="show('porton')">🚧 Controles de portón</button>
 <button onclick="show('cuotas')">🧾 Cuotas</button>
@@ -88,6 +104,12 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
   </div>
 </section>
 
+
+<section id="solicitudes" class="adminOnly"><h2>📝 Solicitudes de registro</h2>
+<div class="card">
+<p class="muted">Aquí aparecen las cuentas creadas por residentes que todavía esperan tu autorización.</p>
+<div class="table"><table><thead><tr><th>Nombre</th><th>Unidad</th><th>Correo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="solicitudesRows"></tbody></table></div>
+</div></section>
 
 <section id="deudas" class="adminOnly"><h2>Deuda total</h2>
 <div class="grid">
@@ -401,6 +423,47 @@ function detenerCamara(){
  if(frame) frame.src='';
 }
 
+function mostrarRegistro(){
+ document.getElementById('loginPanel')?.classList.add('hidden');
+ document.getElementById('registerPanel')?.classList.remove('hidden');
+ document.getElementById('loginMsg').textContent='';
+}
+function mostrarLogin(){
+ document.getElementById('registerPanel')?.classList.add('hidden');
+ document.getElementById('loginPanel')?.classList.remove('hidden');
+ document.getElementById('registerMsg').textContent='';
+}
+async function registrarResidente(){
+ const nombre=document.getElementById('regNombre').value.trim();
+ const unidad=document.getElementById('regUnidad').value.trim();
+ const email=document.getElementById('regEmail').value.trim().toLowerCase();
+ const password=document.getElementById('regPassword').value;
+ const password2=document.getElementById('regPassword2').value;
+ const msg=document.getElementById('registerMsg');
+ const btn=document.getElementById('registerBtn');
+ msg.textContent='';
+ if(!nombre || !unidad || !email || !password) return msg.textContent='Completa todos los campos.';
+ if(password.length<6) return msg.textContent='La contraseña debe tener al menos 6 caracteres.';
+ if(password!==password2) return msg.textContent='Las contraseñas no coinciden.';
+ btn.disabled=true; btn.textContent='Creando cuenta...';
+ try{
+   const {data,error}=await sb.auth.signUp({
+     email,password,
+     options:{data:{nombre,unidad,rol:'residente'}}
+   });
+   if(error){ msg.textContent='No se pudo crear la cuenta: '+(error.message||'Error desconocido'); return; }
+   if(data?.session) await sb.auth.signOut();
+   document.getElementById('regPassword').value='';
+   document.getElementById('regPassword2').value='';
+   msg.style.color='#bbf7d0';
+   msg.textContent='Solicitud enviada. Si Supabase te pide confirmar el correo, revísalo. Después espera la aprobación de la administración.';
+ }catch(err){
+   msg.textContent='Error técnico: '+(err?.message||String(err));
+ }finally{
+   btn.disabled=false; btn.textContent='Enviar solicitud';
+ }
+}
+
 async function signIn(){
  const msg = document.getElementById('loginMsg');
  const btn = document.getElementById('loginBtn');
@@ -450,7 +513,20 @@ async function signOut(){detenerCamara();await sb.auth.signOut();location.reload
 async function enter(){
  const {data,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
  if(error||!data){loginMsg.textContent='Tu usuario existe, pero no tiene un perfil en la tabla profiles.';await sb.auth.signOut();return}
- profile=data; login.classList.add('hidden');app.classList.remove('hidden');
+ profile=data;
+ if(profile.rol==='residente' && (profile.activo===false || profile.estado_registro==='pendiente')){
+   loginMsg.textContent='Tu solicitud está pendiente de aprobación por la administración.';
+   await sb.auth.signOut();
+   user=null; profile=null;
+   return;
+ }
+ if(profile.rol==='residente' && profile.estado_registro==='rechazado'){
+   loginMsg.textContent='Tu solicitud de registro fue rechazada. Comunícate con la administración.';
+   await sb.auth.signOut();
+   user=null; profile=null;
+   return;
+ }
+ login.classList.add('hidden');app.classList.remove('hidden');
  who.textContent=`${profile.nombre} · ${profile.rol}${profile.unidad?' · '+profile.unidad:''}`;
  document.querySelectorAll('.adminOnly').forEach(x=>x.classList.toggle('hidden',profile.rol!=='admin'));
  document.querySelectorAll('.staffOnly').forEach(x=>x.classList.toggle('hidden',!['admin','guardia'].includes(profile.rol)));
@@ -777,7 +853,7 @@ function render(){
    <td>${esc(x.nombre||'')}</td>
    <td>${esc(x.rol||'')}</td>
    <td>${esc(x.unidad||'')}</td>
-   <td>${x.activo!==false?'<span class="badge">Activo</span>':'<span class="badge">Inactivo</span>'}</td>
+   <td>${x.estado_registro==='pendiente'?'<span class="badge">Pendiente</span>':(x.estado_registro==='rechazado'?'<span class="badge">Rechazado</span>':(x.activo!==false?'<span class="badge">Activo</span>':'<span class="badge">Inactivo</span>'))}</td>
    <td>${x.rol==='residente'
      ? `<button onclick="abrirEdicionResidente('${x.id}')">Editar</button> <button class="danger" onclick="eliminarResidente('${x.id}')">Eliminar</button>`
      : (x.rol==='admin' && x.id!==user?.id
@@ -787,7 +863,16 @@ function render(){
          : '<span class="muted">—</span>'))}
    </td>
  </tr>`).join('');
- const residents=profiles.filter(x=>x.rol==='residente'); cRes.innerHTML=residents.map(x=>`<option value="${x.id}">${esc(x.nombre)} — ${esc(x.unidad)}</option>`).join('');
+ const solicitudesBody=document.getElementById('solicitudesRows');
+ if(solicitudesBody){
+   const pendientes=profiles.filter(x=>x.rol==='residente' && (x.estado_registro==='pendiente' || x.activo===false));
+   solicitudesBody.innerHTML=pendientes.map(x=>`<tr>
+     <td>${esc(x.nombre||'')}</td><td>${esc(x.unidad||'')}</td><td>${esc(x.email||'')}</td>
+     <td><span class="badge">${x.estado_registro==='rechazado'?'Rechazado':'Pendiente'}</span></td>
+     <td><button class="primary" onclick="aprobarRegistro('${x.id}')">✅ Aprobar</button> <button class="danger" onclick="rechazarRegistro('${x.id}')">❌ Rechazar</button></td>
+   </tr>`).join('') || '<tr><td colspan="5" class="muted">No hay solicitudes pendientes.</td></tr>';
+ }
+ const residents=profiles.filter(x=>x.rol==='residente' && x.activo!==false && x.estado_registro!=='rechazado'); cRes.innerHTML=residents.map(x=>`<option value="${x.id}">${esc(x.nombre)} — ${esc(x.unidad)}</option>`).join('');
  cuotasRows.innerHTML=cuotas.map(x=>`<tr><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td>${esc(x.concepto)}</td><td>${money(x.monto)}</td><td>${esc(x.vencimiento)}</td><td><span class="badge">${esc(x.estado)}</span></td><td class="adminOnly">${profile?.rol==='admin'?`<button onclick="editarVencimientoCuota(${x.id}, '${esc(x.vencimiento||'')}')">Editar vencimiento</button>`:''}</td></tr>`).join('');
  pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>`<option value="${x.id}">${esc(pname(x.residente_id))} — ${esc(x.concepto)} — ${money(x.monto)}</option>`).join('');
  pagosRows.innerHTML=pagos.map(x=>`<tr><td>${esc(x.fecha)}</td><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td><strong>${money(x.monto)}</strong></td><td>${esc(x.metodo)}</td><td>${esc(x.referencia)}</td><td class="adminOnly">${profile?.rol==='admin'?`<button onclick="editarPago(${x.id})">✏️ Editar total pagado</button>`:''}</td></tr>`).join('');
@@ -843,6 +928,27 @@ async function eliminarDeudaResidente(residenteId){
 
   await loadAll();
   alert(`Deuda eliminada correctamente. Se condonaron ${money(total)} a ${residente.nombre}.`);
+}
+
+async function aprobarRegistro(id){
+ if(profile?.rol!=='admin') return;
+ const r=profiles.find(p=>String(p.id)===String(id) && p.rol==='residente');
+ if(!r) return alert('No se encontró la solicitud.');
+ if(!confirm(`¿Aprobar la cuenta de ${r.nombre}${r.unidad?' · '+r.unidad:''}?`)) return;
+ const {error}=await sb.from('profiles').update({activo:true,estado_registro:'aprobado'}).eq('id',id).eq('rol','residente');
+ if(error) return alert('No se pudo aprobar: '+error.message);
+ await loadAll();
+ alert('Cuenta aprobada. El residente ya puede iniciar sesión.');
+}
+async function rechazarRegistro(id){
+ if(profile?.rol!=='admin') return;
+ const r=profiles.find(p=>String(p.id)===String(id) && p.rol==='residente');
+ if(!r) return alert('No se encontró la solicitud.');
+ if(!confirm(`¿Rechazar la solicitud de ${r.nombre}?`)) return;
+ const {error}=await sb.from('profiles').update({activo:false,estado_registro:'rechazado'}).eq('id',id).eq('rol','residente');
+ if(error) return alert('No se pudo rechazar: '+error.message);
+ await loadAll();
+ alert('Solicitud rechazada.');
 }
 
 function abrirEdicionResidente(id){
