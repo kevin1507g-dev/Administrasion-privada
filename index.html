@@ -225,16 +225,6 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 <button class="primary" style="margin-top:12px" onclick="addCuota()">Crear cuota</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Residente</th><th>Concepto</th><th>Monto</th><th>Vencimiento</th><th>Estado</th><th class="adminOnly">Acción</th></tr></thead><tbody id="cuotasRows"></tbody></table></div></section>
 
 <section id="pagos"><h2>Pagos</h2>
-<div id="residentPaymentTimer" class="card" style="margin-bottom:14px;display:none">
-  <h3>⏳ Tiempo para pagar</h3>
-  <div class="grid">
-    <div><div class="muted">Tiempo restante</div><div id="rDaysLeft" class="kpi">—</div></div>
-    <div><div class="muted">Próximo vencimiento</div><div id="rDueDate" style="font-size:1.15rem;font-weight:800;margin-top:8px">—</div></div>
-    <div><div class="muted">Controles de la casa</div><div id="rControlStatus" style="font-size:1.05rem;font-weight:800;margin-top:8px">—</div></div>
-  </div>
-  <div id="rTimerMsg" class="muted" style="margin-top:12px"></div>
-</div>
-
 <div id="residentDebtSummary" class="card" style="margin-bottom:14px;display:none">
   <div class="grid">
     <div><div class="muted">Deuda total pendiente</div><div id="rDebtTotal" class="kpi">$0.00</div></div>
@@ -823,61 +813,8 @@ function resumenDeudaResidente(residenteId){
  });
  return {deuda,pagadoTotal,vencidas,pendientes,detalle};
 }
-function resumenTemporizadorPago(residenteId){
- const hoyStr=new Date().toISOString().slice(0,10);
- const pendientes=cuotas.filter(q=>q.residente_id===residenteId && q.vencimiento).map(q=>{
-   const pagado=pagos.filter(p=>String(p.cuota_id)===String(q.id)).reduce((s,p)=>s+Number(p.monto||0),0);
-   const saldo=Math.max(0,Number(q.monto||0)-pagado);
-   return {...q,pagado,saldo};
- }).filter(q=>q.saldo>0.009).sort((a,b)=>String(a.vencimiento).localeCompare(String(b.vencimiento)));
-
- if(!pendientes.length) return {alCorriente:true,dias:null,vencimiento:null};
- const q=pendientes[0];
- const dias=diasEntre(hoyStr,q.vencimiento);
- return {alCorriente:false,dias,vencimiento:q.vencimiento,concepto:q.concepto||'Cuota',saldo:q.saldo};
-}
-
-function renderTemporizadorPago(){
- const box=document.getElementById('residentPaymentTimer');
- if(!box) return;
- const isResident=profile?.rol==='residente';
- box.style.display=isResident?'block':'none';
- if(!isResident) return;
-
- const info=resumenTemporizadorPago(user.id);
- const controlesCasa=controles.filter(c=>String(c.unidad||'')===String(profile.unidad||''));
- const suspendidos=controlesCasa.filter(c=>c.estado==='suspendido').length;
- const estadoCtrl=suspendidos>0
-   ? `⛔ ${suspendidos} de ${controlesCasa.length} suspendido(s)`
-   : (controlesCasa.length?`✅ ${controlesCasa.length} activo(s)`:'Sin controles registrados');
-
- document.getElementById('rControlStatus').textContent=estadoCtrl;
- if(info.alCorriente){
-   document.getElementById('rDaysLeft').textContent='Al corriente';
-   document.getElementById('rDueDate').textContent='Sin pago pendiente';
-   document.getElementById('rTimerMsg').textContent='No tienes cuotas pendientes con fecha de vencimiento.';
-   return;
- }
- document.getElementById('rDueDate').textContent=info.vencimiento;
- if(info.dias>1){
-   document.getElementById('rDaysLeft').textContent=`${info.dias} días`;
-   document.getElementById('rTimerMsg').textContent=`Te quedan ${info.dias} días para pagar ${info.concepto}. Saldo pendiente: ${money(info.saldo)}.`;
- }else if(info.dias===1){
-   document.getElementById('rDaysLeft').textContent='1 día';
-   document.getElementById('rTimerMsg').textContent=`Te queda 1 día para pagar ${info.concepto}. Saldo pendiente: ${money(info.saldo)}.`;
- }else if(info.dias===0){
-   document.getElementById('rDaysLeft').textContent='Vence hoy';
-   document.getElementById('rTimerMsg').textContent=`Tu pago de ${info.concepto} vence hoy. Si queda saldo después del vencimiento, los controles de la casa se suspenderán automáticamente.`;
- }else{
-   const atraso=Math.abs(info.dias);
-   document.getElementById('rDaysLeft').textContent=`Vencido ${atraso} día${atraso===1?'':'s'}`;
-   document.getElementById('rTimerMsg').textContent=`La cuota está vencida. Los controles de la casa quedan sujetos a suspensión automática hasta liquidar el saldo.`;
- }
-}
-
 function render(){
  const isResident=profile?.rol==='residente';
- renderTemporizadorPago();
  const debtBox=document.getElementById('residentDebtSummary');
  const balanceCard=document.getElementById('residentBalanceCard');
  if(debtBox) debtBox.style.display=isResident?'block':'none';
