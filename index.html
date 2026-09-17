@@ -794,6 +794,32 @@ async function editarVencimientoCuota(id, fechaActual){
  await loadAll();
  alert('Fecha de vencimiento actualizada.');
 }
+
+async function eliminarCuota(id){
+ if(profile?.rol!=='admin') return;
+ const cuota=cuotas.find(q=>String(q.id)===String(id));
+ if(!cuota) return alert('No se encontró la cuota.');
+
+ const pagosAsociados=pagos.filter(p=>String(p.cuota_id)===String(id));
+ if(pagosAsociados.length>0){
+   return alert('No se puede eliminar esta cuota porque ya tiene pagos registrados.');
+ }
+
+ const residente=pname(cuota.residente_id)||'Residente';
+ const concepto=cuota.concepto||'Cuota';
+ const ok=confirm(
+   `¿Eliminar esta cuota?\n\n`+
+   `${residente}\n${concepto} · ${money(cuota.monto)}\n\n`+
+   'Esta acción no se puede deshacer.'
+ );
+ if(!ok) return;
+
+ const {error}=await sb.from('cuotas').delete().eq('id',id);
+ if(error) return alert('No se pudo eliminar la cuota: '+error.message);
+
+ await loadAll();
+ alert('Cuota eliminada correctamente.');
+}
 function resumenDeudaResidente(residenteId){
  const hoy=new Date().toISOString().slice(0,10);
  const qs=cuotas.filter(q=>q.residente_id===residenteId);
@@ -873,7 +899,7 @@ function render(){
    </tr>`).join('') || '<tr><td colspan="5" class="muted">No hay solicitudes pendientes.</td></tr>';
  }
  const residents=profiles.filter(x=>x.rol==='residente' && x.activo!==false && x.estado_registro!=='rechazado'); cRes.innerHTML=residents.map(x=>`<option value="${x.id}">${esc(x.nombre)} — ${esc(x.unidad)}</option>`).join('');
- cuotasRows.innerHTML=cuotas.map(x=>`<tr><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td>${esc(x.concepto)}</td><td>${money(x.monto)}</td><td>${esc(x.vencimiento)}</td><td><span class="badge">${esc(x.estado)}</span></td><td class="adminOnly">${profile?.rol==='admin'?`<button onclick="editarVencimientoCuota(${x.id}, '${esc(x.vencimiento||'')}')">Editar vencimiento</button>`:''}</td></tr>`).join('');
+ cuotasRows.innerHTML=cuotas.map(x=>`<tr><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td>${esc(x.concepto)}</td><td>${money(x.monto)}</td><td>${esc(x.vencimiento)}</td><td><span class="badge">${esc(x.estado)}</span></td><td class="adminOnly">${profile?.rol==='admin'?`<button onclick="editarVencimientoCuota(${x.id}, '${esc(x.vencimiento||'')}')">Editar vencimiento</button> <button class="danger" onclick="eliminarCuota(${x.id})">🗑️ Eliminar</button>`:''}</td></tr>`).join('');
  pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>`<option value="${x.id}">${esc(pname(x.residente_id))} — ${esc(x.concepto)} — ${money(x.monto)}</option>`).join('');
  pagosRows.innerHTML=pagos.map(x=>`<tr><td>${esc(x.fecha)}</td><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td><strong>${money(x.monto)}</strong></td><td>${esc(x.metodo)}</td><td>${esc(x.referencia)}</td><td class="adminOnly">${profile?.rol==='admin'?`<button onclick="editarPago(${x.id})">✏️ Editar total pagado</button>`:''}</td></tr>`).join('');
  visitasRows.innerHTML=visitas.map(x=>`<tr><td>${esc(x.fecha)} ${esc(x.hora)}</td><td>${esc(x.visitante)}</td><td>${esc(x.unidad)}</td><td>${esc(x.placas)}</td><td><span class="badge">${esc(x.estado)}</span></td></tr>`).join('');
