@@ -14,6 +14,9 @@ button{border:0;border-radius:10px;padding:11px 14px;font-weight:700;cursor:poin
 .login .card{width:min(430px,100%)} label{display:block;color:#cbd5e1;margin:14px 0 6px} .muted{color:var(--m)} .err{margin-top:12px;color:#fecaca}
 .app{display:grid;grid-template-columns:245px 1fr;min-height:100vh} aside{padding:18px;background:#020617;border-right:1px solid #334155} main{padding:24px;overflow:auto}
 .nav button{display:block;width:100%;margin:7px 0;text-align:left} section{display:none} section.active{display:block}
+.cameraWrap{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden}
+.cameraWrap iframe{width:100%;height:100%;border:0;background:#000}
+
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px} .kpi{font-size:28px;font-weight:900} .form{display:grid;grid-template-columns:repeat(2,1fr);gap:12px} .full{grid-column:1/-1}
 table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;border-bottom:1px solid #334155;text-align:left} .table{overflow:auto}
 .badge{padding:4px 8px;border-radius:99px;background:#334155} h1,h2,h3{margin-top:0}
@@ -32,18 +35,35 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 </head>
 <body>
 <div id="login" class="login"><div class="card">
+<div id="loginPanel">
 <h2>Administración Residencial</h2><p class="muted">Acceso seguro con Supabase</p>
 <label>Correo</label><input id="email" type="email" autocomplete="username">
 <label>Contraseña</label><input id="password" type="password" autocomplete="current-password">
 <button id="loginBtn" class="primary" style="width:100%;margin-top:16px" type="button">Iniciar sesión</button>
+<button style="width:100%;margin-top:10px" type="button" onclick="mostrarRegistro()">Crear mi cuenta</button>
 <div id="loginMsg" class="err"></div>
+</div>
+<div id="registerPanel" class="hidden">
+<h2>Crear cuenta de residente</h2>
+<p class="muted">Regístrate con tus datos. La administración deberá aprobar tu cuenta antes de que puedas entrar.</p>
+<label>Nombre completo</label><input id="regNombre" autocomplete="name" placeholder="Nombre y apellidos">
+<label>Casa / Unidad</label><input id="regUnidad" placeholder="Ej. Casa 24">
+<label>Correo</label><input id="regEmail" type="email" autocomplete="email" placeholder="correo@ejemplo.com">
+<label>Contraseña</label><input id="regPassword" type="password" autocomplete="new-password" minlength="6" placeholder="Mínimo 6 caracteres">
+<label>Confirmar contraseña</label><input id="regPassword2" type="password" autocomplete="new-password" minlength="6">
+<button id="registerBtn" class="primary" style="width:100%;margin-top:16px" type="button" onclick="registrarResidente()">Enviar solicitud</button>
+<button style="width:100%;margin-top:10px" type="button" onclick="mostrarLogin()">Volver a iniciar sesión</button>
+<div id="registerMsg" class="err"></div>
+</div>
 </div></div>
 
 <div id="app" class="app hidden">
 <aside><h3>🏢 Condominio</h3><div id="who" class="muted"></div>
 <div class="nav">
 <button onclick="show('inicio')">🏠 Inicio</button>
+<button class="cameraOnly" onclick="show('camaras')">📹 Cámaras</button>
 <button class="adminOnly" onclick="show('residentes')">👥 Residentes</button>
+<button class="adminOnly" onclick="show('solicitudes')">📝 Solicitudes</button>
 <button class="adminOnly" onclick="show('deudas')">💰 Deuda total</button>
 <button class="controlAccessOnly" onclick="show('porton')">🚧 Controles de portón</button>
 <button onclick="show('cuotas')">🧾 Cuotas</button>
@@ -66,6 +86,31 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 </div></section>
 
 
+
+<section id="camaras" class="cameraOnly">
+  <h2>📹 Cámaras</h2>
+  <div class="card">
+    <h3>Cámara acceso principal · En vivo</h3>
+    <p class="muted">Vista local. Para que funcione, MediaMTX y FFmpeg deben permanecer ejecutándose en esta computadora.</p>
+    <div class="cameraWrap">
+      <iframe id="cameraFrame" title="Cámara acceso principal" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+      <button class="primary" onclick="cargarCamara()">▶️ Ver cámara</button>
+      <button onclick="recargarCamara()">🔄 Recargar video</button>
+      <button onclick="detenerCamara()">⏹️ Detener vista</button>
+    </div>
+    <p class="muted" style="margin-top:10px">Servidor remoto seguro: camara.administracionresidencial.org · Canal: camaraweb</p>
+  </div>
+</section>
+
+
+<section id="solicitudes" class="adminOnly"><h2>📝 Solicitudes de registro</h2>
+<div class="card">
+<p class="muted">Aquí aparecen las cuentas creadas por residentes que todavía esperan tu autorización.</p>
+<div class="table"><table><thead><tr><th>Nombre</th><th>Unidad</th><th>Correo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="solicitudesRows"></tbody></table></div>
+</div></section>
+
 <section id="deudas" class="adminOnly"><h2>Deuda total</h2>
 <div class="grid">
   <div class="card"><div class="muted">Deuda total pendiente</div><div id="deudaTotal" class="kpi">$0.00</div></div>
@@ -73,7 +118,7 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 </div>
 <div class="card table" style="margin-top:14px">
 <table>
-<thead><tr><th>Residente</th><th>Unidad</th><th>Cuotas</th><th>Pagado</th><th>Deuda pendiente</th></tr></thead>
+<thead><tr><th>Residente</th><th>Unidad</th><th>Cuotas</th><th>Pagado</th><th>Deuda pendiente</th><th>Acciones</th></tr></thead>
 <tbody id="deudasRows"></tbody>
 </table>
 </div>
@@ -355,7 +400,70 @@ const sb=supabase.createClient(SB_URL,SB_KEY);
 let user=null, profile=null, profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[];
 const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const money=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(n||0));
-function show(id){document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));$(id).classList.add('active')}
+function show(id){
+ document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));
+ $(id).classList.add('active');
+ if(id==='camaras') cargarCamara();
+}
+
+function cargarCamara(){
+ if(!profile || !['admin','residente'].includes(profile.rol)) return;
+ const frame=$('cameraFrame');
+ if(frame && !frame.src) frame.src='https://camara.administracionresidencial.org/camaraweb/';
+}
+function recargarCamara(){
+ if(!profile || !['admin','residente'].includes(profile.rol)) return;
+ const frame=$('cameraFrame');
+ if(!frame) return;
+ frame.src='';
+ setTimeout(()=>{frame.src='https://camara.administracionresidencial.org/camaraweb/';},250);
+}
+function detenerCamara(){
+ const frame=$('cameraFrame');
+ if(frame) frame.src='';
+}
+
+function mostrarRegistro(){
+ document.getElementById('loginPanel')?.classList.add('hidden');
+ document.getElementById('registerPanel')?.classList.remove('hidden');
+ document.getElementById('loginMsg').textContent='';
+}
+function mostrarLogin(){
+ document.getElementById('registerPanel')?.classList.add('hidden');
+ document.getElementById('loginPanel')?.classList.remove('hidden');
+ document.getElementById('registerMsg').textContent='';
+}
+async function registrarResidente(){
+ const nombre=document.getElementById('regNombre').value.trim();
+ const unidad=document.getElementById('regUnidad').value.trim();
+ const email=document.getElementById('regEmail').value.trim().toLowerCase();
+ const password=document.getElementById('regPassword').value;
+ const password2=document.getElementById('regPassword2').value;
+ const msg=document.getElementById('registerMsg');
+ const btn=document.getElementById('registerBtn');
+ msg.textContent='';
+ if(!nombre || !unidad || !email || !password) return msg.textContent='Completa todos los campos.';
+ if(password.length<6) return msg.textContent='La contraseña debe tener al menos 6 caracteres.';
+ if(password!==password2) return msg.textContent='Las contraseñas no coinciden.';
+ btn.disabled=true; btn.textContent='Creando cuenta...';
+ try{
+   const {data,error}=await sb.auth.signUp({
+     email,password,
+     options:{data:{nombre,unidad,rol:'residente'}}
+   });
+   if(error){ msg.textContent='No se pudo crear la cuenta: '+(error.message||'Error desconocido'); return; }
+   if(data?.session) await sb.auth.signOut();
+   document.getElementById('regPassword').value='';
+   document.getElementById('regPassword2').value='';
+   msg.style.color='#bbf7d0';
+   msg.textContent='Solicitud enviada. Si Supabase te pide confirmar el correo, revísalo. Después espera la aprobación de la administración.';
+ }catch(err){
+   msg.textContent='Error técnico: '+(err?.message||String(err));
+ }finally{
+   btn.disabled=false; btn.textContent='Enviar solicitud';
+ }
+}
+
 async function signIn(){
  const msg = document.getElementById('loginMsg');
  const btn = document.getElementById('loginBtn');
@@ -401,17 +509,31 @@ async function signIn(){
    btn.textContent='Iniciar sesión';
  }
 }
-async function signOut(){await sb.auth.signOut();location.reload()}
+async function signOut(){detenerCamara();await sb.auth.signOut();location.reload()}
 async function enter(){
  const {data,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
  if(error||!data){loginMsg.textContent='Tu usuario existe, pero no tiene un perfil en la tabla profiles.';await sb.auth.signOut();return}
- profile=data; login.classList.add('hidden');app.classList.remove('hidden');
+ profile=data;
+ if(profile.rol==='residente' && (profile.activo===false || profile.estado_registro==='pendiente')){
+   loginMsg.textContent='Tu solicitud está pendiente de aprobación por la administración.';
+   await sb.auth.signOut();
+   user=null; profile=null;
+   return;
+ }
+ if(profile.rol==='residente' && profile.estado_registro==='rechazado'){
+   loginMsg.textContent='Tu solicitud de registro fue rechazada. Comunícate con la administración.';
+   await sb.auth.signOut();
+   user=null; profile=null;
+   return;
+ }
+ login.classList.add('hidden');app.classList.remove('hidden');
  who.textContent=`${profile.nombre} · ${profile.rol}${profile.unidad?' · '+profile.unidad:''}`;
  document.querySelectorAll('.adminOnly').forEach(x=>x.classList.toggle('hidden',profile.rol!=='admin'));
  document.querySelectorAll('.staffOnly').forEach(x=>x.classList.toggle('hidden',!['admin','guardia'].includes(profile.rol)));
  document.querySelectorAll('.residentOnly').forEach(x=>x.classList.toggle('hidden',profile.rol!=='residente'));
  document.querySelectorAll('.controlAccessOnly').forEach(x=>x.classList.toggle('hidden',!['admin','residente'].includes(profile.rol)));
  document.querySelectorAll('.paymentMethodsOnly').forEach(x=>x.classList.toggle('hidden',!['admin','residente'].includes(profile.rol)));
+ document.querySelectorAll('.cameraOnly').forEach(x=>x.classList.toggle('hidden',!['admin','residente'].includes(profile.rol)));
  if(profile.rol==='guardia') visitCreate.classList.add('hidden');
  vFecha.value=new Date().toISOString().slice(0,10); cFecha.value=new Date().toISOString().slice(0,10);
  await loadAll();
@@ -672,25 +794,6 @@ async function editarVencimientoCuota(id, fechaActual){
  await loadAll();
  alert('Fecha de vencimiento actualizada.');
 }
-
-async function eliminarCuota(id){
- if(profile?.rol!=='admin') return;
- const cuota=cuotas.find(q=>String(q.id)===String(id));
- if(!cuota) return alert('No se encontró la cuota.');
- const residente=pname(cuota.residente_id)||'Residente';
- const pagosCuota=pagos.filter(p=>String(p.cuota_id)===String(id));
- const aviso=pagosCuota.length
-   ? `\n\nEsta cuota tiene ${pagosCuota.length} pago(s) registrado(s). Primero elimina esos pagos antes de eliminar la cuota.`
-   : '';
- if(pagosCuota.length){
-   return alert(`No se puede eliminar la cuota de ${residente}.${aviso}`);
- }
- if(!confirm(`¿Eliminar la cuota "${cuota.concepto||''}" de ${residente} por ${money(cuota.monto)}?\n\nEsta acción no se puede deshacer.`)) return;
- const {error}=await sb.from('cuotas').delete().eq('id',id);
- if(error) return alert('No se pudo eliminar la cuota: '+error.message);
- await loadAll();
- alert('Cuota eliminada correctamente.');
-}
 function resumenDeudaResidente(residenteId){
  const hoy=new Date().toISOString().slice(0,10);
  const qs=cuotas.filter(q=>q.residente_id===residenteId);
@@ -743,14 +846,14 @@ function render(){
  if(document.getElementById('deudasRows')){
    deudasRows.innerHTML=deudas.filter(d=>d.pendiente>0.009).map(d=>{
      const pr=profiles.find(x=>x.id===d.residente_id)||{};
-     return `<tr><td>${esc(pr.nombre||'Sin nombre')}</td><td>${esc(pr.unidad||'')}</td><td>${d.cuotas}</td><td>${money(d.pagado)}</td><td><strong>${money(d.pendiente)}</strong></td></tr>`;
-   }).join('') || '<tr><td colspan="5" class="muted">No hay deudas pendientes.</td></tr>';
+     return `<tr><td>${esc(pr.nombre||'Sin nombre')}</td><td>${esc(pr.unidad||'')}</td><td>${d.cuotas}</td><td>${money(d.pagado)}</td><td><strong>${money(d.pendiente)}</strong></td><td><button class="danger" onclick="eliminarDeudaResidente('${d.residente_id}')">🗑️ Eliminar deuda</button></td></tr>`;
+   }).join('') || '<tr><td colspan="6" class="muted">No hay deudas pendientes.</td></tr>';
  }
  profilesRows.innerHTML=profiles.map(x=>`<tr>
    <td>${esc(x.nombre||'')}</td>
    <td>${esc(x.rol||'')}</td>
    <td>${esc(x.unidad||'')}</td>
-   <td>${x.activo!==false?'<span class="badge">Activo</span>':'<span class="badge">Inactivo</span>'}</td>
+   <td>${x.estado_registro==='pendiente'?'<span class="badge">Pendiente</span>':(x.estado_registro==='rechazado'?'<span class="badge">Rechazado</span>':(x.activo!==false?'<span class="badge">Activo</span>':'<span class="badge">Inactivo</span>'))}</td>
    <td>${x.rol==='residente'
      ? `<button onclick="abrirEdicionResidente('${x.id}')">Editar</button> <button class="danger" onclick="eliminarResidente('${x.id}')">Eliminar</button>`
      : (x.rol==='admin' && x.id!==user?.id
@@ -760,8 +863,17 @@ function render(){
          : '<span class="muted">—</span>'))}
    </td>
  </tr>`).join('');
- const residents=profiles.filter(x=>x.rol==='residente'); cRes.innerHTML=residents.map(x=>`<option value="${x.id}">${esc(x.nombre)} — ${esc(x.unidad)}</option>`).join('');
- cuotasRows.innerHTML=cuotas.map(x=>`<tr><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td>${esc(x.concepto)}</td><td>${money(x.monto)}</td><td>${esc(x.vencimiento)}</td><td><span class="badge">${esc(x.estado)}</span></td><td class="adminOnly">${profile?.rol==='admin'?`<button onclick="editarVencimientoCuota(${x.id}, '${esc(x.vencimiento||'')}')">Editar vencimiento</button> <button class="danger" onclick="eliminarCuota(${x.id})">🗑️ Eliminar</button>`:''}</td></tr>`).join('');
+ const solicitudesBody=document.getElementById('solicitudesRows');
+ if(solicitudesBody){
+   const pendientes=profiles.filter(x=>x.rol==='residente' && (x.estado_registro==='pendiente' || x.activo===false));
+   solicitudesBody.innerHTML=pendientes.map(x=>`<tr>
+     <td>${esc(x.nombre||'')}</td><td>${esc(x.unidad||'')}</td><td>${esc(x.email||'')}</td>
+     <td><span class="badge">${x.estado_registro==='rechazado'?'Rechazado':'Pendiente'}</span></td>
+     <td><button class="primary" onclick="aprobarRegistro('${x.id}')">✅ Aprobar</button> <button class="danger" onclick="rechazarRegistro('${x.id}')">❌ Rechazar</button></td>
+   </tr>`).join('') || '<tr><td colspan="5" class="muted">No hay solicitudes pendientes.</td></tr>';
+ }
+ const residents=profiles.filter(x=>x.rol==='residente' && x.activo!==false && x.estado_registro!=='rechazado'); cRes.innerHTML=residents.map(x=>`<option value="${x.id}">${esc(x.nombre)} — ${esc(x.unidad)}</option>`).join('');
+ cuotasRows.innerHTML=cuotas.map(x=>`<tr><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td>${esc(x.concepto)}</td><td>${money(x.monto)}</td><td>${esc(x.vencimiento)}</td><td><span class="badge">${esc(x.estado)}</span></td><td class="adminOnly">${profile?.rol==='admin'?`<button onclick="editarVencimientoCuota(${x.id}, '${esc(x.vencimiento||'')}')">Editar vencimiento</button>`:''}</td></tr>`).join('');
  pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>`<option value="${x.id}">${esc(pname(x.residente_id))} — ${esc(x.concepto)} — ${money(x.monto)}</option>`).join('');
  pagosRows.innerHTML=pagos.map(x=>`<tr><td>${esc(x.fecha)}</td><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td><strong>${money(x.monto)}</strong></td><td>${esc(x.metodo)}</td><td>${esc(x.referencia)}</td><td class="adminOnly">${profile?.rol==='admin'?`<button onclick="editarPago(${x.id})">✏️ Editar total pagado</button>`:''}</td></tr>`).join('');
  visitasRows.innerHTML=visitas.map(x=>`<tr><td>${esc(x.fecha)} ${esc(x.hora)}</td><td>${esc(x.visitante)}</td><td>${esc(x.unidad)}</td><td>${esc(x.placas)}</td><td><span class="badge">${esc(x.estado)}</span></td></tr>`).join('');
@@ -770,6 +882,73 @@ function render(){
  renderEventos();
  renderGastos();
  renderMetodosPago();
+}
+
+
+async function eliminarDeudaResidente(residenteId){
+  if(profile?.rol!=='admin') return;
+
+  const residente=profiles.find(p=>String(p.id)===String(residenteId));
+  if(!residente) return alert('No se encontró el residente.');
+
+  const cuotasResidente=cuotas.filter(q=>String(q.residente_id)===String(residenteId));
+  const pendientes=cuotasResidente.map(q=>{
+    const pagado=pagos
+      .filter(p=>String(p.cuota_id)===String(q.id))
+      .reduce((s,p)=>s+Number(p.monto||0),0);
+    const monto=Number(q.monto||0);
+    const saldo=Math.max(0,monto-pagado);
+    return {q,pagado,monto,saldo};
+  }).filter(x=>x.saldo>0.009);
+
+  const total=pendientes.reduce((s,x)=>s+x.saldo,0);
+  if(total<=0.009) return alert('Este residente no tiene deuda pendiente.');
+
+  const detalle=residente.unidad?` · Casa/Unidad ${residente.unidad}`:'';
+  const ok=confirm(
+    `¿Eliminar la deuda pendiente de ${residente.nombre}${detalle}?\n\n`+
+    `Deuda a eliminar: ${money(total)}\n\n`+
+    'Esta acción condonará el saldo pendiente de sus cuotas. Los pagos ya registrados NO se eliminan.'
+  );
+  if(!ok) return;
+
+  for(const item of pendientes){
+    // Ajusta la cuota al importe que ya fue pagado, dejando el saldo pendiente en $0.
+    // Así no se crea un pago falso ni se altera el historial de pagos recibidos.
+    const {error}=await sb.from('cuotas')
+      .update({monto:item.pagado,estado:'pagada'})
+      .eq('id',item.q.id);
+
+    if(error){
+      alert('No se pudo eliminar toda la deuda: '+error.message);
+      await loadAll();
+      return;
+    }
+  }
+
+  await loadAll();
+  alert(`Deuda eliminada correctamente. Se condonaron ${money(total)} a ${residente.nombre}.`);
+}
+
+async function aprobarRegistro(id){
+ if(profile?.rol!=='admin') return;
+ const r=profiles.find(p=>String(p.id)===String(id) && p.rol==='residente');
+ if(!r) return alert('No se encontró la solicitud.');
+ if(!confirm(`¿Aprobar la cuenta de ${r.nombre}${r.unidad?' · '+r.unidad:''}?`)) return;
+ const {error}=await sb.from('profiles').update({activo:true,estado_registro:'aprobado'}).eq('id',id).eq('rol','residente');
+ if(error) return alert('No se pudo aprobar: '+error.message);
+ await loadAll();
+ alert('Cuenta aprobada. El residente ya puede iniciar sesión.');
+}
+async function rechazarRegistro(id){
+ if(profile?.rol!=='admin') return;
+ const r=profiles.find(p=>String(p.id)===String(id) && p.rol==='residente');
+ if(!r) return alert('No se encontró la solicitud.');
+ if(!confirm(`¿Rechazar la solicitud de ${r.nombre}?`)) return;
+ const {error}=await sb.from('profiles').update({activo:false,estado_registro:'rechazado'}).eq('id',id).eq('rol','residente');
+ if(error) return alert('No se pudo rechazar: '+error.message);
+ await loadAll();
+ alert('Solicitud rechazada.');
 }
 
 function abrirEdicionResidente(id){
