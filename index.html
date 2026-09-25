@@ -20,6 +20,10 @@ button{border:0;border-radius:10px;padding:11px 14px;font-weight:700;cursor:poin
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px} .kpi{font-size:28px;font-weight:900} .form{display:grid;grid-template-columns:repeat(2,1fr);gap:12px} .full{grid-column:1/-1}
 table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;border-bottom:1px solid #334155;text-align:left} .table{overflow:auto}
 .badge{padding:4px 8px;border-radius:99px;background:#334155} h1,h2,h3{margin-top:0}
+textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;border-radius:10px;background:#020617;color:white;resize:vertical;font:inherit}
+.notice{border-left:5px solid #38bdf8}.notice.alta{border-left-color:#ef4444}.notice.media{border-left-color:#f59e0b}.notice.baja{border-left-color:#22c55e}
+.actions{display:flex;gap:8px;flex-wrap:wrap}.mini{font-size:.9em;padding:8px 10px}.status-pendiente{color:#fde68a}.status-resuelto{color:#bbf7d0}.status-proceso{color:#bae6fd}
+.fileHint{font-size:.9em;color:#94a3b8;margin-top:6px}
 @media(max-width:800px){.app{grid-template-columns:1fr} aside{border-right:0;border-bottom:1px solid #334155} .grid,.form{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.grid,.form{grid-template-columns:1fr} main{padding:14px}}
 
@@ -72,6 +76,13 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 <button class="adminOnly" onclick="show('gastos')">🧾 Aclaración de gastos</button>
 <button onclick="show('visitas')">🚗 Visitas</button>
 <button onclick="show('eventos')">📅 Eventos</button>
+<button onclick="show('avisos')">📢 Avisos</button>
+<button class="residentAdminOnly" onclick="show('mantenimiento')">🛠️ Mantenimiento</button>
+<button onclick="show('paqueteria')">📦 Paquetería</button>
+<button class="residentAdminOnly" onclick="show('reservaciones')">🏡 Reservaciones</button>
+<button onclick="show('documentos')">📄 Documentos</button>
+<button onclick="show('emergencia')">🚨 Emergencia</button>
+<button class="residentAdminOnly" onclick="show('historialCasa')">📚 Historial por casa</button>
 <button class="staffOnly" onclick="show('accesos')">🚪 Accesos</button>
 </div><button class="danger" style="width:100%;margin-top:15px" onclick="signOut()">Cerrar sesión</button></aside>
 
@@ -83,7 +94,12 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 <div class="card"><div class="muted">Accesos</div><div id="kAccesos" class="kpi">0</div></div>
 <div class="card adminOnly"><div class="muted">Deuda total de residentes</div><div id="kDeuda" class="kpi">$0.00</div>
 <button class="primary" style="width:100%;margin-top:12px" onclick="show('deudas')">Ver deudas por persona</button></div>
-</div></section>
+<div class="card"><div class="muted">Avisos activos</div><div id="kAvisos" class="kpi">0</div></div>
+<div class="card residentAdminOnly"><div class="muted">Reportes pendientes</div><div id="kReportes" class="kpi">0</div></div>
+<div class="card"><div class="muted">Paquetes por entregar</div><div id="kPaquetes" class="kpi">0</div></div>
+</div>
+<div id="avisosInicio" style="margin-top:14px"></div>
+</section>
 
 
 
@@ -387,6 +403,101 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 </div>
 </section>
 
+
+<section id="avisos"><h2>📢 Avisos y notificaciones</h2>
+<div class="adminOnly card">
+  <h3>Publicar aviso</h3>
+  <div class="form">
+    <div><label>Título</label><input id="avTitulo" placeholder="Ej. Corte de agua"></div>
+    <div><label>Prioridad</label><select id="avPrioridad"><option value="media">Media</option><option value="alta">Alta</option><option value="baja">Baja</option></select></div>
+    <div><label>Visible hasta</label><input id="avVence" type="date"></div>
+    <div class="full"><label>Mensaje</label><textarea id="avMensaje" placeholder="Escribe el aviso para los residentes"></textarea></div>
+  </div>
+  <button class="primary" style="margin-top:12px" onclick="addAviso()">📢 Publicar aviso</button>
+</div>
+<div id="avisosLista" style="margin-top:14px"></div>
+</section>
+
+<section id="mantenimiento" class="residentAdminOnly"><h2>🛠️ Reportes de mantenimiento</h2>
+<div class="card">
+  <h3>Nuevo reporte</h3>
+  <div class="form">
+    <div class="adminOnly"><label>Residente / Casa</label><select id="repResidente"></select></div>
+    <div><label>Categoría</label><select id="repCategoria"><option>Portón</option><option>Iluminación</option><option>Agua / fuga</option><option>Limpieza</option><option>Seguridad</option><option>Áreas comunes</option><option>Otro</option></select></div>
+    <div><label>Prioridad</label><select id="repPrioridad"><option value="normal">Normal</option><option value="alta">Alta</option><option value="urgente">Urgente</option></select></div>
+    <div class="full"><label>Descripción</label><textarea id="repDescripcion" placeholder="Describe el problema"></textarea></div>
+    <div class="full"><label>Foto (opcional)</label><input id="repFoto" type="file" accept="image/jpeg,image/png,image/webp"><div class="fileHint">Máximo 10 MB. La foto queda privada dentro del sistema.</div></div>
+  </div>
+  <button class="primary" style="margin-top:12px" onclick="addReporte()">➕ Enviar reporte</button>
+</div>
+<div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Casa</th><th>Categoría</th><th>Descripción</th><th>Prioridad</th><th>Estado</th><th>Foto</th><th>Acciones</th></tr></thead><tbody id="reportesRows"></tbody></table></div>
+</section>
+
+<section id="paqueteria"><h2>📦 Paquetería</h2>
+<div class="staffOnly card">
+  <h3>Registrar paquete recibido</h3>
+  <div class="form">
+    <div><label>Casa / Unidad</label><input id="paqUnidad" placeholder="Ej. Casa 24"></div>
+    <div><label>Destinatario</label><input id="paqDestinatario" placeholder="Nombre del residente"></div>
+    <div><label>Paquetería</label><input id="paqEmpresa" placeholder="Amazon, Mercado Libre, DHL..."></div>
+    <div><label>Guía / Referencia</label><input id="paqGuia" placeholder="Opcional"></div>
+    <div class="full"><label>Descripción</label><input id="paqDescripcion" placeholder="Caja, sobre, paquete grande..."></div>
+  </div>
+  <button class="primary" style="margin-top:12px" onclick="addPaquete()">📦 Registrar paquete</button>
+</div>
+<div class="card table" style="margin-top:14px"><table><thead><tr><th>Recibido</th><th>Casa</th><th>Destinatario</th><th>Paquetería</th><th>Descripción</th><th>Estado</th><th class="staffOnly">Acciones</th></tr></thead><tbody id="paquetesRows"></tbody></table></div>
+</section>
+
+<section id="reservaciones" class="residentAdminOnly"><h2>🏡 Reservaciones de áreas comunes</h2>
+<div class="card">
+  <h3>Nueva reservación</h3>
+  <div class="form">
+    <div class="adminOnly"><label>Residente / Casa</label><select id="resResidente"></select></div>
+    <div><label>Área</label><select id="resArea"><option>Salón de usos múltiples</option><option>Terraza</option><option>Área común</option><option>Otro</option></select></div>
+    <div><label>Fecha</label><input id="resFecha" type="date"></div>
+    <div><label>Hora inicio</label><input id="resInicio" type="time"></div>
+    <div><label>Hora fin</label><input id="resFin" type="time"></div>
+    <div class="full"><label>Notas</label><input id="resNotas" placeholder="Motivo o información adicional"></div>
+  </div>
+  <button class="primary" style="margin-top:12px" onclick="addReserva()">📅 Solicitar reservación</button>
+</div>
+<div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Horario</th><th>Área</th><th>Casa</th><th>Estado</th><th>Notas</th><th class="adminOnly">Acciones</th></tr></thead><tbody id="reservasRows"></tbody></table></div>
+</section>
+
+<section id="documentos"><h2>📄 Documentos del condominio</h2>
+<div class="adminOnly card">
+  <h3>Subir documento</h3>
+  <div class="form">
+    <div><label>Título</label><input id="docTitulo" placeholder="Ej. Reglamento del condominio"></div>
+    <div><label>Categoría</label><select id="docCategoria"><option>Reglamento</option><option>Comunicado</option><option>Estado de cuenta</option><option>Formato</option><option>Otro</option></select></div>
+    <div class="full"><label>Descripción</label><input id="docDescripcion" placeholder="Descripción opcional"></div>
+    <div class="full"><label>Archivo</label><input id="docArchivo" type="file" accept="application/pdf,image/jpeg,image/png,image/webp"><div class="fileHint">PDF o imagen, máximo 10 MB.</div></div>
+  </div>
+  <button class="primary" style="margin-top:12px" onclick="addDocumento()">⬆️ Subir documento</button>
+</div>
+<div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Título</th><th>Categoría</th><th>Descripción</th><th>Archivo</th><th class="adminOnly">Acciones</th></tr></thead><tbody id="documentosRows"></tbody></table></div>
+</section>
+
+<section id="emergencia"><h2>🚨 Contactos de emergencia</h2>
+<div class="adminOnly card">
+  <h3>Agregar contacto</h3>
+  <div class="form">
+    <div><label>Servicio / Nombre</label><input id="emNombre" placeholder="Ej. Seguridad privada"></div>
+    <div><label>Teléfono</label><input id="emTelefono" type="tel" placeholder="33 1234 5678"></div>
+    <div><label>Tipo</label><select id="emTipo"><option>Seguridad</option><option>Administración</option><option>Emergencia</option><option>Mantenimiento</option><option>Otro</option></select></div>
+    <div><label>Notas</label><input id="emNotas" placeholder="Horario o indicaciones"></div>
+  </div>
+  <button class="primary" style="margin-top:12px" onclick="addContactoEmergencia()">➕ Agregar contacto</button>
+</div>
+<div id="emergenciaLista" class="grid" style="margin-top:14px"></div>
+</section>
+
+<section id="historialCasa" class="residentAdminOnly"><h2>📚 Historial por casa</h2>
+<div class="adminOnly card"><label>Selecciona residente / casa</label><select id="histResidente" onchange="renderHistorial()"></select></div>
+<div id="historialResumen" class="grid" style="margin-top:14px"></div>
+<div class="card table" style="margin-top:14px"><h3 style="padding:14px 14px 0">Actividad reciente</h3><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th><th>Estado / Monto</th></tr></thead><tbody id="historialRows"></tbody></table></div>
+</section>
+
 <section id="accesos"><h2>Accesos</h2><div class="card"><div class="form">
 <div><label>Persona</label><input id="aPersona"></div><div><label>Tipo</label><select id="aTipo"><option>Residente</option><option>Visita</option><option>Proveedor</option><option>Personal</option></select></div>
 <div><label>Movimiento</label><select id="aMov"><option>Entrada</option><option>Salida</option></select></div><div><label>Unidad</label><input id="aUnidad"></div><div class="full"><label>Observaciones</label><input id="aObs"></div></div>
@@ -397,7 +508,7 @@ table{width:100%;border-collapse:collapse;min-width:720px} th,td{padding:10px;bo
 const SB_URL='https://nndlfkuelwpwklldvtfo.supabase.co';
 const SB_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
 const sb=supabase.createClient(SB_URL,SB_KEY);
-let user=null, profile=null, profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[];
+let user=null, profile=null, profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
 const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const money=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(n||0));
 function show(id){
@@ -534,12 +645,13 @@ async function enter(){
  document.querySelectorAll('.controlAccessOnly').forEach(x=>x.classList.toggle('hidden',!['admin','residente'].includes(profile.rol)));
  document.querySelectorAll('.paymentMethodsOnly').forEach(x=>x.classList.toggle('hidden',!['admin','residente'].includes(profile.rol)));
  document.querySelectorAll('.cameraOnly').forEach(x=>x.classList.toggle('hidden',!['admin','residente'].includes(profile.rol)));
+ document.querySelectorAll('.residentAdminOnly').forEach(x=>x.classList.toggle('hidden',!['admin','residente'].includes(profile.rol)));
  if(profile.rol==='guardia') visitCreate.classList.add('hidden');
- vFecha.value=new Date().toISOString().slice(0,10); cFecha.value=new Date().toISOString().slice(0,10);
+ vFecha.value=new Date().toISOString().slice(0,10); cFecha.value=new Date().toISOString().slice(0,10); if(document.getElementById('resFecha')) resFecha.value=new Date().toISOString().slice(0,10);
  await loadAll();
 }
 async function loadAll(){
- const [pr,cu,pa,vi,ac,ev,ct,ga,mp]=await Promise.all([
+ const [pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,pk,rs,dc,em]=await Promise.all([
    profile.rol==='admin'?sb.from('profiles').select('*').order('nombre'):Promise.resolve({data:[profile]}),
    sb.from('cuotas').select('*').order('created_at',{ascending:false}),
    sb.from('pagos').select('*').order('created_at',{ascending:false}),
@@ -548,17 +660,18 @@ async function loadAll(){
    sb.from('eventos').select('*').order('fecha',{ascending:true}).order('hora',{ascending:true}),
    ['admin','residente'].includes(profile.rol)?sb.from('controles_residenciales').select('*').order('numero_control',{ascending:true}):Promise.resolve({data:[]}),
    profile.rol==='admin'?sb.from('gastos').select('*').order('fecha',{ascending:false}).order('created_at',{ascending:false}):Promise.resolve({data:[]}),
-   ['admin','residente'].includes(profile.rol)?sb.from('metodos_pago').select('*').order('created_at',{ascending:true}):Promise.resolve({data:[]})
+   ['admin','residente'].includes(profile.rol)?sb.from('metodos_pago').select('*').order('created_at',{ascending:true}):Promise.resolve({data:[]}),
+   sb.from('avisos_condominio').select('*').order('created_at',{ascending:false}),
+   ['admin','residente'].includes(profile.rol)?sb.from('reportes_mantenimiento').select('*').order('created_at',{ascending:false}):Promise.resolve({data:[]}),
+   sb.from('paquetes').select('*').order('created_at',{ascending:false}),
+   ['admin','residente'].includes(profile.rol)?sb.from('reservaciones').select('*').order('fecha',{ascending:true}):Promise.resolve({data:[]}),
+   sb.from('documentos_condominio').select('*').order('created_at',{ascending:false}),
+   sb.from('contactos_emergencia').select('*').order('tipo').order('nombre')
  ]);
- profiles=pr.data||[];
- cuotas=cu.data||[];
- pagos=pa.data||[];
- visitas=vi.data||[];
- accesos=ac.data||[];
- eventos=ev.data||[];
- controles=ct.data||[];
- gastos=ga.data||[];
- metodosPago=mp.data||[];
+ profiles=pr.data||[]; cuotas=cu.data||[]; pagos=pa.data||[]; visitas=vi.data||[]; accesos=ac.data||[];
+ eventos=ev.data||[]; controles=ct.data||[]; gastos=ga.data||[]; metodosPago=mp.data||[];
+ avisos=av.data||[]; reportes=rp.data||[]; paquetes=pk.data||[]; reservas=rs.data||[]; documentos=dc.data||[]; contactosEmergencia=em.data||[];
+ [av,rp,pk,rs,dc,em].forEach((r,i)=>{if(r?.error) console.warn(['Avisos','Reportes','Paquetes','Reservaciones','Documentos','Emergencia'][i]+':',r.error)});
  if(ga.error && profile.rol==='admin') console.warn('Gastos:',ga.error);
  if(mp.error && ['admin','residente'].includes(profile.rol)) console.warn('Métodos de pago:',mp.error);
  render();
@@ -820,6 +933,175 @@ async function eliminarCuota(id){
  await loadAll();
  alert('Cuota eliminada correctamente.');
 }
+
+function fechaHora(v){
+ if(!v) return '';
+ try{return new Date(v).toLocaleString('es-MX')}catch(_){return String(v)}
+}
+function prioridadTexto(v){return ({alta:'🔴 Alta',media:'🟠 Media',baja:'🟢 Baja',urgente:'🚨 Urgente',normal:'Normal'})[v]||v||''}
+async function abrirArchivo(pathCodificado){
+ const path=decodeURIComponent(pathCodificado||'');
+ if(!path) return;
+ const {data,error}=await sb.storage.from('condominio-media').createSignedUrl(path,3600);
+ if(error||!data?.signedUrl) return alert('No se pudo abrir el archivo: '+(error?.message||'Sin acceso'));
+ window.open(data.signedUrl,'_blank','noopener');
+}
+async function subirMedia(file,path){
+ if(!file) return null;
+ if(file.size>10*1024*1024) throw new Error('El archivo supera el límite de 10 MB.');
+ const limpio=(file.name||'archivo').replace(/[^a-zA-Z0-9._-]+/g,'_');
+ const fullPath=`${path}/${Date.now()}_${limpio}`;
+ const {error}=await sb.storage.from('condominio-media').upload(fullPath,file,{upsert:false,contentType:file.type||undefined});
+ if(error) throw error;
+ return fullPath;
+}
+
+async function addAviso(){
+ if(profile?.rol!=='admin') return;
+ const titulo=avTitulo.value.trim(), mensaje=avMensaje.value.trim();
+ if(!titulo||!mensaje) return alert('Escribe el título y el mensaje.');
+ const {error}=await sb.from('avisos_condominio').insert({titulo,mensaje,prioridad:avPrioridad.value,vence:avVence.value||null,activo:true,creado_por:user.id});
+ if(error) return alert('No se pudo publicar: '+error.message);
+ avTitulo.value=''; avMensaje.value=''; avVence.value=''; await loadAll();
+}
+async function eliminarAviso(id){
+ if(profile?.rol!=='admin'||!confirm('¿Eliminar este aviso?')) return;
+ const {error}=await sb.from('avisos_condominio').delete().eq('id',id); if(error)return alert(error.message); await loadAll();
+}
+function renderAvisos(){
+ const caja=document.getElementById('avisosLista'), inicio=document.getElementById('avisosInicio');
+ const cards=avisos.map(a=>`<div class="card notice ${esc(a.prioridad||'media')}" style="margin-bottom:12px"><div class="actions" style="justify-content:space-between"><h3 style="margin-bottom:6px">${esc(a.titulo)}</h3><span class="badge">${esc(prioridadTexto(a.prioridad))}</span></div><p>${esc(a.mensaje)}</p><div class="muted">Publicado: ${fechaHora(a.created_at)}${a.vence?' · Visible hasta '+esc(a.vence):''}</div>${profile?.rol==='admin'?`<button class="danger mini" style="margin-top:10px" onclick="eliminarAviso('${a.id}')">🗑️ Eliminar</button>`:''}</div>`).join('')||'<div class="card muted">No hay avisos activos.</div>';
+ if(caja)caja.innerHTML=cards;
+ if(inicio) inicio.innerHTML=avisos.slice(0,2).map(a=>`<div class="card notice ${esc(a.prioridad||'media')}" style="margin-bottom:10px"><strong>📢 ${esc(a.titulo)}</strong><div style="margin-top:6px">${esc(a.mensaje)}</div></div>`).join('');
+}
+
+async function addReporte(){
+ if(!['admin','residente'].includes(profile?.rol)) return;
+ let rid=user.id, unidad=profile.unidad||'';
+ if(profile.rol==='admin'){
+   rid=repResidente.value; const r=profiles.find(p=>String(p.id)===String(rid)); if(!r)return alert('Selecciona un residente.'); unidad=r.unidad||'';
+ }
+ const descripcion=repDescripcion.value.trim(); if(!descripcion)return alert('Describe el problema.');
+ let foto_path=null;
+ try{const file=repFoto.files?.[0]; if(file) foto_path=await subirMedia(file,`mantenimiento/${rid}`);}catch(e){return alert('No se pudo subir la foto: '+e.message)}
+ const {error}=await sb.from('reportes_mantenimiento').insert({residente_id:rid,unidad,categoria:repCategoria.value,descripcion,prioridad:repPrioridad.value,estado:'pendiente',foto_path,creado_por:user.id});
+ if(error){if(foto_path)await sb.storage.from('condominio-media').remove([foto_path]);return alert('No se pudo guardar el reporte: '+error.message)}
+ repDescripcion.value=''; repFoto.value=''; await loadAll();
+}
+async function setReporteEstado(id,estado){
+ if(profile?.rol!=='admin') return;
+ const {error}=await sb.from('reportes_mantenimiento').update({estado,actualizado_en:new Date().toISOString()}).eq('id',id); if(error)return alert(error.message); await loadAll();
+}
+async function eliminarReporte(id){
+ if(profile?.rol!=='admin'||!confirm('¿Eliminar este reporte?'))return;
+ const r=reportes.find(x=>String(x.id)===String(id)); const {error}=await sb.from('reportes_mantenimiento').delete().eq('id',id); if(error)return alert(error.message);
+ if(r?.foto_path) await sb.storage.from('condominio-media').remove([r.foto_path]); await loadAll();
+}
+function renderReportes(){
+ const body=document.getElementById('reportesRows'); if(!body)return;
+ body.innerHTML=reportes.map(r=>`<tr><td>${fechaHora(r.created_at)}</td><td>${esc(r.unidad||'')}</td><td>${esc(r.categoria||'')}</td><td>${esc(r.descripcion||'')}</td><td>${esc(prioridadTexto(r.prioridad))}</td><td><span class="badge">${esc(r.estado||'')}</span></td><td>${r.foto_path?`<button class="mini" onclick="abrirArchivo('${encodeURIComponent(r.foto_path)}')">📷 Ver foto</button>`:'—'}</td><td>${profile?.rol==='admin'?`<div class="actions"><button class="mini" onclick="setReporteEstado('${r.id}','en proceso')">En proceso</button><button class="primary mini" onclick="setReporteEstado('${r.id}','resuelto')">Resuelto</button><button class="danger mini" onclick="eliminarReporte('${r.id}')">Eliminar</button></div>`:'—'}</td></tr>`).join('')||'<tr><td colspan="8" class="muted">No hay reportes.</td></tr>';
+}
+
+async function addPaquete(){
+ if(!['admin','guardia'].includes(profile?.rol)) return;
+ const unidad=paqUnidad.value.trim(), destinatario=paqDestinatario.value.trim(); if(!unidad||!destinatario)return alert('Escribe la casa y el destinatario.');
+ const {error}=await sb.from('paquetes').insert({unidad,destinatario,empresa:paqEmpresa.value.trim()||null,guia:paqGuia.value.trim()||null,descripcion:paqDescripcion.value.trim()||null,estado:'recibido',registrado_por:user.id});
+ if(error)return alert('No se pudo registrar: '+error.message);
+ paqUnidad.value='';paqDestinatario.value='';paqEmpresa.value='';paqGuia.value='';paqDescripcion.value='';await loadAll();
+}
+async function entregarPaquete(id){
+ if(!['admin','guardia'].includes(profile?.rol))return;
+ const {error}=await sb.from('paquetes').update({estado:'entregado',entregado_en:new Date().toISOString(),entregado_por:user.id}).eq('id',id); if(error)return alert(error.message); await loadAll();
+}
+async function eliminarPaquete(id){
+ if(profile?.rol!=='admin'||!confirm('¿Eliminar este registro de paquetería?'))return;
+ const {error}=await sb.from('paquetes').delete().eq('id',id); if(error)return alert(error.message); await loadAll();
+}
+function renderPaquetes(){
+ const body=document.getElementById('paquetesRows'); if(!body)return;
+ body.innerHTML=paquetes.map(p=>`<tr><td>${fechaHora(p.created_at)}</td><td>${esc(p.unidad||'')}</td><td>${esc(p.destinatario||'')}</td><td>${esc(p.empresa||'')}</td><td>${esc(p.descripcion||'')}</td><td><span class="badge">${p.estado==='entregado'?'✅ Entregado':'📦 Por entregar'}</span></td><td class="staffOnly">${['admin','guardia'].includes(profile?.rol)?`<div class="actions">${p.estado!=='entregado'?`<button class="primary mini" onclick="entregarPaquete('${p.id}')">✅ Entregar</button>`:''}${profile.rol==='admin'?`<button class="danger mini" onclick="eliminarPaquete('${p.id}')">Eliminar</button>`:''}</div>`:''}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">No hay paquetes registrados.</td></tr>';
+}
+
+async function addReserva(){
+ if(!['admin','residente'].includes(profile?.rol)) return;
+ let rid=user.id, unidad=profile.unidad||'';
+ if(profile.rol==='admin'){rid=resResidente.value;const r=profiles.find(p=>String(p.id)===String(rid));if(!r)return alert('Selecciona un residente.');unidad=r.unidad||'';}
+ if(!resFecha.value||!resInicio.value||!resFin.value)return alert('Selecciona fecha, hora de inicio y hora de fin.');
+ if(resFin.value<=resInicio.value)return alert('La hora de fin debe ser posterior a la hora de inicio.');
+ const {error}=await sb.from('reservaciones').insert({residente_id:rid,unidad,area:resArea.value,fecha:resFecha.value,hora_inicio:resInicio.value,hora_fin:resFin.value,notas:resNotas.value.trim()||null,estado:'pendiente',creado_por:user.id});
+ if(error)return alert('No se pudo reservar: '+error.message); resNotas.value='';await loadAll();
+}
+async function setReservaEstado(id,estado){
+ if(profile?.rol!=='admin')return;
+ const {error}=await sb.from('reservaciones').update({estado}).eq('id',id);if(error)return alert(error.message);await loadAll();
+}
+async function eliminarReserva(id){
+ if(profile?.rol!=='admin'||!confirm('¿Eliminar esta reservación?'))return;
+ const {error}=await sb.from('reservaciones').delete().eq('id',id);if(error)return alert(error.message);await loadAll();
+}
+function renderReservas(){
+ const body=document.getElementById('reservasRows');if(!body)return;
+ body.innerHTML=reservas.map(r=>`<tr><td>${esc(r.fecha||'')}</td><td>${esc(String(r.hora_inicio||'').slice(0,5))}–${esc(String(r.hora_fin||'').slice(0,5))}</td><td>${esc(r.area||'')}</td><td>${esc(r.unidad||'')}</td><td><span class="badge">${esc(r.estado||'')}</span></td><td>${esc(r.notas||'')}</td><td class="adminOnly">${profile?.rol==='admin'?`<div class="actions"><button class="primary mini" onclick="setReservaEstado('${r.id}','aprobada')">Aprobar</button><button class="mini" onclick="setReservaEstado('${r.id}','rechazada')">Rechazar</button><button class="danger mini" onclick="eliminarReserva('${r.id}')">Eliminar</button></div>`:''}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">No hay reservaciones.</td></tr>';
+}
+
+async function addDocumento(){
+ if(profile?.rol!=='admin')return;
+ const titulo=docTitulo.value.trim(), file=docArchivo.files?.[0]; if(!titulo||!file)return alert('Escribe el título y selecciona un archivo.');
+ let archivo_path=null; try{archivo_path=await subirMedia(file,'documentos')}catch(e){return alert('No se pudo subir: '+e.message)}
+ const {error}=await sb.from('documentos_condominio').insert({titulo,categoria:docCategoria.value,descripcion:docDescripcion.value.trim()||null,archivo_path,nombre_archivo:file.name,activo:true,creado_por:user.id});
+ if(error){await sb.storage.from('condominio-media').remove([archivo_path]);return alert(error.message)}
+ docTitulo.value='';docDescripcion.value='';docArchivo.value='';await loadAll();
+}
+async function eliminarDocumento(id){
+ if(profile?.rol!=='admin'||!confirm('¿Eliminar este documento?'))return;
+ const d=documentos.find(x=>String(x.id)===String(id));const {error}=await sb.from('documentos_condominio').delete().eq('id',id);if(error)return alert(error.message);if(d?.archivo_path)await sb.storage.from('condominio-media').remove([d.archivo_path]);await loadAll();
+}
+function renderDocumentos(){
+ const body=document.getElementById('documentosRows');if(!body)return;
+ body.innerHTML=documentos.map(d=>`<tr><td>${fechaHora(d.created_at)}</td><td><strong>${esc(d.titulo||'')}</strong></td><td>${esc(d.categoria||'')}</td><td>${esc(d.descripcion||'')}</td><td><button class="mini" onclick="abrirArchivo('${encodeURIComponent(d.archivo_path||'')}')">📄 Abrir</button></td><td class="adminOnly">${profile?.rol==='admin'?`<button class="danger mini" onclick="eliminarDocumento('${d.id}')">Eliminar</button>`:''}</td></tr>`).join('')||'<tr><td colspan="6" class="muted">No hay documentos publicados.</td></tr>';
+}
+
+async function addContactoEmergencia(){
+ if(profile?.rol!=='admin')return;
+ const nombre=emNombre.value.trim(),telefono=emTelefono.value.trim();if(!nombre||!telefono)return alert('Escribe el nombre y teléfono.');
+ const {error}=await sb.from('contactos_emergencia').insert({nombre,telefono,tipo:emTipo.value,notas:emNotas.value.trim()||null,activo:true,creado_por:user.id});if(error)return alert(error.message);emNombre.value='';emTelefono.value='';emNotas.value='';await loadAll();
+}
+async function eliminarContactoEmergencia(id){
+ if(profile?.rol!=='admin'||!confirm('¿Eliminar este contacto?'))return;
+ const {error}=await sb.from('contactos_emergencia').delete().eq('id',id);if(error)return alert(error.message);await loadAll();
+}
+function renderEmergencia(){
+ const caja=document.getElementById('emergenciaLista');if(!caja)return;
+ caja.innerHTML=contactosEmergencia.map(c=>{const tel=String(c.telefono||'').replace(/[^0-9+]/g,'');return `<div class="card"><div class="badge">${esc(c.tipo||'Contacto')}</div><h3 style="margin-top:12px">${esc(c.nombre||'')}</h3><a href="tel:${esc(tel)}" style="color:#7dd3fc;font-size:1.15em;font-weight:800">📞 ${esc(c.telefono||'')}</a>${c.notas?`<p class="muted">${esc(c.notas)}</p>`:''}${profile?.rol==='admin'?`<button class="danger mini" onclick="eliminarContactoEmergencia('${c.id}')">Eliminar</button>`:''}</div>`}).join('')||'<div class="card muted">No hay contactos registrados.</div>';
+}
+
+function renderHistorial(){
+ const resumen=document.getElementById('historialResumen'),body=document.getElementById('historialRows');if(!resumen||!body||!['admin','residente'].includes(profile?.rol))return;
+ let rid=user.id, unidad=profile.unidad||'';
+ if(profile.rol==='admin'){
+   rid=document.getElementById('histResidente')?.value||'';const r=profiles.find(p=>String(p.id)===String(rid));unidad=r?.unidad||'';
+ }
+ if(!rid){resumen.innerHTML='<div class="card muted">Selecciona una casa.</div>';body.innerHTML='';return;}
+ const qs=cuotas.filter(x=>String(x.residente_id)===String(rid));
+ const ps=pagos.filter(x=>String(x.residente_id)===String(rid));
+ const vs=visitas.filter(x=>String(x.residente_id)===String(rid)||String(x.unidad||'')===String(unidad));
+ const cs=controles.filter(x=>String(x.residente_id)===String(rid)||String(x.unidad||'')===String(unidad));
+ const reps=reportes.filter(x=>String(x.residente_id)===String(rid)||String(x.unidad||'')===String(unidad));
+ const pks=paquetes.filter(x=>String(x.unidad||'')===String(unidad));
+ const rss=reservas.filter(x=>String(x.residente_id)===String(rid)||String(x.unidad||'')===String(unidad));
+ const deuda=qs.reduce((sum,q)=>{const pag=ps.filter(p=>String(p.cuota_id)===String(q.id)).reduce((a,p)=>a+Number(p.monto||0),0);return sum+Math.max(0,Number(q.monto||0)-pag)},0);
+ resumen.innerHTML=`<div class="card"><div class="muted">Deuda</div><div class="kpi">${money(deuda)}</div></div><div class="card"><div class="muted">Pagos</div><div class="kpi">${ps.length}</div></div><div class="card"><div class="muted">Reportes</div><div class="kpi">${reps.length}</div></div><div class="card"><div class="muted">Paquetes</div><div class="kpi">${pks.length}</div></div>`;
+ const acts=[];
+ qs.forEach(x=>acts.push({f:x.created_at||x.vencimiento,t:'Cuota',d:x.concepto,e:money(x.monto)}));
+ ps.forEach(x=>acts.push({f:x.created_at||x.fecha,t:'Pago',d:x.metodo||'Pago',e:money(x.monto)}));
+ vs.forEach(x=>acts.push({f:x.created_at||x.fecha,t:'Visita',d:x.visitante||'',e:x.estado||''}));
+ reps.forEach(x=>acts.push({f:x.created_at,t:'Mantenimiento',d:x.categoria+': '+x.descripcion,e:x.estado||''}));
+ pks.forEach(x=>acts.push({f:x.created_at,t:'Paquete',d:x.empresa||x.descripcion||'Paquete',e:x.estado||''}));
+ rss.forEach(x=>acts.push({f:x.created_at||x.fecha,t:'Reservación',d:x.area||'',e:x.estado||''}));
+ acts.sort((a,b)=>new Date(b.f||0)-new Date(a.f||0));
+ body.innerHTML=acts.slice(0,50).map(a=>`<tr><td>${a.f?fechaHora(a.f):''}</td><td>${esc(a.t)}</td><td>${esc(a.d||'')}</td><td>${esc(a.e||'')}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Sin actividad registrada.</td></tr>';
+}
+
 function resumenDeudaResidente(residenteId){
  const hoy=new Date().toISOString().slice(0,10);
  const qs=cuotas.filter(q=>q.residente_id===residenteId);
@@ -904,6 +1186,12 @@ function render(){
  pagosRows.innerHTML=pagos.map(x=>`<tr><td>${esc(x.fecha)}</td><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td><strong>${money(x.monto)}</strong></td><td>${esc(x.metodo)}</td><td>${esc(x.referencia)}</td><td class="adminOnly">${profile?.rol==='admin'?`<button onclick="editarPago(${x.id})">✏️ Editar total pagado</button>`:''}</td></tr>`).join('');
  visitasRows.innerHTML=visitas.map(x=>`<tr><td>${esc(x.fecha)} ${esc(x.hora)}</td><td>${esc(x.visitante)}</td><td>${esc(x.unidad)}</td><td>${esc(x.placas)}</td><td><span class="badge">${esc(x.estado)}</span></td></tr>`).join('');
  accesosRows.innerHTML=accesos.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString('es-MX')}</td><td>${esc(x.persona)}</td><td>${esc(x.tipo)}</td><td>${esc(x.movimiento)}</td><td>${esc(x.unidad)}</td></tr>`).join('');
+ const residentOptions=profiles.filter(x=>x.rol==='residente'&&x.activo!==false&&x.estado_registro!=='rechazado').map(x=>`<option value="${x.id}">${esc(x.nombre)} — ${esc(x.unidad||'')}</option>`).join('');
+ ['repResidente','resResidente','histResidente'].forEach(id=>{const el=document.getElementById(id);if(el&&profile?.rol==='admin'){const prev=el.value;el.innerHTML=residentOptions;if(prev&&[...el.options].some(o=>o.value===prev))el.value=prev;}});
+ if(document.getElementById('kAvisos')) kAvisos.textContent=avisos.length;
+ if(document.getElementById('kReportes')) kReportes.textContent=reportes.filter(x=>x.estado!=='resuelto').length;
+ if(document.getElementById('kPaquetes')) kPaquetes.textContent=paquetes.filter(x=>x.estado!=='entregado').length;
+ renderAvisos(); renderReportes(); renderPaquetes(); renderReservas(); renderDocumentos(); renderEmergencia(); renderHistorial();
  renderPorton();
  renderEventos();
  renderGastos();
