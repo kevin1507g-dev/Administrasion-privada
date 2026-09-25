@@ -536,7 +536,6 @@ function urlBase64ToUint8Array(base64String){
     [...rawData].map(char => char.charCodeAt(0))
   );
 }
-
 async function activarNotificaciones(){
   try {
 
@@ -620,6 +619,42 @@ async function activarNotificaciones(){
       error.message
     );
 
+  }
+}
+  async function enviarNotificacionGeneral(){
+  if(profile?.rol !== 'admin'){
+    return alert('Solo el administrador puede enviar notificaciones.');
+  }
+
+  const titulo = prompt('Título de la notificación:');
+  if(!titulo) return;
+
+  const mensaje = prompt('Mensaje para los residentes:');
+  if(!mensaje) return;
+
+  try{
+    const { data, error } = await sb.functions.invoke('send-push', {
+      body: {
+        title: titulo,
+        message: mensaje,
+        url: window.location.href
+      }
+    });
+
+    if(error){
+      console.error(error);
+      return alert('No se pudo enviar: ' + error.message);
+    }
+
+    alert(
+      `✅ Notificación enviada.\n` +
+      `Enviadas: ${data?.enviados || 0}\n` +
+      `Fallidas: ${data?.fallidos || 0}`
+    );
+
+  }catch(error){
+    console.error(error);
+    alert('Error: ' + error.message);
   }
 }
 const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
