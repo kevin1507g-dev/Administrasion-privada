@@ -12,8 +12,11 @@
 button{border:0;border-radius:10px;padding:11px 14px;font-weight:700;cursor:pointer;background:#334155;color:white} .primary{background:var(--g);color:#052e16} .danger{background:var(--r)}
 .login{min-height:100vh;display:grid;place-items:center;padding:20px} .card{background:var(--p);border:1px solid #334155;border-radius:18px;padding:20px}
 .login .card{width:min(430px,100%)} label{display:block;color:#cbd5e1;margin:14px 0 6px} .muted{color:var(--m)} .err{margin-top:12px;color:#fecaca}
-.app{display:grid;grid-template-columns:245px 1fr;min-height:100vh} aside{padding:18px;background:#020617;border-right:1px solid #334155} main{padding:24px;overflow:auto}
-.nav button{display:block;width:100%;margin:7px 0;text-align:left} section{display:none} section.active{display:block}
+.app{min-height:100vh;position:relative}.menuToggle{position:fixed;top:14px;left:14px;z-index:10020;width:48px;height:48px;padding:0;border-radius:14px;background:#111827;border:1px solid #334155;font-size:27px;line-height:1;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.menuOverlay{position:fixed;inset:0;background:rgba(0,0,0,.58);z-index:10000;opacity:0;pointer-events:none;transition:opacity .2s ease}.menuOverlay.open{opacity:1;pointer-events:auto}
+aside{position:fixed;inset:0 auto 0 0;width:min(320px,88vw);padding:18px;background:#020617;border-right:1px solid #334155;z-index:10010;overflow-y:auto;transform:translateX(-105%);transition:transform .22s ease;box-shadow:12px 0 30px rgba(0,0,0,.35)}aside.open{transform:translateX(0)}
+.menuHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}.menuHeader h3{margin:0}.menuClose{width:42px;height:42px;padding:0;font-size:24px;background:#1e293b}
+main{padding:78px 24px 24px;overflow:auto;min-height:100vh}.nav button{display:block;width:100%;margin:7px 0;text-align:left} section{display:none} section.active{display:block}
 .cameraWrap{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden}
 .cameraWrap iframe{width:100%;height:100%;border:0;background:#000}
 
@@ -24,8 +27,8 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 .notice{border-left:5px solid #38bdf8}.notice.alta{border-left-color:#ef4444}.notice.media{border-left-color:#f59e0b}.notice.baja{border-left-color:#22c55e}
 .actions{display:flex;gap:8px;flex-wrap:wrap}.mini{font-size:.9em;padding:8px 10px}.status-pendiente{color:#fde68a}.status-resuelto{color:#bbf7d0}.status-proceso{color:#bae6fd}
 .fileHint{font-size:.9em;color:#94a3b8;margin-top:6px}
-@media(max-width:800px){.app{grid-template-columns:1fr} aside{border-right:0;border-bottom:1px solid #334155} .grid,.form{grid-template-columns:1fr 1fr}}
-@media(max-width:520px){.grid,.form{grid-template-columns:1fr} main{padding:14px}}
+@media(max-width:800px){.grid,.form{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.grid,.form{grid-template-columns:1fr} main{padding:76px 14px 14px}.menuToggle{top:12px;left:12px}}
 
 .modal{
   position:fixed; inset:0; background:rgba(0,0,0,.62);
@@ -62,7 +65,9 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </div></div>
 
 <div id="app" class="app hidden">
-<aside><h3>🏢 Condominio</h3><div id="who" class="muted"></div>
+<button id="menuToggle" class="menuToggle" type="button" aria-label="Abrir menú" aria-controls="sideMenu" aria-expanded="false" onclick="toggleMenu()">☰</button>
+<div id="menuOverlay" class="menuOverlay" onclick="closeMenu()"></div>
+<aside id="sideMenu" aria-hidden="true"><div class="menuHeader"><h3>🏢 Condominio</h3><button class="menuClose" type="button" aria-label="Cerrar menú" onclick="closeMenu()">×</button></div><div id="who" class="muted"></div>
 <div class="nav">
 <button onclick="show('inicio')">🏠 Inicio</button>
 <button class="cameraOnly" onclick="show('camaras')">📹 Cámaras</button>
@@ -511,11 +516,37 @@ const sb=supabase.createClient(SB_URL,SB_KEY);
 let user=null, profile=null, profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
 const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const money=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(n||0));
+function openMenu(){
+ const menu=$('sideMenu'), overlay=$('menuOverlay'), toggle=$('menuToggle');
+ if(!menu||!overlay||!toggle) return;
+ menu.classList.add('open');
+ overlay.classList.add('open');
+ menu.setAttribute('aria-hidden','false');
+ toggle.setAttribute('aria-expanded','true');
+ document.body.style.overflow='hidden';
+}
+function closeMenu(){
+ const menu=$('sideMenu'), overlay=$('menuOverlay'), toggle=$('menuToggle');
+ if(!menu||!overlay||!toggle) return;
+ menu.classList.remove('open');
+ overlay.classList.remove('open');
+ menu.setAttribute('aria-hidden','true');
+ toggle.setAttribute('aria-expanded','false');
+ document.body.style.overflow='';
+}
+function toggleMenu(){
+ const menu=$('sideMenu');
+ if(!menu) return;
+ menu.classList.contains('open')?closeMenu():openMenu();
+}
 function show(id){
  document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));
- $(id).classList.add('active');
+ const target=$(id);
+ if(target) target.classList.add('active');
  if(id==='camaras') cargarCamara();
+ closeMenu();
 }
+document.addEventListener('keydown',e=>{if(e.key==='Escape') closeMenu();});
 
 function cargarCamara(){
  if(!profile || !['admin','residente'].includes(profile.rol)) return;
