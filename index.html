@@ -69,6 +69,9 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div id="menuOverlay" class="menuOverlay" onclick="closeMenu()"></div>
 <aside id="sideMenu" aria-hidden="true"><div class="menuHeader"><h3>🏢 Condominio</h3><button class="menuClose" type="button" aria-label="Cerrar menú" onclick="closeMenu()">×</button></div><div id="who" class="muted"></div>
 <div class="nav">
+<button id="pushBtn" class="primary" type="button" onclick="activarNotificaciones()">
+  🔔 Activar notificaciones
+</button>
 <button onclick="show('inicio')">🏠 Inicio</button>
 <button class="cameraOnly" onclick="show('camaras')">📹 Cámaras</button>
 <button class="adminOnly" onclick="show('residentes')">👥 Residentes</button>
@@ -514,6 +517,108 @@ const SB_URL='https://nndlfkuelwpwklldvtfo.supabase.co';
 const SB_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 let user=null, profile=null, profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
+const VAPID_PUBLIC_KEY =
+'BCh7-PSmKO_r5DL9TBy1tJ2k9NHNvdeCfKlvwZj8OyDqnPvs1ZLc_mPbfewqLYO_J7VeLDn65WADAxiU19dw_Zo';
+
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = atob(base64);
+
+  return Uint8Array.from(
+    [...rawData].map(char => char.charCodeAt(0))
+  );
+}
+
+async function activarNotificaciones(){
+  try {
+
+    if(!user){
+      return alert('Primero inicia sesión.');
+    }
+
+    if(!('serviceWorker' in navigator)){
+      return alert('Este navegador no admite notificaciones.');
+    }
+
+    if(!('PushManager' in window)){
+      return alert('Este dispositivo no admite notificaciones push.');
+    }
+
+    const permiso = await Notification.requestPermission();
+
+    if(permiso !== 'granted'){
+      return alert('Debes permitir las notificaciones.');
+    }
+
+    const registro =
+      await navigator.serviceWorker.register('./sw.js');
+
+    await navigator.serviceWorker.ready;
+
+    let suscripcion =
+      await registro.pushManager.getSubscription();
+
+    if(!suscripcion){
+
+      suscripcion =
+        await registro.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey:
+            urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+
+    }
+
+    const datos = suscripcion.toJSON();
+
+    const {error} = await sb
+      .from('push_subscriptions')
+      .upsert({
+        user_id: user.id,
+        endpoint: datos.endpoint,
+        p256dh: datos.keys.p256dh,
+        auth_key: datos.keys.auth,
+        enabled: true,
+        updated_at: new Date().toISOString()
+      },{
+        onConflict: 'endpoint'
+      });
+
+    if(error){
+      console.error(error);
+      return alert(
+        'No se pudo activar: ' + error.message
+      );
+    }
+
+    const boton =
+      document.getElementById('pushBtn');
+
+    if(boton){
+      boton.textContent =
+        '✅ Notificaciones activadas';
+    }
+
+    alert(
+      '🔔 Notificaciones activadas correctamente.'
+    );
+
+  }catch(error){
+
+    console.error(error);
+
+    alert(
+      'Error al activar notificaciones: ' +
+      error.message
+    );
+
+  }
+}
 const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const money=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(n||0));
 function openMenu(){
