@@ -246,11 +246,121 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </div>
 </section>
 
-<section id="cuotas"><h2>Cuotas</h2><div class="card adminOnly"><div class="form">
-<div><label>Residente</label><select id="cRes"></select></div><div><label>Concepto</label><input id="cConcepto" value="Mantenimiento"></div>
-<div><label>Monto</label><input id="cMonto" type="number" step=".01"></div><div><label>Vencimiento</label><input id="cFecha" type="date"></div></div>
-<button class="primary" style="margin-top:12px" onclick="addCuota()">Crear cuota</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Residente</th><th>Concepto</th><th>Monto</th><th>Vencimiento</th><th>Estado</th><th class="adminOnly">Acción</th></tr></thead><tbody id="cuotasRows"></tbody></table></div></section>
+<section id="cuotas">
 
+  <h2>🧾 Cuotas</h2>
+
+  <div class="card adminOnly">
+    <h3>⚙️ Cobro automático mensual</h3>
+
+    <div class="form">
+
+      <div>
+        <label>Estado</label>
+        <div id="autoCobroEstado" class="badge" style="margin-top:10px">
+          Cargando...
+        </div>
+      </div>
+
+      <div>
+        <label>Cuota automática mensual</label>
+        <input
+          id="autoCobroMonto"
+          type="number"
+          min="0.01"
+          step="0.01"
+          placeholder="60.00"
+        >
+      </div>
+
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+
+      <button
+        id="autoCobroToggle"
+        class="primary"
+        onclick="cambiarCobroAutomatico()"
+      >
+        Activar
+      </button>
+
+      <button onclick="guardarMontoAutomatico()">
+        💾 Guardar monto
+      </button>
+
+    </div>
+
+    <p class="muted" style="margin-top:12px">
+      El nuevo monto se aplicará a las próximas cuotas automáticas.
+      Las cuotas que ya existen no se modificarán.
+    </p>
+
+  </div>
+
+
+  <div class="card adminOnly" style="margin-top:14px">
+
+    <h3>Crear cuota manual</h3>
+
+    <div class="form">
+
+      <div>
+        <label>Residente</label>
+        <select id="cRes"></select>
+      </div>
+
+      <div>
+        <label>Concepto</label>
+        <input id="cConcepto" value="Mantenimiento">
+      </div>
+
+      <div>
+        <label>Monto</label>
+        <input id="cMonto" type="number" step=".01">
+      </div>
+
+      <div>
+        <label>Vencimiento</label>
+        <input id="cFecha" type="date">
+      </div>
+
+    </div>
+
+    <button
+      class="primary"
+      style="margin-top:12px"
+      onclick="addCuota()"
+    >
+      Crear cuota
+    </button>
+
+  </div>
+
+
+  <div class="card table" style="margin-top:14px">
+
+    <table>
+
+      <thead>
+        <tr>
+          <th>Residente</th>
+          <th>Concepto</th>
+          <th>Monto</th>
+          <th>Vencimiento</th>
+          <th>Estado</th>
+          <th class="adminOnly">Acción</th>
+        </tr>
+      </thead>
+
+      <tbody id="cuotasRows"></tbody>
+
+    </table>
+
+  </div>
+
+</section>
+  
 <section id="pagos"><h2>Pagos</h2>
 <div id="residentDebtSummary" class="card" style="margin-bottom:14px;display:none">
   <div class="grid">
