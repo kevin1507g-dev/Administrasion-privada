@@ -626,6 +626,224 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </main></div>
 
 <script>
+  let configCobroAutomatico = null;
+
+
+async function cargarConfigCobroAutomatico(){
+
+  if(profile?.rol !== 'admin'){
+    return;
+  }
+
+  const {data,error} = await sb
+    .from('config_cobro_automatico')
+    .select('*')
+    .eq('id',1)
+    .single();
+
+
+  if(error){
+
+    console.error(error);
+
+    return alert(
+      'No se pudo cargar la configuración: '
+      + error.message
+    );
+
+  }
+
+
+  configCobroAutomatico = data;
+
+
+  const estado =
+    document.getElementById(
+      'autoCobroEstado'
+    );
+
+
+  const boton =
+    document.getElementById(
+      'autoCobroToggle'
+    );
+
+
+  const monto =
+    document.getElementById(
+      'autoCobroMonto'
+    );
+
+
+  if(monto){
+    monto.value =
+      Number(data.monto || 0).toFixed(2);
+  }
+
+
+  if(estado){
+
+    estado.textContent =
+      data.activo
+      ? '✅ Cobros automáticos ACTIVADOS'
+      : '⛔ Cobros automáticos DESACTIVADOS';
+
+  }
+
+
+  if(boton){
+
+    boton.textContent =
+      data.activo
+      ? '⛔ Desactivar cobros automáticos'
+      : '✅ Activar cobros automáticos';
+
+    boton.className =
+      data.activo
+      ? 'danger'
+      : 'primary';
+
+  }
+
+}
+
+
+
+async function cambiarCobroAutomatico(){
+
+  if(profile?.rol !== 'admin'){
+    return;
+  }
+
+
+  if(!configCobroAutomatico){
+
+    await cargarConfigCobroAutomatico();
+
+  }
+
+
+  const nuevoEstado =
+    !configCobroAutomatico.activo;
+
+
+  const mensaje =
+    nuevoEstado
+    ? '¿Activar los cobros automáticos mensuales?'
+    : '¿Desactivar los cobros automáticos mensuales?';
+
+
+  if(!confirm(mensaje)){
+    return;
+  }
+
+
+  const {error} = await sb
+    .from('config_cobro_automatico')
+    .update({
+
+      activo: nuevoEstado,
+
+      actualizado_por: user.id,
+
+      updated_at:
+        new Date().toISOString()
+
+    })
+    .eq('id',1);
+
+
+  if(error){
+
+    return alert(
+      'No se pudo cambiar el estado: '
+      + error.message
+    );
+
+  }
+
+
+  await cargarConfigCobroAutomatico();
+
+
+  alert(
+    nuevoEstado
+    ? '✅ Cobros automáticos activados.'
+    : '⛔ Cobros automáticos desactivados.'
+  );
+
+}
+
+
+
+async function guardarMontoAutomatico(){
+
+  if(profile?.rol !== 'admin'){
+    return;
+  }
+
+
+  const input =
+    document.getElementById(
+      'autoCobroMonto'
+    );
+
+
+  const monto =
+    Number(input?.value || 0);
+
+
+  if(!Number.isFinite(monto) || monto <= 0){
+
+    return alert(
+      'Escribe una cuota válida mayor a $0.'
+    );
+
+  }
+
+
+  if(
+    !confirm(
+      `¿Cambiar la cuota automática mensual a ${money(monto)}?`
+    )
+  ){
+    return;
+  }
+
+
+  const {error} = await sb
+    .from('config_cobro_automatico')
+    .update({
+
+      monto,
+
+      actualizado_por: user.id,
+
+      updated_at:
+        new Date().toISOString()
+
+    })
+    .eq('id',1);
+
+
+  if(error){
+
+    return alert(
+      'No se pudo guardar el monto: '
+      + error.message
+    );
+
+  }
+
+
+  await cargarConfigCobroAutomatico();
+
+
+  alert(
+    `✅ La cuota automática ahora será de ${money(monto)}.`
+  );
+
+}
 const SB_URL='https://nndlfkuelwpwklldvtfo.supabase.co';
 const SB_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
 const sb=supabase.createClient(SB_URL,SB_KEY);
@@ -778,6 +996,7 @@ function openMenu(){
  toggle.setAttribute('aria-expanded','true');
  document.body.style.overflow='hidden';
 }
+  
 function closeMenu(){
  const menu=$('sideMenu'), overlay=$('menuOverlay'), toggle=$('menuToggle');
  if(!menu||!overlay||!toggle) return;
@@ -793,11 +1012,23 @@ function toggleMenu(){
  menu.classList.contains('open')?closeMenu():openMenu();
 }
 function show(id){
- document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));
- const target=$(id);
- if(target) target.classList.add('active');
- if(id==='camaras') cargarCamara();
- closeMenu();
+  document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));
+
+  const target=$(id);
+
+  if(target){
+    target.classList.add('active');
+  }
+
+  if(id==='camaras'){
+    cargarCamara();
+  }
+
+  if(id==='cuotas' && profile?.rol==='admin'){
+    cargarConfigCobroAutomatico();
+  }
+
+  closeMenu();
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape') closeMenu();});
 
