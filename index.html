@@ -360,7 +360,13 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   </div>
 
 </section>
-  
+ <button
+  class="adminOnly"
+  style="margin-top:12px"
+  onclick="verTotalPagado()"
+>
+  💰 Ver total pagado
+</button>
 <section id="pagos"><h2>Pagos</h2>
 <div id="residentDebtSummary" class="card" style="margin-bottom:14px;display:none">
   <div class="grid">
@@ -626,6 +632,22 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </main></div>
 
 <script>
+function verTotalPagado(){
+
+  if(profile?.rol !== 'admin'){
+    return;
+  }
+
+  const total = pagos.reduce(
+    (suma, pago) => suma + Number(pago.monto || 0),
+    0
+  );
+
+  alert(
+    '💰 TOTAL PAGADO\n\n' +
+    money(total)
+  );
+}
   let configCobroAutomatico = null;
 
 
