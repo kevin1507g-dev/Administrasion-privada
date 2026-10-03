@@ -360,14 +360,18 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   </div>
 
 </section>
- <button
-  class="adminOnly"
-  style="margin-top:12px"
-  onclick="verTotalPagado()"
->
-  💰 Ver total pagado
-</button>
-<section id="pagos"><h2>Pagos</h2>
+
+<section id="pagos">
+  
+  <h2>Pagos</h2>
+
+  <button
+    class="adminOnly"
+    style="margin-top:12px"
+    onclick="verTotalPagado()"
+  >
+    💰 Ver total pagado
+  </button>
 <div id="residentDebtSummary" class="card" style="margin-bottom:14px;display:none">
   <div class="grid">
     <div><div class="muted">Deuda total pendiente</div><div id="rDebtTotal" class="kpi">$0.00</div></div>
