@@ -388,6 +388,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   >
     💰 Ver total pagado
   </button>
+  
 <div id="residentDebtSummary" class="card" style="margin-bottom:14px;display:none">
   <div class="grid">
     <div><div class="muted">Deuda total pendiente</div><div id="rDebtTotal" class="kpi">$0.00</div></div>
@@ -396,10 +397,67 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     <div><div class="muted">Total pagado</div><div id="rPaidTotal" class="kpi">$0.00</div></div>
   </div>
   <div class="muted" style="margin-top:10px">Aquí puedes ver cuánto debes actualmente y el saldo restante de cada cuota.</div>
-</div><div class="card adminOnly"><div class="form">
-<div><label>Cuota</label><select id="pCuota"></select></div><div><label>Monto</label><input id="pMonto" type="number" step=".01"></div>
-<div><label>Método</label><select id="pMetodo"><option>Transferencia</option><option>Efectivo</option><option>Tarjeta</option><option>Otro</option></select></div><div><label>Referencia</label><input id="pRef"></div></div>
-<button class="primary" style="margin-top:12px" onclick="addPago()">Registrar pago</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Residente</th><th>Monto</th><th>Método</th><th>Referencia</th><th class="adminOnly">Acción</th></tr></thead><tbody id="pagosRows"></tbody></table></div>
+  <div class="card adminOnly">
+
+  <div class="form">
+
+    <div>
+      <label>Cuota</label>
+      <select id="pCuota"></select>
+    </div>
+
+    <div>
+      <label>Monto</label>
+      <input id="pMonto" type="number" step=".01">
+    </div>
+
+    <div>
+      <label>Método</label>
+      <select id="pMetodo">
+        <option>Transferencia</option>
+        <option>Efectivo</option>
+        <option>Tarjeta</option>
+        <option>Otro</option>
+      </select>
+    </div>
+
+    <div>
+      <label>Referencia</label>
+      <input id="pRef">
+    </div>
+
+  </div>
+
+  <button
+    class="primary"
+    style="margin-top:12px"
+    onclick="addPago()"
+  >
+    Registrar pago
+  </button>
+
+</div>
+
+<div class="card table" style="margin-top:14px">
+
+  <table>
+
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Residente</th>
+        <th>Monto</th>
+        <th>Método</th>
+        <th>Referencia</th>
+        <th class="adminOnly">Acciones</th>
+      </tr>
+    </thead>
+
+    <tbody id="pagosRows"></tbody>
+
+  </table>
+
+</div>
 <div id="residentBalanceCard" class="card table" style="margin-top:14px;display:none">
   <h3 style="padding:14px 14px 0">Detalle de lo que debes</h3>
   <table>
