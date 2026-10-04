@@ -1620,18 +1620,51 @@ function renderAvisos(){
 }
 
 async function addReporte(){
- if(!['admin','residente'].includes(profile?.rol)) return;
- let rid=user.id, unidad=profile.unidad||'';
- if(profile.rol==='admin'){
-   rid=repResidente.value; const r=profiles.find(p=>String(p.id)===String(rid)); if(!r)return alert('Selecciona un residente.'); unidad=r.unidad||'';
- }
- const descripcion=repDescripcion.value.trim(); if(!descripcion)return alert('Describe el problema.');
- let foto_path=null;
- try{const file=repFoto.files?.[0]; if(file) foto_path=await subirMedia(file,`mantenimiento/${rid}`);}catch(e){return alert('No se pudo subir la foto: '+e.message)}
- const {error}=await sb.from('reportes_mantenimiento').insert({residente_id:rid,unidad,categoria:repCategoria.value,descripcion,prioridad:repPrioridad.value,estado:'pendiente',foto_path,creado_por:user.id});
- if(error){if(foto_path)await sb.storage.from('condominio-media').remove([foto_path]);return alert('No se pudo guardar el reporte: '+error.message)}
- repDescripcion.value=''; repFoto.value=''; await loadAll();
+  if(!['admin','residente'].includes(profile?.rol)) return;
+  let casaId=profile.casa_id||null;
+  let rid=profile.rol==='residente'?user.id:null;
+
+  if(profile.rol==='admin'){
+    casaId=repResidente.value||null;
+    if(!casaId) return alert('Selecciona una casa.');
+  }
+
+  const casa=casaPorId(casaId);
+  if(!casa) return alert('No se encontró la casa seleccionada.');
+
+  const descripcion=repDescripcion.value.trim();
+  if(!descripcion) return alert('Describe el problema.');
+
+  let foto_path=null;
+  try{
+    const file=repFoto.files?.[0];
+    if(file) foto_path=await subirMedia(file,'mantenimiento/'+casaId);
+  }catch(e){
+    return alert('No se pudo subir la foto: '+e.message);
+  }
+
+  const {error}=await sb.from('reportes_mantenimiento').insert({
+    casa_id:casaId,
+    residente_id:rid,
+    unidad:casa.numero,
+    categoria:repCategoria.value,
+    descripcion,
+    prioridad:repPrioridad.value,
+    estado:'pendiente',
+    foto_path,
+    creado_por:user.id
+  });
+
+  if(error){
+    if(foto_path) await sb.storage.from('condominio-media').remove([foto_path]);
+    return alert('No se pudo guardar el reporte: '+error.message);
+  }
+
+  repDescripcion.value='';
+  repFoto.value='';
+  await loadAll();
 }
+
 async function setReporteEstado(id,estado){
  if(profile?.rol!=='admin') return;
  const {error}=await sb.from('reportes_mantenimiento').update({estado,actualizado_en:new Date().toISOString()}).eq('id',id); if(error)return alert(error.message); await loadAll();
@@ -1647,12 +1680,34 @@ function renderReportes(){
 }
 
 async function addPaquete(){
- if(!['admin','guardia'].includes(profile?.rol)) return;
- const unidad=paqUnidad.value.trim(), destinatario=paqDestinatario.value.trim(); if(!unidad||!destinatario)return alert('Escribe la casa y el destinatario.');
- const {error}=await sb.from('paquetes').insert({unidad,destinatario,empresa:paqEmpresa.value.trim()||null,guia:paqGuia.value.trim()||null,descripcion:paqDescripcion.value.trim()||null,estado:'recibido',registrado_por:user.id});
- if(error)return alert('No se pudo registrar: '+error.message);
- paqUnidad.value='';paqDestinatario.value='';paqEmpresa.value='';paqGuia.value='';paqDescripcion.value='';await loadAll();
+  if(!['admin','guardia'].includes(profile?.rol)) return;
+
+  const casaId=paqUnidad.value||null;
+  const casa=casaPorId(casaId);
+  const destinatario=paqDestinatario.value.trim();
+
+  if(!casa || !destinatario) return alert('Selecciona la casa y escribe el destinatario.');
+
+  const {error}=await sb.from('paquetes').insert({
+    casa_id:casaId,
+    unidad:casa.numero,
+    destinatario,
+    empresa:paqEmpresa.value.trim()||null,
+    guia:paqGuia.value.trim()||null,
+    descripcion:paqDescripcion.value.trim()||null,
+    estado:'recibido',
+    registrado_por:user.id
+  });
+
+  if(error) return alert('No se pudo registrar: '+error.message);
+
+  paqDestinatario.value='';
+  paqEmpresa.value='';
+  paqGuia.value='';
+  paqDescripcion.value='';
+  await loadAll();
 }
+
 async function entregarPaquete(id){
  if(!['admin','guardia'].includes(profile?.rol))return;
  const {error}=await sb.from('paquetes').update({estado:'entregado',entregado_en:new Date().toISOString(),entregado_por:user.id}).eq('id',id); if(error)return alert(error.message); await loadAll();
@@ -1667,14 +1722,44 @@ function renderPaquetes(){
 }
 
 async function addReserva(){
- if(!['admin','residente'].includes(profile?.rol)) return;
- let rid=user.id, unidad=profile.unidad||'';
- if(profile.rol==='admin'){rid=resResidente.value;const r=profiles.find(p=>String(p.id)===String(rid));if(!r)return alert('Selecciona un residente.');unidad=r.unidad||'';}
- if(!resFecha.value||!resInicio.value||!resFin.value)return alert('Selecciona fecha, hora de inicio y hora de fin.');
- if(resFin.value<=resInicio.value)return alert('La hora de fin debe ser posterior a la hora de inicio.');
- const {error}=await sb.from('reservaciones').insert({residente_id:rid,unidad,area:resArea.value,fecha:resFecha.value,hora_inicio:resInicio.value,hora_fin:resFin.value,notas:resNotas.value.trim()||null,estado:'pendiente',creado_por:user.id});
- if(error)return alert('No se pudo reservar: '+error.message); resNotas.value='';await loadAll();
+  if(!['admin','residente'].includes(profile?.rol)) return;
+
+  let casaId=profile.casa_id||null;
+  let rid=profile.rol==='residente'?user.id:null;
+
+  if(profile.rol==='admin'){
+    casaId=resResidente.value||null;
+    if(!casaId) return alert('Selecciona una casa.');
+  }
+
+  const casa=casaPorId(casaId);
+  if(!casa) return alert('No se encontró la casa seleccionada.');
+
+  if(!resFecha.value||!resInicio.value||!resFin.value)
+    return alert('Selecciona fecha, hora de inicio y hora de fin.');
+
+  if(resFin.value<=resInicio.value)
+    return alert('La hora de fin debe ser posterior a la hora de inicio.');
+
+  const {error}=await sb.from('reservaciones').insert({
+    casa_id:casaId,
+    residente_id:rid,
+    unidad:casa.numero,
+    area:resArea.value,
+    fecha:resFecha.value,
+    hora_inicio:resInicio.value,
+    hora_fin:resFin.value,
+    notas:resNotas.value.trim()||null,
+    estado:'pendiente',
+    creado_por:user.id
+  });
+
+  if(error) return alert('No se pudo reservar: '+error.message);
+
+  resNotas.value='';
+  await loadAll();
 }
+
 async function setReservaEstado(id,estado){
  if(profile?.rol!=='admin')return;
  const {error}=await sb.from('reservaciones').update({estado}).eq('id',id);if(error)return alert(error.message);await loadAll();
