@@ -1359,317 +1359,138 @@ function calcularDeudas(){
  return [...porCasa.values()].sort((a,b)=>b.pendiente-a.pendiente);
 }
 
+
 function diasEntre(a,b){
  const d1=new Date(a+'T00:00:00'), d2=new Date(b+'T00:00:00');
  return Math.floor((d2-d1)/86400000);
 }
-function deudaVencidaPorResidente(residenteId){
+function deudaVencidaPorCasa(casaId){
  const hoy=new Date().toISOString().slice(0,10);
  let deuda=0;
- for(const q of cuotas.filter(x=>x.residente_id===residenteId && x.vencimiento < hoy)){
-   const pagado=pagos.filter(p=>String(p.cuota_id)===String(q.id)).reduce((s,p)=>s+Number(p.monto||0),0);
-   deuda += Math.max(0,Number(q.monto||0)-pagado);
+ for(const q of cuotas.filter(x=>String(casaIdDeRegistro(x))===String(casaId) && x.vencimiento<hoy)){
+   const pagado=pagos.filter(p=>String(p.cuota_id)===String(q.id)).reduce((sum,p)=>sum+Number(p.monto||0),0);
+   deuda+=Math.max(0,Number(q.monto||0)-pagado);
  }
  return deuda;
 }
-function atrasoMaximo(residenteId){
+function atrasoMaximoCasa(casaId){
  const hoy=new Date().toISOString().slice(0,10);
- const vencidas=cuotas.filter(x=>x.residente_id===residenteId && x.vencimiento < hoy)
+ const vencidas=cuotas
+   .filter(x=>String(casaIdDeRegistro(x))===String(casaId) && x.vencimiento<hoy)
    .filter(q=>{
-      const pagado=pagos.filter(p=>String(p.cuota_id)===String(q.id)).reduce((s,p)=>s+Number(p.monto||0),0);
-      return Number(q.monto||0)-pagado>0.009;
+     const pagado=pagos.filter(p=>String(p.cuota_id)===String(q.id)).reduce((sum,p)=>sum+Number(p.monto||0),0);
+     return Number(q.monto||0)-pagado>0.009;
    });
  if(!vencidas.length)return 0;
  return Math.max(...vencidas.map(q=>diasEntre(q.vencimiento,hoy)));
 }
-
-function controlesDeUnidad(unidad){
- return controles.filter(c=>String(c.unidad||'')===String(unidad||''));
+function controlesDeCasa(casaId){
+ return controles.filter(c=>String(casaIdDeRegistro(c))===String(casaId));
 }
-
 async function addControl(){
- if(profile?.rol!=='admin') return;
- const residenteId=document.getElementById('ctrlResidente')?.value;
+ if(profile?.rol!=='admin')return;
+ const casaId=document.getElementById('ctrlResidente')?.value;
  const numero=document.getElementById('ctrlNumero')?.value.trim();
  const msg=document.getElementById('ctrlMsg');
- if(msg) msg.textContent='';
-
- if(!residenteId) return alert('Selecciona una casa.');
- if(!numero) return alert('Escribe el número del control.');
-
- const residente=profiles.find(p=>p.id===residenteId);
- if(!residente) return alert('No se encontró el residente seleccionado.');
-
- const unidad=residente.unidad||'';
- const actuales=controlesDeUnidad(unidad);
- if(actuales.length>=3){
-   return alert('Esta casa ya tiene el máximo de 3 controles.');
- }
- if(controles.some(c=>String(c.numero_control).toLowerCase()===numero.toLowerCase())){
-   return alert('Ese número de control ya está registrado.');
- }
-
+ if(msg)msg.textContent='';
+ if(!casaId)return alert('Selecciona una casa.');
+ if(!numero)return alert('Escribe el número del control.');
+ const casa=casaPorId(casaId);
+ if(!casa)return alert('No se encontró la casa seleccionada.');
+ if(controlesDeCasa(casaId).length>=3)return alert('Esta casa ya tiene el máximo de 3 controles.');
+ if(controles.some(c=>String(c.numero_control).toLowerCase()===numero.toLowerCase()))return alert('Ese número de control ya está registrado.');
+ const representante=residentesDeCasa(casaId).find(p=>p.activo!==false&&p.estado_registro!=='rechazado')||residentesDeCasa(casaId)[0]||null;
  const {error}=await sb.from('controles_residenciales').insert({
-   residente_id:residenteId,
+   casa_id:casaId,
+   residente_id:representante?.id||null,
+   unidad:casa.numero,
    numero_control:numero,
    estado:'activo',
    actualizado_por:user.id
  });
- if(error) return alert('No se pudo agregar el control: '+error.message);
-
+ if(error)return alert('No se pudo agregar el control: '+error.message);
  document.getElementById('ctrlNumero').value='';
- if(msg) msg.textContent='Control agregado correctamente.';
+ if(msg)msg.textContent='Control agregado correctamente.';
  await loadAll();
 }
-
 async function setControlEstado(id,estado){
- if(profile?.rol!=='admin') return;
+ if(profile?.rol!=='admin')return;
  const texto=estado==='suspendido'?'suspender temporalmente':'reactivar';
- if(!confirm(`¿Confirmar ${texto} este control?`)) return;
-
+ if(!confirm('¿Confirmar '+texto+' este control?'))return;
  const {error}=await sb.from('controles_residenciales')
-   .update({
-     estado,
-     actualizado_por:user.id,
-     actualizado_en:new Date().toISOString()
-   })
+   .update({estado,actualizado_por:user.id,actualizado_en:new Date().toISOString()})
    .eq('id',id);
-
- if(error) return alert('No se pudo actualizar el control: '+error.message);
+ if(error)return alert('No se pudo actualizar el control: '+error.message);
  await loadAll();
 }
-
 async function deleteControl(id){
- if(profile?.rol!=='admin') return;
- if(!confirm('¿Eliminar este número de control de la casa?')) return;
+ if(profile?.rol!=='admin')return;
+ if(!confirm('¿Eliminar este número de control de la casa?'))return;
  const {error}=await sb.from('controles_residenciales').delete().eq('id',id);
- if(error) return alert('No se pudo eliminar el control: '+error.message);
+ if(error)return alert('No se pudo eliminar el control: '+error.message);
  await loadAll();
 }
-
 function renderControlesRegistrados(){
+ const residentBody=document.getElementById('residentControlsRows');
+ const adminBody=document.getElementById('adminControlsRows');
+ const select=document.getElementById('ctrlResidente');
+ const coll=new Intl.Collator('es',{numeric:true,sensitivity:'base'});
 
-  const residentBody =
-    document.getElementById('residentControlsRows');
+ if(profile?.rol==='admin'&&select){
+   const prev=select.value;
+   const lista=[...casas].filter(c=>c.activo!==false).sort((a,b)=>coll.compare(String(a.numero||''),String(b.numero||'')));
+   select.innerHTML=lista.map(c=>'<option value="'+c.id+'">Casa '+esc(c.numero||'')+' — '+controlesDeCasa(c.id).length+'/3 controles</option>').join('');
+   if(prev&&[...select.options].some(o=>o.value===prev))select.value=prev;
+ }
 
-  const adminBody =
-    document.getElementById('adminControlsRows');
+ if(profile?.rol==='residente'&&residentBody){
+   residentBody.innerHTML=controles.map(c=>{
+     const badge=c.estado==='suspendido'
+       ? '<span class="badge">⛔ Suspendido temporalmente</span>'
+       : '<span class="badge">✅ Activo</span>';
+     return '<tr><td><strong>'+esc(c.numero_control)+'</strong></td><td>'+badge+'</td></tr>';
+   }).join('')||'<tr><td colspan="2" class="muted">Tu casa no tiene controles registrados.</td></tr>';
+ }
 
-  const select =
-    document.getElementById('ctrlResidente');
-
-
-  if(profile?.rol === 'admin' && select){
-
-    const residentes = profiles
-      .filter(p =>
-        p.rol === 'residente' &&
-        p.activo !== false
-      )
-      .sort((a,b)=>{
-        return new Intl.Collator('es',{
-          numeric:true,
-          sensitivity:'base'
-        }).compare(
-          String(a.unidad || ''),
-          String(b.unidad || '')
-        );
-      });
-
-    select.innerHTML = residentes.map(r=>{
-
-      const count =
-        controlesDeUnidad(r.unidad).length;
-
-      return `
-        <option value="${r.id}">
-          ${esc(r.unidad || 'Sin casa')}
-          — ${esc(r.nombre)}
-          (${count}/3)
-        </option>
-      `;
-
-    }).join('');
-  }
-
-
-  if(profile?.rol === 'residente' && residentBody){
-
-    residentBody.innerHTML =
-      controles.map(c=>{
-
-        const badge =
-          c.estado === 'suspendido'
-          ? '<span class="badge">⛔ Suspendido temporalmente</span>'
-          : '<span class="badge">✅ Activo</span>';
-
-        return `
-          <tr>
-            <td>
-              <strong>${esc(c.numero_control)}</strong>
-            </td>
-            <td>${badge}</td>
-          </tr>
-        `;
-
-      }).join('') ||
-      '<tr><td colspan="2" class="muted">No tienes controles registrados.</td></tr>';
-  }
-
-
-  if(profile?.rol === 'admin' && adminBody){
-
-    const modo =
-      document.getElementById('ordenControles')?.value || 'asc';
-
-    const comparador =
-      new Intl.Collator('es',{
-        numeric:true,
-        sensitivity:'base'
-      });
-
-    const lista =
-      [...controles].sort((a,b)=>{
-
-        const residenteA =
-          profiles.find(
-            p => p.id === a.residente_id
-          ) || {};
-
-        const residenteB =
-          profiles.find(
-            p => p.id === b.residente_id
-          ) || {};
-
-        const casaA =
-          String(
-            a.unidad ||
-            residenteA.unidad ||
-            ''
-          );
-
-        const casaB =
-          String(
-            b.unidad ||
-            residenteB.unidad ||
-            ''
-          );
-
-        const resultado =
-          comparador.compare(
-            casaA,
-            casaB
-          );
-
-        return modo === 'desc'
-          ? -resultado
-          : resultado;
-      });
-
-
-    adminBody.innerHTML =
-      lista.map(c=>{
-
-        const r =
-          profiles.find(
-            p => p.id === c.residente_id
-          ) || {};
-
-        const badge =
-          c.estado === 'suspendido'
-          ? '⛔ Suspendido temporalmente'
-          : '✅ Activo';
-
-        const estadoBtn =
-          c.estado === 'suspendido'
-          ? `
-            <button
-              onclick="setControlEstado(${c.id},'activo')"
-            >
-              Reactivar
-            </button>
-          `
-          : `
-            <button
-              class="danger"
-              onclick="setControlEstado(${c.id},'suspendido')"
-            >
-              Suspender
-            </button>
-          `;
-
-        return `
-          <tr>
-
-            <td>
-              ${esc(r.nombre || '')}
-            </td>
-
-            <td>
-              <strong>
-                ${esc(c.unidad || r.unidad || '')}
-              </strong>
-            </td>
-
-            <td>
-              ${esc(c.numero_control)}
-            </td>
-
-            <td>
-              ${badge}
-            </td>
-
-            <td>
-              ${estadoBtn}
-
-              <button
-                class="danger"
-                onclick="deleteControl(${c.id})"
-              >
-                Eliminar
-              </button>
-            </td>
-
-          </tr>
-        `;
-
-      }).join('') ||
-      '<tr><td colspan="5" class="muted">No hay controles registrados.</td></tr>';
-  }
+ if(profile?.rol==='admin'&&adminBody){
+   const modo=document.getElementById('ordenControles')?.value||'asc';
+   const lista=[...controles].sort((a,b)=>{
+     const r=coll.compare(String(casaNumero(casaIdDeRegistro(a))),String(casaNumero(casaIdDeRegistro(b))));
+     return modo==='desc'?-r:r;
+   });
+   adminBody.innerHTML=lista.map(c=>{
+     const casaId=casaIdDeRegistro(c);
+     const badge=c.estado==='suspendido'?'⛔ Suspendido temporalmente':'✅ Activo';
+     const estadoBtn=c.estado==='suspendido'
+       ? '<button onclick="setControlEstado('+c.id+',\'activo\')">Reactivar</button>'
+       : '<button class="danger" onclick="setControlEstado('+c.id+',\'suspendido\')">Suspender</button>';
+     return '<tr><td>'+esc(nombresCasa(casaId)||'Sin residente')+'</td><td><strong>'+esc(casaNumero(casaId)||c.unidad||'')+'</strong></td><td>'+esc(c.numero_control)+'</td><td>'+badge+'</td><td>'+estadoBtn+' <button class="danger" onclick="deleteControl('+c.id+')">Eliminar</button></td></tr>';
+   }).join('')||'<tr><td colspan="5" class="muted">No hay controles registrados.</td></tr>';
+ }
 }
 function renderPorton(){
  renderControlesRegistrados();
-
  const body=document.getElementById('portonRows');
- if(!body || profile?.rol!=='admin') return;
-
+ if(!body||profile?.rol!=='admin')return;
  const grace=Math.max(0,Number(document.getElementById('graceDays')?.value||5));
  const modo=document.getElementById('ordenControles')?.value||'asc';
- const comparador=new Intl.Collator('es',{numeric:true,sensitivity:'base'});
- const residentes=profiles
-   .filter(x=>x.rol==='residente')
-   .sort((a,b)=>{
-     const resultado=comparador.compare(String(a.unidad||''),String(b.unidad||''));
-     return modo==='desc'?-resultado:resultado;
-   });
-
- body.innerHTML=residentes.map(r=>{
-   const deuda=deudaVencidaPorResidente(r.id);
-   const atraso=atrasoMaximo(r.id);
-   const sugerido=deuda>0 && atraso>grace ? '⚠️ Revisar suspensión temporal' : '✅ Al corriente';
-   const cs=controlesDeUnidad(r.unidad);
-   const activos=cs.filter(c=>c.estado==='activo').length;
-   const suspendidos=cs.filter(c=>c.estado==='suspendido').length;
-   const resumen=cs.length?`${cs.length} total · ${activos} activos · ${suspendidos} suspendidos`:'Sin controles';
-   return `<tr>
-     <td>${esc(r.nombre)}</td>
-     <td>${esc(r.unidad||'')}</td>
-     <td>${money(deuda)}</td>
-     <td>${sugerido}</td>
-     <td>${esc(resumen)}</td>
-   </tr>`;
- }).join('')||'<tr><td colspan="5" class="muted">No hay residentes.</td></tr>';
+ const coll=new Intl.Collator('es',{numeric:true,sensitivity:'base'});
+ const lista=[...casas].filter(c=>c.activo!==false).sort((a,b)=>{
+   const r=coll.compare(String(a.numero||''),String(b.numero||''));
+   return modo==='desc'?-r:r;
+ });
+ body.innerHTML=lista.map(c=>{
+   const deuda=deudaVencidaPorCasa(c.id);
+   const atraso=atrasoMaximoCasa(c.id);
+   const sugerido=deuda>0&&atraso>grace?'⚠️ Revisar suspensión temporal':'✅ Al corriente';
+   const cs=controlesDeCasa(c.id);
+   const activos=cs.filter(x=>x.estado==='activo').length;
+   const suspendidos=cs.filter(x=>x.estado==='suspendido').length;
+   const resumen=cs.length?(cs.length+' total · '+activos+' activos · '+suspendidos+' suspendidos'):'Sin controles';
+   return '<tr><td>'+esc(nombresCasa(c.id)||'Sin residente')+'</td><td>'+esc(c.numero||'')+'</td><td>'+money(deuda)+'</td><td>'+sugerido+'</td><td>'+esc(resumen)+'</td></tr>';
+ }).join('')||'<tr><td colspan="5" class="muted">No hay casas registradas.</td></tr>';
 }
+
 
 async function addEvento(){
  if(profile?.rol!=='admin') return alert('Solo el administrador puede crear eventos.');
