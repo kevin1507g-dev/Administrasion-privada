@@ -79,6 +79,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <button class="cameraOnly" onclick="show('camaras')">📹 Cámaras</button>
 <button class="adminOnly" onclick="show('residentes')">👥 Residentes</button>
 <button class="adminOnly" onclick="show('solicitudes')">📝 Solicitudes</button>
+<button class="adminOnly" onclick="show('casas')">🏠 Casas</button>
 <button class="adminOnly" onclick="show('deudas')">💰 Deuda total</button>
 <button class="controlAccessOnly" onclick="show('porton')">🚧 Controles de portón</button>
 <button onclick="show('cuotas')">🧾 Cuotas</button>
@@ -103,8 +104,8 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div class="card"><div class="muted">Pagos</div><div id="kPagos" class="kpi">0</div></div>
 <div class="card"><div class="muted">Visitas</div><div id="kVisitas" class="kpi">0</div></div>
 <div class="card"><div class="muted">Accesos</div><div id="kAccesos" class="kpi">0</div></div>
-<div class="card adminOnly"><div class="muted">Deuda total de residentes</div><div id="kDeuda" class="kpi">$0.00</div>
-<button class="primary" style="width:100%;margin-top:12px" onclick="show('deudas')">Ver deudas por persona</button></div>
+<div class="card adminOnly"><div class="muted">Deuda total de casas</div><div id="kDeuda" class="kpi">$0.00</div>
+<button class="primary" style="width:100%;margin-top:12px" onclick="show('deudas')">Ver deudas por casa</button></div>
 <div class="card"><div class="muted">Avisos activos</div><div id="kAvisos" class="kpi">0</div></div>
 <div class="card residentAdminOnly"><div class="muted">Reportes pendientes</div><div id="kReportes" class="kpi">0</div></div>
 <div class="card"><div class="muted">Paquetes por entregar</div><div id="kPaquetes" class="kpi">0</div></div>
@@ -132,6 +133,10 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </section>
 
 
+<section id="casas" class="adminOnly"><h2>🏠 Casas</h2>
+<div class="card"><h3>Agregar casa</h3><div class="form"><div><label>Número / Unidad</label><input id="casaNumero" placeholder="Ej. 24"></div><div><label>Nombre (opcional)</label><input id="casaNombre" placeholder="Ej. Casa esquina"></div></div><button class="primary" style="margin-top:12px" onclick="addCasa()">➕ Agregar casa</button></div>
+<div class="card table" style="margin-top:14px"><table><thead><tr><th>Casa</th><th>Nombre</th><th>Residentes</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="casasRows"></tbody></table></div></section>
+
 <section id="solicitudes" class="adminOnly"><h2>📝 Solicitudes de registro</h2>
 <div class="card">
 <p class="muted">Aquí aparecen las cuentas creadas por residentes que todavía esperan tu autorización.</p>
@@ -141,7 +146,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <section id="deudas" class="adminOnly"><h2>Deuda total</h2>
 <div class="grid">
   <div class="card"><div class="muted">Deuda total pendiente</div><div id="deudaTotal" class="kpi">$0.00</div></div>
-  <div class="card"><div class="muted">Personas con deuda</div><div id="deudoresCount" class="kpi">0</div></div>
+  <div class="card"><div class="muted">Casas con deuda</div><div id="deudoresCount" class="kpi">0</div></div>
 </div>
 <div class="card table" style="margin-top:14px">
 <table>
@@ -173,7 +178,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       <p class="muted">Máximo 3 controles por casa. El número de control no puede repetirse.</p>
       <div class="form">
         <div>
-          <label>Residente / Casa</label>
+          <label>Casa</label>
           <select id="ctrlResidente"></select>
         </div>
         <div>
@@ -319,7 +324,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   <div class="card adminOnly" style="margin-top:14px">
     <h3>Crear cuota manual</h3>
     <div class="form">
-      <div><label>Residente</label><select id="cRes"></select></div>
+      <div><label>Casa</label><select id="cRes"></select></div>
       <div><label>Concepto</label><input id="cConcepto" value="Mantenimiento"></div>
       <div><label>Monto</label><input id="cMonto" type="number" step=".01"></div>
       <div><label>Vencimiento</label><input id="cFecha" type="date"></div>
@@ -505,7 +510,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </section>
 
 <section id="visitas"><h2>Visitas</h2><div class="card"><div class="form">
-<div><label>Visitante</label><input id="vNombre"></div><div><label>Unidad</label><input id="vUnidad"></div><div><label>Placas</label><input id="vPlacas"></div><div><label>Motivo</label><input id="vMotivo"></div>
+<div><label>Visitante</label><input id="vNombre"></div><div><label>Casa</label><select id="vUnidad"></select></div><div><label>Placas</label><input id="vPlacas"></div><div><label>Motivo</label><input id="vMotivo"></div>
 <div><label>Fecha</label><input id="vFecha" type="date"></div><div><label>Hora</label><input id="vHora" type="time"></div></div>
 <button id="visitCreate" class="primary" style="margin-top:12px" onclick="addVisita()">Registrar visita</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Visitante</th><th>Unidad</th><th>Placas</th><th>Estado</th></tr></thead><tbody id="visitasRows"></tbody></table></div></section>
 
@@ -550,7 +555,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div class="card">
   <h3>Nuevo reporte</h3>
   <div class="form">
-    <div class="adminOnly"><label>Residente / Casa</label><select id="repResidente"></select></div>
+    <div class="adminOnly"><label>Casa</label><select id="repResidente"></select></div>
     <div><label>Categoría</label><select id="repCategoria"><option>Portón</option><option>Iluminación</option><option>Agua / fuga</option><option>Limpieza</option><option>Seguridad</option><option>Áreas comunes</option><option>Otro</option></select></div>
     <div><label>Prioridad</label><select id="repPrioridad"><option value="normal">Normal</option><option value="alta">Alta</option><option value="urgente">Urgente</option></select></div>
     <div class="full"><label>Descripción</label><textarea id="repDescripcion" placeholder="Describe el problema"></textarea></div>
@@ -565,7 +570,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div class="staffOnly card">
   <h3>Registrar paquete recibido</h3>
   <div class="form">
-    <div><label>Casa / Unidad</label><input id="paqUnidad" placeholder="Ej. Casa 24"></div>
+    <div><label>Casa</label><select id="paqUnidad"></select></div>
     <div><label>Destinatario</label><input id="paqDestinatario" placeholder="Nombre del residente"></div>
     <div><label>Paquetería</label><input id="paqEmpresa" placeholder="Amazon, Mercado Libre, DHL..."></div>
     <div><label>Guía / Referencia</label><input id="paqGuia" placeholder="Opcional"></div>
@@ -580,7 +585,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div class="card">
   <h3>Nueva reservación</h3>
   <div class="form">
-    <div class="adminOnly"><label>Residente / Casa</label><select id="resResidente"></select></div>
+    <div class="adminOnly"><label>Casa</label><select id="resResidente"></select></div>
     <div><label>Área</label><select id="resArea"><option>Salón de usos múltiples</option><option>Terraza</option><option>Área común</option><option>Otro</option></select></div>
     <div><label>Fecha</label><input id="resFecha" type="date"></div>
     <div><label>Hora inicio</label><input id="resInicio" type="time"></div>
@@ -621,14 +626,14 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </section>
 
 <section id="historialCasa" class="residentAdminOnly"><h2>📚 Historial por casa</h2>
-<div class="adminOnly card"><label>Selecciona residente / casa</label><select id="histResidente" onchange="renderHistorial()"></select></div>
+<div class="adminOnly card"><label>Selecciona casa</label><select id="histResidente" onchange="renderHistorial()"></select></div>
 <div id="historialResumen" class="grid" style="margin-top:14px"></div>
 <div class="card table" style="margin-top:14px"><h3 style="padding:14px 14px 0">Actividad reciente</h3><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th><th>Estado / Monto</th></tr></thead><tbody id="historialRows"></tbody></table></div>
 </section>
 
 <section id="accesos"><h2>Accesos</h2><div class="card"><div class="form">
 <div><label>Persona</label><input id="aPersona"></div><div><label>Tipo</label><select id="aTipo"><option>Residente</option><option>Visita</option><option>Proveedor</option><option>Personal</option></select></div>
-<div><label>Movimiento</label><select id="aMov"><option>Entrada</option><option>Salida</option></select></div><div><label>Unidad</label><input id="aUnidad"></div><div class="full"><label>Observaciones</label><input id="aObs"></div></div>
+<div><label>Movimiento</label><select id="aMov"><option>Entrada</option><option>Salida</option></select></div><div><label>Casa</label><select id="aUnidad"></select></div><div class="full"><label>Observaciones</label><input id="aObs"></div></div>
 <button class="primary" style="margin-top:12px" onclick="addAcceso()">Registrar acceso</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Persona</th><th>Tipo</th><th>Movimiento</th><th>Unidad</th></tr></thead><tbody id="accesosRows"></tbody></table></div></section>
 </main></div>
 
@@ -1714,52 +1719,24 @@ function renderEmergencia(){
  caja.innerHTML=contactosEmergencia.map(c=>{const tel=String(c.telefono||'').replace(/[^0-9+]/g,'');return `<div class="card"><div class="badge">${esc(c.tipo||'Contacto')}</div><h3 style="margin-top:12px">${esc(c.nombre||'')}</h3><a href="tel:${esc(tel)}" style="color:#7dd3fc;font-size:1.15em;font-weight:800">📞 ${esc(c.telefono||'')}</a>${c.notas?`<p class="muted">${esc(c.notas)}</p>`:''}${profile?.rol==='admin'?`<button class="danger mini" onclick="eliminarContactoEmergencia('${c.id}')">Eliminar</button>`:''}</div>`}).join('')||'<div class="card muted">No hay contactos registrados.</div>';
 }
 
+
 function renderHistorial(){
  const resumen=document.getElementById('historialResumen'),body=document.getElementById('historialRows');if(!resumen||!body||!['admin','residente'].includes(profile?.rol))return;
- let rid=user.id, unidad=profile.unidad||'';
- if(profile.rol==='admin'){
-   rid=document.getElementById('histResidente')?.value||'';const r=profiles.find(p=>String(p.id)===String(rid));unidad=r?.unidad||'';
- }
- if(!rid){resumen.innerHTML='<div class="card muted">Selecciona una casa.</div>';body.innerHTML='';return;}
- const qs=cuotas.filter(x=>String(x.residente_id)===String(rid));
- const ps=pagos.filter(x=>String(x.residente_id)===String(rid));
- const vs=visitas.filter(x=>String(x.residente_id)===String(rid)||String(x.unidad||'')===String(unidad));
- const cs=controles.filter(x=>String(x.residente_id)===String(rid)||String(x.unidad||'')===String(unidad));
- const reps=reportes.filter(x=>String(x.residente_id)===String(rid)||String(x.unidad||'')===String(unidad));
- const pks=paquetes.filter(x=>String(x.unidad||'')===String(unidad));
- const rss=reservas.filter(x=>String(x.residente_id)===String(rid)||String(x.unidad||'')===String(unidad));
+ let casaId=profile.casa_id||null;if(profile.rol==='admin')casaId=document.getElementById('histResidente')?.value||null;
+ if(!casaId){resumen.innerHTML='<div class="card muted">Selecciona una casa.</div>';body.innerHTML='';return;}
+ const qs=cuotas.filter(x=>String(casaIdDeRegistro(x))===String(casaId)),ps=pagos.filter(x=>String(casaIdDeRegistro(x))===String(casaId)),vs=visitas.filter(x=>String(casaIdDeRegistro(x))===String(casaId)),reps=reportes.filter(x=>String(casaIdDeRegistro(x))===String(casaId)),pks=paquetes.filter(x=>String(casaIdDeRegistro(x))===String(casaId)),rss=reservas.filter(x=>String(casaIdDeRegistro(x))===String(casaId));
  const deuda=qs.reduce((sum,q)=>{const pag=ps.filter(p=>String(p.cuota_id)===String(q.id)).reduce((a,p)=>a+Number(p.monto||0),0);return sum+Math.max(0,Number(q.monto||0)-pag)},0);
- resumen.innerHTML=`<div class="card"><div class="muted">Deuda</div><div class="kpi">${money(deuda)}</div></div><div class="card"><div class="muted">Pagos</div><div class="kpi">${ps.length}</div></div><div class="card"><div class="muted">Reportes</div><div class="kpi">${reps.length}</div></div><div class="card"><div class="muted">Paquetes</div><div class="kpi">${pks.length}</div></div>`;
- const acts=[];
- qs.forEach(x=>acts.push({f:x.created_at||x.vencimiento,t:'Cuota',d:x.concepto,e:money(x.monto)}));
- ps.forEach(x=>acts.push({f:x.created_at||x.fecha,t:'Pago',d:x.metodo||'Pago',e:money(x.monto)}));
- vs.forEach(x=>acts.push({f:x.created_at||x.fecha,t:'Visita',d:x.visitante||'',e:x.estado||''}));
- reps.forEach(x=>acts.push({f:x.created_at,t:'Mantenimiento',d:x.categoria+': '+x.descripcion,e:x.estado||''}));
- pks.forEach(x=>acts.push({f:x.created_at,t:'Paquete',d:x.empresa||x.descripcion||'Paquete',e:x.estado||''}));
- rss.forEach(x=>acts.push({f:x.created_at||x.fecha,t:'Reservación',d:x.area||'',e:x.estado||''}));
- acts.sort((a,b)=>new Date(b.f||0)-new Date(a.f||0));
- body.innerHTML=acts.slice(0,50).map(a=>`<tr><td>${a.f?fechaHora(a.f):''}</td><td>${esc(a.t)}</td><td>${esc(a.d||'')}</td><td>${esc(a.e||'')}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Sin actividad registrada.</td></tr>';
+ resumen.innerHTML='<div class="card"><div class="muted">Casa</div><div class="kpi">'+esc(casaNumero(casaId))+'</div></div><div class="card"><div class="muted">Deuda</div><div class="kpi">'+money(deuda)+'</div></div><div class="card"><div class="muted">Pagos</div><div class="kpi">'+ps.length+'</div></div><div class="card"><div class="muted">Reportes</div><div class="kpi">'+reps.length+'</div></div><div class="card"><div class="muted">Paquetes</div><div class="kpi">'+pks.length+'</div></div>';
+ const acts=[];qs.forEach(x=>acts.push({f:x.created_at||x.vencimiento,t:'Cuota',d:x.concepto,e:money(x.monto)}));ps.forEach(x=>acts.push({f:x.created_at||x.fecha,t:'Pago',d:x.metodo||'Pago',e:money(x.monto)}));vs.forEach(x=>acts.push({f:x.created_at||x.fecha,t:'Visita',d:x.visitante||'',e:x.estado||''}));reps.forEach(x=>acts.push({f:x.created_at,t:'Mantenimiento',d:x.categoria+': '+x.descripcion,e:x.estado||''}));pks.forEach(x=>acts.push({f:x.created_at,t:'Paquete',d:x.empresa||x.descripcion||'Paquete',e:x.estado||''}));rss.forEach(x=>acts.push({f:x.created_at||x.fecha,t:'Reservación',d:x.area||'',e:x.estado||''}));acts.sort((a,b)=>new Date(b.f||0)-new Date(a.f||0));body.innerHTML=acts.slice(0,50).map(a=>'<tr><td>'+(a.f?fechaHora(a.f):'')+'</td><td>'+esc(a.t)+'</td><td>'+esc(a.d||'')+'</td><td>'+esc(a.e||'')+'</td></tr>').join('')||'<tr><td colspan="4" class="muted">Sin actividad registrada.</td></tr>';
 }
-
-function resumenDeudaResidente(residenteId){
- const hoy=new Date().toISOString().slice(0,10);
- const qs=cuotas.filter(q=>q.residente_id===residenteId);
- let deuda=0,pagadoTotal=0,vencidas=0,pendientes=0;
- const detalle=qs.map(q=>{
-   const pagado=pagos.filter(p=>String(p.cuota_id)===String(q.id))
-     .reduce((s,p)=>s+Number(p.monto||0),0);
-   const monto=Number(q.monto||0);
-   const saldo=Math.max(0,monto-pagado);
-   deuda+=saldo;
-   pagadoTotal+=Math.min(monto,pagado);
-   if(saldo>0.009){
-     pendientes++;
-     if(q.vencimiento && q.vencimiento<hoy) vencidas++;
-   }
-   return {...q,pagado,saldo,estado:saldo<=0.009?'Pagada':(q.vencimiento&&q.vencimiento<hoy?'Vencida':'Pendiente')};
- });
+function resumenDeudaCasa(casaId){
+ const hoy=new Date().toISOString().slice(0,10),qs=cuotas.filter(q=>String(casaIdDeRegistro(q))===String(casaId));let deuda=0,pagadoTotal=0,vencidas=0,pendientes=0;
+ const detalle=qs.map(q=>{const pagado=pagos.filter(p=>String(p.cuota_id)===String(q.id)).reduce((sum,p)=>sum+Number(p.monto||0),0),monto=Number(q.monto||0),saldo=Math.max(0,monto-pagado);deuda+=saldo;pagadoTotal+=Math.min(monto,pagado);if(saldo>0.009){pendientes++;if(q.vencimiento&&q.vencimiento<hoy)vencidas++;}return {...q,pagado,saldo,estado:saldo<=0.009?'Pagada':(q.vencimiento&&q.vencimiento<hoy?'Vencida':'Pendiente')};});
  return {deuda,pagadoTotal,vencidas,pendientes,detalle};
 }
+function resumenDeudaResidente(residenteId){const p=profiles.find(x=>String(x.id)===String(residenteId));return resumenDeudaCasa(p?.casa_id||profile?.casa_id);}
+
+
 function render(){
  const isResident=profile?.rol==='residente';
  const debtBox=document.getElementById('residentDebtSummary');
@@ -1767,7 +1744,7 @@ function render(){
  if(debtBox) debtBox.style.display=isResident?'block':'none';
  if(balanceCard) balanceCard.style.display=isResident?'block':'none';
  if(isResident){
-   const rs=resumenDeudaResidente(user.id);
+   const rs=resumenDeudaCasa(profile.casa_id);
    if(document.getElementById('rDebtTotal')) rDebtTotal.textContent=money(rs.deuda);
    if(document.getElementById('rOverdueCount')) rOverdueCount.textContent=rs.vencidas;
    if(document.getElementById('rPendingCount')) rPendingCount.textContent=rs.pendientes;
@@ -1791,12 +1768,9 @@ function render(){
  if(document.getElementById('deudaTotal')) deudaTotal.textContent=money(deudaGeneral);
  if(document.getElementById('deudoresCount')) deudoresCount.textContent=deudas.filter(d=>d.pendiente>0.009).length;
  if(document.getElementById('deudasRows')){
-   deudasRows.innerHTML=deudas.filter(d=>d.pendiente>0.009).map(d=>{
-     const pr=profiles.find(x=>x.id===d.residente_id)||{};
-     return `<tr><td>${esc(pr.nombre||'Sin nombre')}</td><td>${esc(pr.unidad||'')}</td><td>${d.cuotas}</td><td>${money(d.pagado)}</td><td><strong>${money(d.pendiente)}</strong></td><td><button class="danger" onclick="eliminarDeudaResidente('${d.residente_id}')">🗑️ Eliminar deuda</button></td></tr>`;
-   }).join('') || '<tr><td colspan="6" class="muted">No hay deudas pendientes.</td></tr>';
- }
- renderResidentes();
+    deudasRows.innerHTML=deudas.filter(d=>d.pendiente>0.009).map(d=>'<tr><td><strong>Casa '+esc(casaNumero(d.casa_id))+'</strong></td><td>'+esc(nombresCasa(d.casa_id)||'Sin residente')+'</td><td>'+d.cuotas+'</td><td>'+money(d.pagado)+'</td><td><strong>'+money(d.pendiente)+'</strong></td><td><button class="danger" onclick="eliminarDeudaCasa(\''+d.casa_id+'\')">🗑️ Eliminar deuda</button></td></tr>').join('')||'<tr><td colspan="6" class="muted">No hay deudas pendientes.</td></tr>';
+  }
+  renderResidentes();
  const solicitudesBody=document.getElementById('solicitudesRows');
  if(solicitudesBody){
    const pendientes=profiles.filter(x=>x.rol==='residente' && (x.estado_registro==='pendiente' || x.activo===false));
@@ -1806,27 +1780,19 @@ function render(){
      <td><button class="primary" onclick="aprobarRegistro('${x.id}')">✅ Aprobar</button> <button class="danger" onclick="rechazarRegistro('${x.id}')">❌ Rechazar</button></td>
    </tr>`).join('') || '<tr><td colspan="5" class="muted">No hay solicitudes pendientes.</td></tr>';
  }
- const residents=profiles.filter(x=>x.rol==='residente' && x.activo!==false && x.estado_registro!=='rechazado'); cRes.innerHTML=residents.map(x=>`<option value="${x.id}">${esc(x.nombre)} — ${esc(x.unidad)}</option>`).join('');
- cuotasRows.innerHTML=cuotas.map(x=>`<tr><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td>${esc(x.concepto)}</td><td>${money(x.monto)}</td><td>${esc(x.vencimiento)}</td><td><span class="badge">${esc(x.estado)}</span></td><td class="adminOnly">${profile?.rol==='admin'?`<button onclick="editarVencimientoCuota(${x.id}, '${esc(x.vencimiento||'')}')">Editar vencimiento</button> <button class="danger" onclick="eliminarCuota(${x.id})">🗑️ Eliminar</button>`:''}</td></tr>`).join('');
- pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>`<option value="${x.id}">${esc(pname(x.residente_id))} — ${esc(x.concepto)} — ${money(x.monto)}</option>`).join('');
- pagosRows.innerHTML=pagos.map(x=>`<tr><td>${esc(x.fecha)}</td><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td><strong>${money(x.monto)}</strong></td><td>${esc(x.metodo)}</td><td>${esc(x.referencia)}</td><td class="adminOnly">${profile?.rol==='admin'?`<button onclick="editarPago(${x.id})">
-  ✏️ Editar total pagado
-</button>
-
-<button
-  class="danger"
-  onclick="eliminarPago(${x.id})"
->
-  🗑️ Eliminar pago
-</button>`:''}</td></tr>`).join('');
- visitasRows.innerHTML=visitas.map(x=>`<tr><td>${esc(x.fecha)} ${esc(x.hora)}</td><td>${esc(x.visitante)}</td><td>${esc(x.unidad)}</td><td>${esc(x.placas)}</td><td><span class="badge">${esc(x.estado)}</span></td></tr>`).join('');
- accesosRows.innerHTML=accesos.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString('es-MX')}</td><td>${esc(x.persona)}</td><td>${esc(x.tipo)}</td><td>${esc(x.movimiento)}</td><td>${esc(x.unidad)}</td></tr>`).join('');
- const residentOptions=profiles.filter(x=>x.rol==='residente'&&x.activo!==false&&x.estado_registro!=='rechazado').map(x=>`<option value="${x.id}">${esc(x.nombre)} — ${esc(x.unidad||'')}</option>`).join('');
- ['repResidente','resResidente','histResidente'].forEach(id=>{const el=document.getElementById(id);if(el&&profile?.rol==='admin'){const prev=el.value;el.innerHTML=residentOptions;if(prev&&[...el.options].some(o=>o.value===prev))el.value=prev;}});
- if(document.getElementById('kAvisos')) kAvisos.textContent=avisos.length;
+ const collCasa=new Intl.Collator('es',{numeric:true,sensitivity:'base'}),casasActivas=[...casas].filter(c=>c.activo!==false).sort((a,b)=>collCasa.compare(String(a.numero||''),String(b.numero||'')));
+  const houseOptions=casasActivas.map(c=>'<option value="'+c.id+'">Casa '+esc(c.numero||'')+(nombresCasa(c.id)?' — '+esc(nombresCasa(c.id)):'')+'</option>').join('');
+  if(document.getElementById('cRes')&&profile?.rol==='admin')cRes.innerHTML=houseOptions;
+  cuotasRows.innerHTML=cuotas.map(x=>'<tr><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td>'+esc(x.concepto)+'</td><td>'+money(x.monto)+'</td><td>'+esc(x.vencimiento)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td><td class="adminOnly">'+(profile?.rol==='admin'?'<button onclick="editarVencimientoCuota('+x.id+', \''+esc(x.vencimiento||'')+'\')">Editar vencimiento</button> <button class="danger" onclick="eliminarCuota('+x.id+')">🗑️ Eliminar</button>':'')+'</td></tr>').join('');
+  pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>'<option value="'+x.id+'">Casa '+esc(casaNumero(casaIdDeRegistro(x)))+' — '+esc(x.concepto)+' — '+money(x.monto)+'</option>').join('');
+  pagosRows.innerHTML=pagos.map(x=>'<tr><td>'+esc(x.fecha)+'</td><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td><strong>'+money(x.monto)+'</strong></td><td>'+esc(x.metodo)+'</td><td>'+esc(x.referencia)+'</td><td class="adminOnly">'+(profile?.rol==='admin'?'<button onclick="editarPago('+x.id+')">✏️ Editar total pagado</button> <button class="danger" onclick="eliminarPago('+x.id+')">🗑️ Eliminar pago</button>':'')+'</td></tr>').join('');
+  visitasRows.innerHTML=visitas.map(x=>'<tr><td>'+esc(x.fecha)+' '+esc(x.hora)+'</td><td>'+esc(x.visitante)+'</td><td>'+esc(casaNumero(casaIdDeRegistro(x))||x.unidad||'')+'</td><td>'+esc(x.placas)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td></tr>').join('');
+  accesosRows.innerHTML=accesos.map(x=>'<tr><td>'+new Date(x.created_at).toLocaleString('es-MX')+'</td><td>'+esc(x.persona)+'</td><td>'+esc(x.tipo)+'</td><td>'+esc(x.movimiento)+'</td><td>'+esc(casaNumero(x.casa_id)||x.unidad||'')+'</td></tr>').join('');
+  ['repResidente','resResidente','histResidente','vUnidad','paqUnidad','aUnidad'].forEach(id=>{const el=document.getElementById(id);if(!el)return;const prev=el.value;el.innerHTML=houseOptions;if(profile?.rol==='residente'&&profile.casa_id&&[...el.options].some(o=>o.value===String(profile.casa_id)))el.value=String(profile.casa_id);else if(prev&&[...el.options].some(o=>o.value===prev))el.value=prev;});
+  if(document.getElementById('kAvisos')) kAvisos.textContent=avisos.length;
  if(document.getElementById('kReportes')) kReportes.textContent=reportes.filter(x=>x.estado!=='resuelto').length;
  if(document.getElementById('kPaquetes')) kPaquetes.textContent=paquetes.filter(x=>x.estado!=='entregado').length;
- renderAvisos(); renderReportes(); renderPaquetes(); renderReservas(); renderDocumentos(); renderEmergencia(); renderHistorial();
+ renderCasas(); renderAvisos(); renderReportes(); renderPaquetes(); renderReservas(); renderDocumentos(); renderEmergencia(); renderHistorial();
  renderPorton();
  renderEventos();
  renderGastos();
@@ -1834,51 +1800,14 @@ function render(){
 }
 
 
-async function eliminarDeudaResidente(residenteId){
-  if(profile?.rol!=='admin') return;
-
-  const residente=profiles.find(p=>String(p.id)===String(residenteId));
-  if(!residente) return alert('No se encontró el residente.');
-
-  const cuotasResidente=cuotas.filter(q=>String(q.residente_id)===String(residenteId));
-  const pendientes=cuotasResidente.map(q=>{
-    const pagado=pagos
-      .filter(p=>String(p.cuota_id)===String(q.id))
-      .reduce((s,p)=>s+Number(p.monto||0),0);
-    const monto=Number(q.monto||0);
-    const saldo=Math.max(0,monto-pagado);
-    return {q,pagado,monto,saldo};
-  }).filter(x=>x.saldo>0.009);
-
-  const total=pendientes.reduce((s,x)=>s+x.saldo,0);
-  if(total<=0.009) return alert('Este residente no tiene deuda pendiente.');
-
-  const detalle=residente.unidad?` · Casa/Unidad ${residente.unidad}`:'';
-  const ok=confirm(
-    `¿Eliminar la deuda pendiente de ${residente.nombre}${detalle}?\n\n`+
-    `Deuda a eliminar: ${money(total)}\n\n`+
-    'Esta acción condonará el saldo pendiente de sus cuotas. Los pagos ya registrados NO se eliminan.'
-  );
-  if(!ok) return;
-
-  for(const item of pendientes){
-    // Ajusta la cuota al importe que ya fue pagado, dejando el saldo pendiente en $0.
-    // Así no se crea un pago falso ni se altera el historial de pagos recibidos.
-    const {error}=await sb.from('cuotas')
-      .update({monto:item.pagado,estado:'pagada'})
-      .eq('id',item.q.id);
-
-    if(error){
-      alert('No se pudo eliminar toda la deuda: '+error.message);
-      await loadAll();
-      return;
-    }
-  }
-
-  await loadAll();
-  alert(`Deuda eliminada correctamente. Se condonaron ${money(total)} a ${residente.nombre}.`);
+async function eliminarDeudaCasa(casaId){
+ if(profile?.rol!=='admin')return;const casa=casaPorId(casaId);if(!casa)return alert('No se encontró la casa.');
+ const pendientes=cuotas.filter(q=>String(casaIdDeRegistro(q))===String(casaId)).map(q=>{const pagado=pagos.filter(p=>String(p.cuota_id)===String(q.id)).reduce((sum,p)=>sum+Number(p.monto||0),0);return {q,pagado,saldo:Math.max(0,Number(q.monto||0)-pagado)}}).filter(x=>x.saldo>0.009),total=pendientes.reduce((sum,x)=>sum+x.saldo,0);
+ if(total<=0.009)return alert('Esta casa no tiene deuda pendiente.');if(!confirm('¿Eliminar la deuda pendiente de la Casa '+casa.numero+'?\n\nDeuda a eliminar: '+money(total)+'\n\nLos pagos ya registrados NO se eliminan.'))return;
+ for(const item of pendientes){const {error}=await sb.from('cuotas').update({monto:item.pagado,estado:'pagada'}).eq('id',item.q.id);if(error){alert('No se pudo eliminar toda la deuda: '+error.message);await loadAll();return;}}
+ await loadAll();alert('Deuda de la Casa '+casa.numero+' eliminada correctamente.');
 }
-
+async function eliminarDeudaResidente(residenteId){const p=profiles.find(x=>String(x.id)===String(residenteId));if(!p?.casa_id)return alert('Este residente no tiene casa asignada.');return eliminarDeudaCasa(p.casa_id);}
 async function aprobarRegistro(id){
  if(profile?.rol!=='admin') return;
  const r=profiles.find(p=>String(p.id)===String(id) && p.rol==='residente');
@@ -2313,6 +2242,12 @@ function renderMetodosPago(){
  }).join('')||'<div class="card muted">No hay métodos de pago disponibles.</div>';
 }
 
+async function addCasa(){
+ if(profile?.rol!=='admin')return;const numero=casaNumero.value.trim(),nombre=casaNombre.value.trim()||null;if(!numero)return alert('Escribe el número de la casa.');
+ const {error}=await sb.from('casas').insert({numero,nombre,activo:true});if(error)return alert('No se pudo crear la casa: '+error.message);casaNumero.value='';casaNombre.value='';await loadAll();
+}
+async function cambiarEstadoCasa(id,activo){if(profile?.rol!=='admin')return;const {error}=await sb.from('casas').update({activo}).eq('id',id);if(error)return alert(error.message);await loadAll();}
+function renderCasas(){const body=document.getElementById('casasRows');if(!body||profile?.rol!=='admin')return;const coll=new Intl.Collator('es',{numeric:true,sensitivity:'base'});body.innerHTML=[...casas].sort((a,b)=>coll.compare(String(a.numero||''),String(b.numero||''))).map(c=>{const accion=c.activo!==false?'<button class="danger" onclick="cambiarEstadoCasa(\''+c.id+'\',false)">Desactivar</button>':'<button class="primary" onclick="cambiarEstadoCasa(\''+c.id+'\',true)">Activar</button>';return '<tr><td><strong>Casa '+esc(c.numero||'')+'</strong></td><td>'+esc(c.nombre||'')+'</td><td>'+esc(nombresCasa(c.id)||'Sin residente')+'</td><td><span class="badge">'+(c.activo!==false?'✅ Activa':'⛔ Inactiva')+'</span></td><td>'+accion+'</td></tr>';}).join('')||'<tr><td colspan="5" class="muted">No hay casas registradas.</td></tr>';}
 async function addProfile(){
  const row={id:rId.value.trim(),nombre:rNombre.value.trim(),unidad:rUnidad.value.trim()||null,rol:rRol.value,activo:true};
  const {error}=await sb.from('profiles').insert(row); if(error)return alert(error.message); await loadAll();
