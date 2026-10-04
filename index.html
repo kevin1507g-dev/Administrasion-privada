@@ -153,319 +153,242 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 
 
 
-<section id="porton" class="controlAccessOnly"><h2>Controles de portón</h2>
+<section id="porton" class="controlAccessOnly">
+  <h2>Controles de portón</h2>
 
-<div class="residentOnly card">
-  <h3>Mis controles</h3>
-  <p class="muted">Aquí puedes consultar los números de control asignados a tu casa y su estado actual. Solo la administración puede hacer cambios.</p>
-  <div class="card table" style="margin-top:14px">
-    <table>
-      <thead><tr><th>Número de control</th><th>Estado</th></tr></thead>
-      <tbody id="residentControlsRows"></tbody>
-    </table>
-  </div>
-</div>
-
-<div class="adminOnly">
-  <div class="card">
-    <h3>Agregar control a una casa</h3>
-    <p class="muted">Máximo 3 controles por casa. El número de control no puede repetirse.</p>
-    <div class="form">
-      <div>
-        <label>Residente / Casa</label>
-        <select id="ctrlResidente"></select>
-      </div>
-      <div>
-        <label>Número de control</label>
-        <input id="ctrlNumero" placeholder="Ej. 1025" maxlength="50">
-      </div>
-    </div>
-    <button class="primary" style="margin-top:12px" onclick="addControl()">Agregar control</button>
-    <div id="ctrlMsg" class="muted" style="margin-top:10px"></div>
-  </div>
-
-<div id="ctrlMsg" class="muted" style="margin-top:10px"></div>
-</div>
-
-<div class="card" style="margin-top:14px">
-  <label>Ordenar controles por casa</label>
-  <select id="ordenControles" onchange="renderControlesRegistrados()">
-    <option value="asc">🏠 Casa menor → mayor</option>
-    <option value="desc">🏠 Casa mayor → menor</option>
-  </select>
-</div>
-
-<div class="card table" style="margin-top:14px">
-  <h3 style="padding:14px 14px 0">Controles registrados</h3>
-    <table>
-      <thead><tr><th>Residente</th><th>Unidad</th><th>Número</th><th>Estado</th><th>Acciones</th></tr></thead>
-      <tbody id="adminControlsRows"></tbody>
-    </table>
-  </div>
-
-  <div class="card" style="margin-top:14px">
-    <p class="muted">
-      Los residentes con cuotas vencidas se señalan para revisión. La suspensión no es automática:
-      el administrador decide qué control suspender o reactivar.
-    </p>
-    <div class="form">
-      <div><label>Días de gracia</label><input id="graceDays" type="number" min="0" value="10"></div>
-      <div style="display:flex;align-items:end"><button class="primary" style="width:100%" onclick="renderPorton()">Actualizar revisión</button></div>
+  <div class="residentOnly card">
+    <h3>Mis controles</h3>
+    <p class="muted">Aquí puedes consultar los números de control asignados a tu casa y su estado actual. Solo la administración puede hacer cambios.</p>
+    <div class="card table" style="margin-top:14px">
+      <table>
+        <thead><tr><th>Número de control</th><th>Estado</th></tr></thead>
+        <tbody id="residentControlsRows"></tbody>
+      </table>
     </div>
   </div>
 
-  <div class="card table" style="margin-top:14px">
-    <h3 style="padding:14px 14px 0">Revisión por deuda vencida</h3>
-    <table>
-      <thead><tr><th>Residente</th><th>Unidad</th><th>Deuda vencida</th><th>Estado sugerido</th><th>Controles</th></tr></thead>
-      <tbody id="portonRows"></tbody>
-    </table>
+  <div class="adminOnly">
+    <div class="card">
+      <h3>Agregar control a una casa</h3>
+      <p class="muted">Máximo 3 controles por casa. El número de control no puede repetirse.</p>
+      <div class="form">
+        <div>
+          <label>Residente / Casa</label>
+          <select id="ctrlResidente"></select>
+        </div>
+        <div>
+          <label>Número de control</label>
+          <input id="ctrlNumero" placeholder="Ej. 1025" maxlength="50">
+        </div>
+      </div>
+      <button class="primary" style="margin-top:12px" onclick="addControl()">Agregar control</button>
+      <div id="ctrlMsg" class="muted" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <label>Ordenar controles por casa</label>
+      <select id="ordenControles" onchange="renderControlesRegistrados();renderPorton()">
+        <option value="asc">🏠 Casa menor → mayor</option>
+        <option value="desc">🏠 Casa mayor → menor</option>
+      </select>
+    </div>
+
+    <div class="card table" style="margin-top:14px">
+      <h3 style="padding:14px 14px 0">Controles registrados</h3>
+      <table>
+        <thead><tr><th>Residente</th><th>Unidad</th><th>Número</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody id="adminControlsRows"></tbody>
+      </table>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <p class="muted">
+        Los residentes con cuotas vencidas se señalan para revisión. La suspensión no es automática:
+        el administrador decide qué control suspender o reactivar.
+      </p>
+      <div class="form">
+        <div><label>Días de gracia</label><input id="graceDays" type="number" min="0" value="10"></div>
+        <div style="display:flex;align-items:end"><button class="primary" style="width:100%" onclick="renderPorton()">Actualizar revisión</button></div>
+      </div>
+    </div>
+
+    <div class="card table" style="margin-top:14px">
+      <h3 style="padding:14px 14px 0">Revisión por deuda vencida</h3>
+      <table>
+        <thead><tr><th>Residente</th><th>Unidad</th><th>Deuda vencida</th><th>Estado sugerido</th><th>Controles</th></tr></thead>
+        <tbody id="portonRows"></tbody>
+      </table>
+    </div>
   </div>
-</div>
 </section>
 
-<section id="residentes"><h2>Residentes</h2><div class="card"><p class="muted">Los usuarios se crean primero en Authentication → Users. Después agrega su perfil aquí usando su UUID.</p>
-<div class="form"><div><label>UUID del usuario</label><input id="rId"></div><div><label>Nombre</label><input id="rNombre"></div>
-<div><label>Unidad</label><input id="rUnidad"></div><div><label>Rol</label><select id="rRol"><option value="residente">Residente</option><option value="guardia">Guardia</option><option value="admin">Administrador</option></select></div></div>
-<button class="primary" style="margin-top:12px" onclick="addProfile()">Guardar perfil</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Nombre</th><th>Unidad</th><th>Rol</th><th>Activo</th><th>Acciones</th></tr></thead><div class="card" style="margin-top:14px">
-  <label>Ordenar residentes por casa</label>
+<section id="residentes">
+  <h2>Residentes</h2>
 
-  <select id="ordenResidentes" onchange="renderResidentes()">
-    <option value="asc">🏠 Casa menor → mayor</option>
-    <option value="desc">🏠 Casa mayor → menor</option>
-  </select>
-</div><tbody id="profilesRows"></tbody></table></div>
-<div id="editResidentModal" class="modal hidden">
-  <div class="modalBox card">
-    <h3>Editar residente</h3>
-    <input id="editResidentId" type="hidden">
+  <div class="card">
+    <p class="muted">Los usuarios se crean primero en Authentication → Users. Después agrega su perfil aquí usando su UUID.</p>
     <div class="form">
+      <div><label>UUID del usuario</label><input id="rId"></div>
+      <div><label>Nombre</label><input id="rNombre"></div>
+      <div><label>Unidad</label><input id="rUnidad"></div>
       <div>
-        <label>Nombre</label>
-        <input id="editResidentNombre" placeholder="Nombre del residente">
-      </div>
-      <div>
-        <label>Unidad / Casa</label>
-        <input id="editResidentUnidad" placeholder="Ej. A-12">
-      </div>
-      <div>
-        <label>Estado</label>
-        <select id="editResidentActivo">
-          <option value="true">Activo</option>
-          <option value="false">Inactivo</option>
+        <label>Rol</label>
+        <select id="rRol">
+          <option value="residente">Residente</option>
+          <option value="guardia">Guardia</option>
+          <option value="admin">Administrador</option>
         </select>
       </div>
     </div>
-    <div style="display:flex;gap:10px;margin-top:14px">
-      <button class="primary" onclick="guardarEdicionResidente()">Guardar cambios</button>
-      <button onclick="cerrarEdicionResidente()">Cancelar</button>
+    <button class="primary" style="margin-top:12px" onclick="addProfile()">Guardar perfil</button>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <label>Ordenar residentes por casa</label>
+    <select id="ordenResidentes" onchange="renderResidentes()">
+      <option value="asc">🏠 Casa menor → mayor</option>
+      <option value="desc">🏠 Casa mayor → menor</option>
+    </select>
+  </div>
+
+  <div class="card table" style="margin-top:14px">
+    <table>
+      <thead>
+        <tr><th>Nombre</th><th>Unidad</th><th>Rol</th><th>Activo</th><th>Acciones</th></tr>
+      </thead>
+      <tbody id="profilesRows"></tbody>
+    </table>
+  </div>
+
+  <div id="editResidentModal" class="modal hidden">
+    <div class="modalBox card">
+      <h3>Editar residente</h3>
+      <input id="editResidentId" type="hidden">
+      <div class="form">
+        <div>
+          <label>Nombre</label>
+          <input id="editResidentNombre" placeholder="Nombre del residente">
+        </div>
+        <div>
+          <label>Unidad / Casa</label>
+          <input id="editResidentUnidad" placeholder="Ej. A-12">
+        </div>
+        <div>
+          <label>Estado</label>
+          <select id="editResidentActivo">
+            <option value="true">Activo</option>
+            <option value="false">Inactivo</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:14px">
+        <button class="primary" onclick="guardarEdicionResidente()">Guardar cambios</button>
+        <button onclick="cerrarEdicionResidente()">Cancelar</button>
+      </div>
     </div>
   </div>
-</div>
 </section>
 
 <section id="cuotas">
-
   <h2>🧾 Cuotas</h2>
 
   <div class="card adminOnly">
     <h3>⚙️ Cobro automático mensual</h3>
-
     <div class="form">
-
       <div>
         <label>Estado</label>
-        <div id="autoCobroEstado" class="badge" style="margin-top:10px">
-          Cargando...
-        </div>
+        <div id="autoCobroEstado" class="badge" style="margin-top:10px">Cargando...</div>
       </div>
-
       <div>
         <label>Cuota automática mensual</label>
-        <input
-          id="autoCobroMonto"
-          type="number"
-          min="0.01"
-          step="0.01"
-          placeholder="60.00"
-        >
+        <input id="autoCobroMonto" type="number" min="0.01" step="0.01" placeholder="60.00">
       </div>
-
     </div>
 
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
-
-      <button
-        id="autoCobroToggle"
-        class="primary"
-        onclick="cambiarCobroAutomatico()"
-      >
-        Activar
-      </button>
-
-      <button onclick="guardarMontoAutomatico()">
-        💾 Guardar monto
-      </button>
-
+      <button id="autoCobroToggle" class="primary" onclick="cambiarCobroAutomatico()">Activar</button>
+      <button onclick="guardarMontoAutomatico()">💾 Guardar monto</button>
     </div>
 
     <p class="muted" style="margin-top:12px">
       El nuevo monto se aplicará a las próximas cuotas automáticas.
       Las cuotas que ya existen no se modificarán.
     </p>
-
+  </div>
 
   <div class="card adminOnly" style="margin-top:14px">
-
     <h3>Crear cuota manual</h3>
-
     <div class="form">
-
-      <div>
-        <label>Residente</label>
-        <select id="cRes"></select>
-      </div>
-
-      <div>
-        <label>Concepto</label>
-        <input id="cConcepto" value="Mantenimiento">
-      </div>
-
-      <div>
-        <label>Monto</label>
-        <input id="cMonto" type="number" step=".01">
-      </div>
-
-      <div>
-        <label>Vencimiento</label>
-        <input id="cFecha" type="date">
-      </div>
-
+      <div><label>Residente</label><select id="cRes"></select></div>
+      <div><label>Concepto</label><input id="cConcepto" value="Mantenimiento"></div>
+      <div><label>Monto</label><input id="cMonto" type="number" step=".01"></div>
+      <div><label>Vencimiento</label><input id="cFecha" type="date"></div>
     </div>
-
-    <button
-      class="primary"
-      style="margin-top:12px"
-      onclick="addCuota()"
-    >
-      Crear cuota
-    </button>
-
+    <button class="primary" style="margin-top:12px" onclick="addCuota()">Crear cuota</button>
   </div>
-
 
   <div class="card table" style="margin-top:14px">
-
     <table>
-
       <thead>
-        <tr>
-          <th>Residente</th>
-          <th>Concepto</th>
-          <th>Monto</th>
-          <th>Vencimiento</th>
-          <th>Estado</th>
-          <th class="adminOnly">Acción</th>
-        </tr>
+        <tr><th>Residente</th><th>Concepto</th><th>Monto</th><th>Vencimiento</th><th>Estado</th><th class="adminOnly">Acción</th></tr>
       </thead>
-
       <tbody id="cuotasRows"></tbody>
-
     </table>
-
   </div>
-
 </section>
 
 <section id="pagos">
-  
   <h2>Pagos</h2>
 
-  <button
-    class="adminOnly"
-    style="margin-top:12px"
-    onclick="verTotalPagado()"
-  >
+  <button class="adminOnly" style="margin-top:12px" onclick="verTotalPagado()">
     💰 Ver total pagado
   </button>
-  
-<div id="residentDebtSummary" class="card" style="margin-bottom:14px;display:none">
-  <div class="grid">
-    <div><div class="muted">Deuda total pendiente</div><div id="rDebtTotal" class="kpi">$0.00</div></div>
-    <div><div class="muted">Cuotas vencidas</div><div id="rOverdueCount" class="kpi">0</div></div>
-    <div><div class="muted">Cuotas pendientes</div><div id="rPendingCount" class="kpi">0</div></div>
-    <div><div class="muted">Total pagado</div><div id="rPaidTotal" class="kpi">$0.00</div></div>
-  </div>
-  <div class="muted" style="margin-top:10px">Aquí puedes ver cuánto debes actualmente y el saldo restante de cada cuota.</div>
-  <div class="card adminOnly">
 
-  <div class="form">
-
-    <div>
-      <label>Cuota</label>
-      <select id="pCuota"></select>
+  <div id="residentDebtSummary" class="card" style="margin-top:14px;margin-bottom:14px;display:none">
+    <div class="grid">
+      <div><div class="muted">Deuda total pendiente</div><div id="rDebtTotal" class="kpi">$0.00</div></div>
+      <div><div class="muted">Cuotas vencidas</div><div id="rOverdueCount" class="kpi">0</div></div>
+      <div><div class="muted">Cuotas pendientes</div><div id="rPendingCount" class="kpi">0</div></div>
+      <div><div class="muted">Total pagado</div><div id="rPaidTotal" class="kpi">$0.00</div></div>
     </div>
-
-    <div>
-      <label>Monto</label>
-      <input id="pMonto" type="number" step=".01">
-    </div>
-
-    <div>
-      <label>Método</label>
-      <select id="pMetodo">
-        <option>Transferencia</option>
-        <option>Efectivo</option>
-        <option>Tarjeta</option>
-        <option>Otro</option>
-      </select>
-    </div>
-
-    <div>
-      <label>Referencia</label>
-      <input id="pRef">
-    </div>
-
+    <div class="muted" style="margin-top:10px">Aquí puedes ver cuánto debes actualmente y el saldo restante de cada cuota.</div>
   </div>
 
-  <button
-    class="primary"
-    style="margin-top:12px"
-    onclick="addPago()"
-  >
-    Registrar pago
-  </button>
+  <div class="card adminOnly" style="margin-top:14px">
+    <div class="form">
+      <div><label>Cuota</label><select id="pCuota"></select></div>
+      <div><label>Monto</label><input id="pMonto" type="number" step=".01"></div>
+      <div>
+        <label>Método</label>
+        <select id="pMetodo">
+          <option>Transferencia</option>
+          <option>Efectivo</option>
+          <option>Tarjeta</option>
+          <option>Otro</option>
+        </select>
+      </div>
+      <div><label>Referencia</label><input id="pRef"></div>
+    </div>
+    <button class="primary" style="margin-top:12px" onclick="addPago()">Registrar pago</button>
+  </div>
 
-</div>
+  <div class="card table" style="margin-top:14px">
+    <table>
+      <thead>
+        <tr><th>Fecha</th><th>Residente</th><th>Monto</th><th>Método</th><th>Referencia</th><th class="adminOnly">Acciones</th></tr>
+      </thead>
+      <tbody id="pagosRows"></tbody>
+    </table>
+  </div>
 
-<div class="card table" style="margin-top:14px">
-
-  <table>
-
-    <thead>
-      <tr>
-        <th>Fecha</th>
-        <th>Residente</th>
-        <th>Monto</th>
-        <th>Método</th>
-        <th>Referencia</th>
-        <th class="adminOnly">Acciones</th>
-      </tr>
-    </thead>
-
-    <tbody id="pagosRows"></tbody>
-
-  </table>
-
-</div>
-<div id="residentBalanceCard" class="card table" style="margin-top:14px;display:none">
-  <h3 style="padding:14px 14px 0">Detalle de lo que debes</h3>
-  <table>
-    <thead><tr><th>Concepto</th><th>Vencimiento</th><th>Cuota</th><th>Pagado</th><th>Saldo</th><th>Estado</th></tr></thead>
-    <tbody id="residentBalanceRows"></tbody>
-  </table>
-</div></section>
-
+  <div id="residentBalanceCard" class="card table" style="margin-top:14px;display:none">
+    <h3 style="padding:14px 14px 0">Detalle de lo que debes</h3>
+    <table>
+      <thead><tr><th>Concepto</th><th>Vencimiento</th><th>Cuota</th><th>Pagado</th><th>Saldo</th><th>Estado</th></tr></thead>
+      <tbody id="residentBalanceRows"></tbody>
+    </table>
+  </div>
+</section>
 
 <section id="metodosPago" class="paymentMethodsOnly"><h2>💵 Métodos de pago</h2>
 <div class="adminOnly card">
@@ -710,85 +633,47 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </main></div>
 
 <script>
+
 function renderResidentes(){
-
   const body = document.getElementById('profilesRows');
-
   if(!body) return;
 
-  const modo =
-    document.getElementById('ordenResidentes')?.value || 'asc';
+  const modo = document.getElementById('ordenResidentes')?.value || 'asc';
+  const comparador = new Intl.Collator('es',{numeric:true,sensitivity:'base'});
 
   const lista = [...profiles].sort((a,b)=>{
-
     const casaA = String(a.unidad || '').trim();
     const casaB = String(b.unidad || '').trim();
 
-    // Los que no tienen número de casa quedan hasta abajo
     if(!casaA && casaB) return 1;
     if(casaA && !casaB) return -1;
 
-    const comparador = new Intl.Collator('es',{
-      numeric:true,
-      sensitivity:'base'
-    });
-
-    const resultado =
-      comparador.compare(casaA,casaB);
-
-    return modo === 'desc'
-      ? -resultado
-      : resultado;
+    const resultado = comparador.compare(casaA,casaB);
+    return modo === 'desc' ? -resultado : resultado;
   });
 
-
-  body.innerHTML = lista.map(x=>`
-
-    <tr>
-
-      <td>${esc(x.nombre || '')}</td>
-
-      <td>
-        <strong>${esc(x.unidad || '')}</strong>
-      </td>
-
-      <td>${esc(x.rol || '')}</td>
-
-      <td>
-        ${
-          x.activo !== false
-          ? '<span class="badge">✅ Activo</span>'
-          : '<span class="badge">⛔ Inactivo</span>'
-        }
-      </td>
-
-      <td>
-
-        ${
-          x.rol === 'residente'
-
-          ? `
-            <button onclick="abrirEdicionResidente('${x.id}')">
-              ✏️ Editar
-            </button>
-
-            <button
-              class="danger"
-              onclick="eliminarResidente('${x.id}')"
-            >
-              🗑️ Eliminar
-            </button>
-          `
-
-          : ''
-        }
-
-      </td>
-
-    </tr>
-
-  `).join('');
+  body.innerHTML = lista.map(x=>`<tr>
+    <td>${esc(x.nombre||'')}</td>
+    <td><strong>${esc(x.unidad||'')}</strong></td>
+    <td>${esc(x.rol||'')}</td>
+    <td>${x.estado_registro==='pendiente'
+      ? '<span class="badge">Pendiente</span>'
+      : (x.estado_registro==='rechazado'
+        ? '<span class="badge">Rechazado</span>'
+        : (x.activo!==false
+          ? '<span class="badge">Activo</span>'
+          : '<span class="badge">Inactivo</span>'))}</td>
+    <td>${x.rol==='residente'
+      ? `<button onclick="abrirEdicionResidente('${x.id}')">Editar</button> <button class="danger" onclick="eliminarResidente('${x.id}')">Eliminar</button>`
+      : (x.rol==='admin' && x.id!==user?.id
+        ? `<button class="danger" onclick="eliminarResidente('${x.id}')">Eliminar admin</button>`
+        : (x.rol==='admin' && x.id===user?.id
+          ? '<span class="muted">Cuenta actual</span>'
+          : '<span class="muted">—</span>'))}
+    </td>
+  </tr>`).join('');
 }
+
 async function eliminarPago(id){
 
   if(profile?.rol !== 'admin'){
@@ -1757,7 +1642,14 @@ function renderPorton(){
  if(!body || profile?.rol!=='admin') return;
 
  const grace=Math.max(0,Number(document.getElementById('graceDays')?.value||5));
- const residentes=profiles.filter(x=>x.rol==='residente');
+ const modo=document.getElementById('ordenControles')?.value||'asc';
+ const comparador=new Intl.Collator('es',{numeric:true,sensitivity:'base'});
+ const residentes=profiles
+   .filter(x=>x.rol==='residente')
+   .sort((a,b)=>{
+     const resultado=comparador.compare(String(a.unidad||''),String(b.unidad||''));
+     return modo==='desc'?-resultado:resultado;
+   });
 
  body.innerHTML=residentes.map(r=>{
    const deuda=deudaVencidaPorResidente(r.id);
@@ -2081,20 +1973,7 @@ function render(){
      return `<tr><td>${esc(pr.nombre||'Sin nombre')}</td><td>${esc(pr.unidad||'')}</td><td>${d.cuotas}</td><td>${money(d.pagado)}</td><td><strong>${money(d.pendiente)}</strong></td><td><button class="danger" onclick="eliminarDeudaResidente('${d.residente_id}')">🗑️ Eliminar deuda</button></td></tr>`;
    }).join('') || '<tr><td colspan="6" class="muted">No hay deudas pendientes.</td></tr>';
  }
- profilesRows.innerHTML=profiles.map(x=>`<tr>
-   <td>${esc(x.nombre||'')}</td>
-   <td>${esc(x.rol||'')}</td>
-   <td>${esc(x.unidad||'')}</td>
-   <td>${x.estado_registro==='pendiente'?'<span class="badge">Pendiente</span>':(x.estado_registro==='rechazado'?'<span class="badge">Rechazado</span>':(x.activo!==false?'<span class="badge">Activo</span>':'<span class="badge">Inactivo</span>'))}</td>
-   <td>${x.rol==='residente'
-     ? `<button onclick="abrirEdicionResidente('${x.id}')">Editar</button> <button class="danger" onclick="eliminarResidente('${x.id}')">Eliminar</button>`
-     : (x.rol==='admin' && x.id!==user?.id
-       ? `<button class="danger" onclick="eliminarResidente('${x.id}')">Eliminar admin</button>`
-       : (x.rol==='admin' && x.id===user?.id
-         ? '<span class="muted">Cuenta actual</span>'
-         : '<span class="muted">—</span>'))}
-   </td>
- </tr>`).join('');
+ renderResidentes();
  const solicitudesBody=document.getElementById('solicitudesRows');
  if(solicitudesBody){
    const pendientes=profiles.filter(x=>x.rol==='residente' && (x.estado_registro==='pendiente' || x.activo===false));
