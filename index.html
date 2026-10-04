@@ -636,6 +636,88 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </main></div>
 
 <script>
+async function eliminarPago(id){
+
+  if(profile?.rol !== 'admin'){
+    return;
+  }
+
+  const pago = pagos.find(
+    p => String(p.id) === String(id)
+  );
+
+  if(!pago){
+    return alert('No se encontró el pago.');
+  }
+
+  const residente =
+    profiles.find(
+      p => String(p.id) === String(pago.residente_id)
+    );
+
+  const confirmar = confirm(
+    `¿Eliminar este pago?\n\n` +
+    `Residente: ${residente?.nombre || ''}\n` +
+    `Monto: ${money(pago.monto)}\n\n` +
+    `Esta acción no se puede deshacer.`
+  );
+
+  if(!confirmar){
+    return;
+  }
+
+  const cuotaId = pago.cuota_id;
+
+  const {error} = await sb
+    .from('pagos')
+    .delete()
+    .eq('id', id);
+
+  if(error){
+    return alert(
+      'No se pudo eliminar el pago: ' +
+      error.message
+    );
+  }
+
+  // Recalcular el estado de la cuota
+  if(cuotaId){
+
+    const cuota = cuotas.find(
+      q => String(q.id) === String(cuotaId)
+    );
+
+    if(cuota){
+
+      const totalRestante = pagos
+        .filter(p =>
+          String(p.id) !== String(id) &&
+          String(p.cuota_id) === String(cuotaId)
+        )
+        .reduce(
+          (suma,p) =>
+            suma + Number(p.monto || 0),
+          0
+        );
+
+      const nuevoEstado =
+        totalRestante >= Number(cuota.monto || 0)
+          ? 'pagada'
+          : 'pendiente';
+
+      await sb
+        .from('cuotas')
+        .update({
+          estado: nuevoEstado
+        })
+        .eq('id', cuotaId);
+    }
+  }
+
+  await loadAll();
+
+  alert('✅ Pago eliminado correctamente.');
+}
 function verTotalPagado(){
 
   if(profile?.rol !== 'admin'){
@@ -1724,7 +1806,16 @@ function render(){
  const residents=profiles.filter(x=>x.rol==='residente' && x.activo!==false && x.estado_registro!=='rechazado'); cRes.innerHTML=residents.map(x=>`<option value="${x.id}">${esc(x.nombre)} — ${esc(x.unidad)}</option>`).join('');
  cuotasRows.innerHTML=cuotas.map(x=>`<tr><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td>${esc(x.concepto)}</td><td>${money(x.monto)}</td><td>${esc(x.vencimiento)}</td><td><span class="badge">${esc(x.estado)}</span></td><td class="adminOnly">${profile?.rol==='admin'?`<button onclick="editarVencimientoCuota(${x.id}, '${esc(x.vencimiento||'')}')">Editar vencimiento</button> <button class="danger" onclick="eliminarCuota(${x.id})">🗑️ Eliminar</button>`:''}</td></tr>`).join('');
  pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>`<option value="${x.id}">${esc(pname(x.residente_id))} — ${esc(x.concepto)} — ${money(x.monto)}</option>`).join('');
- pagosRows.innerHTML=pagos.map(x=>`<tr><td>${esc(x.fecha)}</td><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td><strong>${money(x.monto)}</strong></td><td>${esc(x.metodo)}</td><td>${esc(x.referencia)}</td><td class="adminOnly">${profile?.rol==='admin'?`<button onclick="editarPago(${x.id})">✏️ Editar total pagado</button>`:''}</td></tr>`).join('');
+ pagosRows.innerHTML=pagos.map(x=>`<tr><td>${esc(x.fecha)}</td><td>${esc(pname(x.residente_id)||profile.nombre)}</td><td><strong>${money(x.monto)}</strong></td><td>${esc(x.metodo)}</td><td>${esc(x.referencia)}</td><td class="adminOnly">${profile?.rol==='admin'?`<button onclick="editarPago(${x.id})">
+  ✏️ Editar total pagado
+</button>
+
+<button
+  class="danger"
+  onclick="eliminarPago(${x.id})"
+>
+  🗑️ Eliminar pago
+</button>`:''}</td></tr>`).join('');
  visitasRows.innerHTML=visitas.map(x=>`<tr><td>${esc(x.fecha)} ${esc(x.hora)}</td><td>${esc(x.visitante)}</td><td>${esc(x.unidad)}</td><td>${esc(x.placas)}</td><td><span class="badge">${esc(x.estado)}</span></td></tr>`).join('');
  accesosRows.innerHTML=accesos.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString('es-MX')}</td><td>${esc(x.persona)}</td><td>${esc(x.tipo)}</td><td>${esc(x.movimiento)}</td><td>${esc(x.unidad)}</td></tr>`).join('');
  const residentOptions=profiles.filter(x=>x.rol==='residente'&&x.activo!==false&&x.estado_registro!=='rechazado').map(x=>`<option value="${x.id}">${esc(x.nombre)} — ${esc(x.unidad||'')}</option>`).join('');
