@@ -227,7 +227,14 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <section id="residentes"><h2>Residentes</h2><div class="card"><p class="muted">Los usuarios se crean primero en Authentication → Users. Después agrega su perfil aquí usando su UUID.</p>
 <div class="form"><div><label>UUID del usuario</label><input id="rId"></div><div><label>Nombre</label><input id="rNombre"></div>
 <div><label>Unidad</label><input id="rUnidad"></div><div><label>Rol</label><select id="rRol"><option value="residente">Residente</option><option value="guardia">Guardia</option><option value="admin">Administrador</option></select></div></div>
-<button class="primary" style="margin-top:12px" onclick="addProfile()">Guardar perfil</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Nombre</th><th>Unidad</th><th>Rol</th><th>Activo</th><th>Acciones</th></tr></thead><tbody id="profilesRows"></tbody></table></div>
+<button class="primary" style="margin-top:12px" onclick="addProfile()">Guardar perfil</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Nombre</th><th>Unidad</th><th>Rol</th><th>Activo</th><th>Acciones</th></tr></thead><div class="card" style="margin-top:14px">
+  <label>Ordenar residentes por casa</label>
+
+  <select id="ordenResidentes" onchange="renderResidentes()">
+    <option value="asc">🏠 Casa menor → mayor</option>
+    <option value="desc">🏠 Casa mayor → menor</option>
+  </select>
+</div><tbody id="profilesRows"></tbody></table></div>
 <div id="editResidentModal" class="modal hidden">
   <div class="modalBox card">
     <h3>Editar residente</h3>
@@ -307,15 +314,6 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       Las cuotas que ya existen no se modificarán.
     </p>
 
-  </div>
-<div class="card" style="margin-top:14px">
-  <label>Ordenar residentes por casa</label>
-
-  <select id="ordenResidentes" onchange="renderResidentes()">
-    <option value="asc">🏠 Casa menor → mayor</option>
-    <option value="desc">🏠 Casa mayor → menor</option>
-  </select>
-</div>
 
   <div class="card adminOnly" style="margin-top:14px">
 
