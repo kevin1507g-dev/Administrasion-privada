@@ -993,7 +993,7 @@ async function guardarMontoAutomatico(){
 const SB_URL='https://nndlfkuelwpwklldvtfo.supabase.co';
 const SB_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
 const sb=supabase.createClient(SB_URL,SB_KEY);
-let user=null, profile=null, profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
+let user=null, profile=null, casas=[], profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
 const VAPID_PUBLIC_KEY =
 'BCh7-PSmKO_r5DL9TBy1tJ2k9NHNvdeCfKlvwZj8OyDqnPvs1ZLc_mPbfewqLYO_J7VeLDn65WADAxiU19dw_Zo';
 
@@ -1312,7 +1312,8 @@ async function enter(){
  await loadAll();
 }
 async function loadAll(){
- const [pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,pk,rs,dc,em]=await Promise.all([
+ const [ca,pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,pk,rs,dc,em]=await Promise.all([
+   sb.from('casas').select('*').order('numero',{ascending:true}),
    profile.rol==='admin'?sb.from('profiles').select('*').order('nombre'):Promise.resolve({data:[profile]}),
    sb.from('cuotas').select('*').order('created_at',{ascending:false}),
    sb.from('pagos').select('*').order('created_at',{ascending:false}),
@@ -1329,32 +1330,33 @@ async function loadAll(){
    sb.from('documentos_condominio').select('*').order('created_at',{ascending:false}),
    sb.from('contactos_emergencia').select('*').order('tipo').order('nombre')
  ]);
- profiles=pr.data||[]; cuotas=cu.data||[]; pagos=pa.data||[]; visitas=vi.data||[]; accesos=ac.data||[];
+ casas=ca.data||[]; profiles=pr.data||[]; cuotas=cu.data||[]; pagos=pa.data||[]; visitas=vi.data||[]; accesos=ac.data||[];
  eventos=ev.data||[]; controles=ct.data||[]; gastos=ga.data||[]; metodosPago=mp.data||[];
  avisos=av.data||[]; reportes=rp.data||[]; paquetes=pk.data||[]; reservas=rs.data||[]; documentos=dc.data||[]; contactosEmergencia=em.data||[];
- [av,rp,pk,rs,dc,em].forEach((r,i)=>{if(r?.error) console.warn(['Avisos','Reportes','Paquetes','Reservaciones','Documentos','Emergencia'][i]+':',r.error)});
+ [ca,av,rp,pk,rs,dc,em].forEach((r,i)=>{if(r?.error) console.warn(['Casas','Avisos','Reportes','Paquetes','Reservaciones','Documentos','Emergencia'][i]+':',r.error)});
  if(ga.error && profile.rol==='admin') console.warn('Gastos:',ga.error);
  if(mp.error && ['admin','residente'].includes(profile.rol)) console.warn('Métodos de pago:',mp.error);
  render();
 }
+
 function pname(id){return profiles.find(x=>x.id===id)?.nombre||''}
+function casaPorId(id){return casas.find(c=>String(c.id)===String(id))||null}
+function casaNumero(id){const c=casaPorId(id);if(c)return c.numero||'';const p=profiles.find(x=>String(x.casa_id)===String(id));return p?.unidad||''}
+function residentesDeCasa(casaId){return profiles.filter(p=>p.rol==='residente'&&String(p.casa_id)===String(casaId))}
+function nombresCasa(casaId){return residentesDeCasa(casaId).map(p=>p.nombre).filter(Boolean).join(', ')}
+function casaIdDeRegistro(x){if(x?.casa_id)return x.casa_id;const p=profiles.find(r=>String(r.id)===String(x?.residente_id));return p?.casa_id||null}
 function calcularDeudas(){
- const porResidente = new Map();
+ const porCasa=new Map();
  for(const q of cuotas){
-   const total = Number(q.monto || 0);
-   const pagado = pagos
-     .filter(p => String(p.cuota_id) === String(q.id))
-     .reduce((s,p) => s + Number(p.monto || 0), 0);
-   const pendiente = Math.max(0, total - pagado);
-   const key = q.residente_id || 'sin-residente';
-   if(!porResidente.has(key)) porResidente.set(key,{residente_id:q.residente_id,cuotas:0,total:0,pagado:0,pendiente:0});
-   const r = porResidente.get(key);
-   r.cuotas += 1;
-   r.total += total;
-   r.pagado += Math.min(total, pagado);
-   r.pendiente += pendiente;
+   const casaId=casaIdDeRegistro(q); if(!casaId)continue;
+   const total=Number(q.monto||0);
+   const pagado=pagos.filter(p=>String(p.cuota_id)===String(q.id)).reduce((sum,p)=>sum+Number(p.monto||0),0);
+   const pendiente=Math.max(0,total-pagado);
+   const key=String(casaId);
+   if(!porCasa.has(key))porCasa.set(key,{casa_id:casaId,cuotas:0,total:0,pagado:0,pendiente:0});
+   const r=porCasa.get(key);r.cuotas++;r.total+=total;r.pagado+=Math.min(total,pagado);r.pendiente+=pendiente;
  }
- return [...porResidente.values()].sort((a,b)=>b.pendiente-a.pendiente);
+ return [...porCasa.values()].sort((a,b)=>b.pendiente-a.pendiente);
 }
 
 function diasEntre(a,b){
