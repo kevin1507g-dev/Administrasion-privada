@@ -1894,15 +1894,44 @@ async function eliminarDeudaCasa(casaId){
 }
 async function eliminarDeudaResidente(residenteId){const p=profiles.find(x=>String(x.id)===String(residenteId));if(!p?.casa_id)return alert('Este residente no tiene casa asignada.');return eliminarDeudaCasa(p.casa_id);}
 async function aprobarRegistro(id){
- if(profile?.rol!=='admin') return;
- const r=profiles.find(p=>String(p.id)===String(id) && p.rol==='residente');
- if(!r) return alert('No se encontró la solicitud.');
- if(!confirm(`¿Aprobar la cuenta de ${r.nombre}${r.unidad?' · '+r.unidad:''}?`)) return;
- const {error}=await sb.from('profiles').update({activo:true,estado_registro:'aprobado'}).eq('id',id).eq('rol','residente');
- if(error) return alert('No se pudo aprobar: '+error.message);
- await loadAll();
- alert('Cuenta aprobada. El residente ya puede iniciar sesión.');
+  if(profile?.rol!=='admin') return;
+
+  const residente=profiles.find(p=>String(p.id)===String(id) && p.rol==='residente');
+  if(!residente) return alert('No se encontró la solicitud.');
+
+  const numero=String(residente.unidad||'').trim();
+  if(!numero) return alert('La solicitud no tiene número de casa.');
+
+  let casa=casas.find(c=>String(c.numero||'').trim()===numero);
+
+  if(!casa){
+    const {data,error}=await sb.from('casas')
+      .insert({numero,activo:true})
+      .select('*')
+      .single();
+
+    if(error) return alert('No se pudo crear la Casa '+numero+': '+error.message);
+    casa=data;
+  }
+
+  if(!confirm('¿Aprobar la cuenta de '+residente.nombre+' · Casa '+numero+'?')) return;
+
+  const {error}=await sb.from('profiles')
+    .update({
+      casa_id:casa.id,
+      unidad:casa.numero,
+      activo:true,
+      estado_registro:'aprobado'
+    })
+    .eq('id',id)
+    .eq('rol','residente');
+
+  if(error) return alert('No se pudo aprobar: '+error.message);
+
+  await loadAll();
+  alert('Cuenta aprobada. El residente quedó vinculado a la Casa '+numero+'.');
 }
+
 async function rechazarRegistro(id){
  if(profile?.rol!=='admin') return;
  const r=profiles.find(p=>String(p.id)===String(id) && p.rol==='residente');
@@ -1931,40 +1960,35 @@ function cerrarEdicionResidente(){
 }
 
 async function guardarEdicionResidente(){
- if(profile?.rol!=='admin') return;
+  if(profile?.rol!=='admin') return;
 
- const id=document.getElementById('editResidentId').value;
- const nombre=document.getElementById('editResidentNombre').value.trim();
- const unidad=document.getElementById('editResidentUnidad').value.trim();
- const activo=document.getElementById('editResidentActivo').value==='true';
+  const id=document.getElementById('editResidentId').value;
+  const nombre=document.getElementById('editResidentNombre').value.trim();
+  const unidad=document.getElementById('editResidentUnidad').value.trim();
+  const activo=document.getElementById('editResidentActivo').value==='true';
 
- if(!id) return alert('Falta seleccionar el residente.');
- if(!nombre) return alert('Escribe el nombre del residente.');
- if(!unidad) return alert('Escribe la unidad o casa.');
+  if(!id) return alert('Falta seleccionar el residente.');
+  if(!nombre) return alert('Escribe el nombre del residente.');
+  if(!unidad) return alert('Escribe la casa.');
 
- const original=profiles.find(p=>p.id===id);
- const unidadAnterior=original?.unidad||'';
+  const casa=casas.find(c=>String(c.numero||'').trim()===unidad);
+  if(!casa) return alert('La Casa '+unidad+' no existe. Créala primero en 🏠 Casas.');
 
- const {error}=await sb.from('profiles')
-   .update({nombre,unidad,activo})
-   .eq('id',id)
-   .eq('rol','residente');
+  const {error}=await sb.from('profiles')
+    .update({
+      nombre,
+      unidad:casa.numero,
+      casa_id:casa.id,
+      activo
+    })
+    .eq('id',id)
+    .eq('rol','residente');
 
- if(error) return alert('No se pudo editar el residente: '+error.message);
+  if(error) return alert('No se pudo editar el residente: '+error.message);
 
- // Si la unidad cambió, actualiza también los controles asignados.
- if(unidadAnterior!==unidad){
-   const {error:ctrlError}=await sb.from('controles_residenciales')
-     .update({residente_id:id, actualizado_por:user.id, actualizado_en:new Date().toISOString()})
-     .eq('residente_id',id);
-   if(ctrlError){
-     console.warn('No se pudieron sincronizar los controles:',ctrlError);
-   }
- }
-
- cerrarEdicionResidente();
- await loadAll();
- alert('Residente actualizado correctamente.');
+  cerrarEdicionResidente();
+  await loadAll();
+  alert('Residente actualizado correctamente.');
 }
 
 async function eliminarResidente(id){
