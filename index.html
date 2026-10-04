@@ -184,8 +184,19 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     <div id="ctrlMsg" class="muted" style="margin-top:10px"></div>
   </div>
 
-  <div class="card table" style="margin-top:14px">
-    <h3 style="padding:14px 14px 0">Controles registrados</h3>
+<div id="ctrlMsg" class="muted" style="margin-top:10px"></div>
+</div>
+
+<div class="card" style="margin-top:14px">
+  <label>Ordenar controles por casa</label>
+  <select id="ordenControles" onchange="renderControlesRegistrados()">
+    <option value="asc">🏠 Casa menor → mayor</option>
+    <option value="desc">🏠 Casa mayor → menor</option>
+  </select>
+</div>
+
+<div class="card table" style="margin-top:14px">
+  <h3 style="padding:14px 14px 0">Controles registrados</h3>
     <table>
       <thead><tr><th>Residente</th><th>Unidad</th><th>Número</th><th>Estado</th><th>Acciones</th></tr></thead>
       <tbody id="adminControlsRows"></tbody>
@@ -198,7 +209,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       el administrador decide qué control suspender o reactivar.
     </p>
     <div class="form">
-      <div><label>Días de gracia</label><input id="graceDays" type="number" min="0" value="5"></div>
+      <div><label>Días de gracia</label><input id="graceDays" type="number" min="0" value="10"></div>
       <div style="display:flex;align-items:end"><button class="primary" style="width:100%" onclick="renderPorton()">Actualizar revisión</button></div>
     </div>
   </div>
@@ -297,7 +308,14 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     </p>
 
   </div>
+<div class="card" style="margin-top:14px">
+  <label>Ordenar residentes por casa</label>
 
+  <select id="ordenResidentes" onchange="renderResidentes()">
+    <option value="asc">🏠 Casa menor → mayor</option>
+    <option value="desc">🏠 Casa mayor → menor</option>
+  </select>
+</div>
 
   <div class="card adminOnly" style="margin-top:14px">
 
@@ -636,6 +654,85 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </main></div>
 
 <script>
+function renderResidentes(){
+
+  const body = document.getElementById('profilesRows');
+
+  if(!body) return;
+
+  const modo =
+    document.getElementById('ordenResidentes')?.value || 'asc';
+
+  const lista = [...profiles].sort((a,b)=>{
+
+    const casaA = String(a.unidad || '').trim();
+    const casaB = String(b.unidad || '').trim();
+
+    // Los que no tienen número de casa quedan hasta abajo
+    if(!casaA && casaB) return 1;
+    if(casaA && !casaB) return -1;
+
+    const comparador = new Intl.Collator('es',{
+      numeric:true,
+      sensitivity:'base'
+    });
+
+    const resultado =
+      comparador.compare(casaA,casaB);
+
+    return modo === 'desc'
+      ? -resultado
+      : resultado;
+  });
+
+
+  body.innerHTML = lista.map(x=>`
+
+    <tr>
+
+      <td>${esc(x.nombre || '')}</td>
+
+      <td>
+        <strong>${esc(x.unidad || '')}</strong>
+      </td>
+
+      <td>${esc(x.rol || '')}</td>
+
+      <td>
+        ${
+          x.activo !== false
+          ? '<span class="badge">✅ Activo</span>'
+          : '<span class="badge">⛔ Inactivo</span>'
+        }
+      </td>
+
+      <td>
+
+        ${
+          x.rol === 'residente'
+
+          ? `
+            <button onclick="abrirEdicionResidente('${x.id}')">
+              ✏️ Editar
+            </button>
+
+            <button
+              class="danger"
+              onclick="eliminarResidente('${x.id}')"
+            >
+              🗑️ Eliminar
+            </button>
+          `
+
+          : ''
+        }
+
+      </td>
+
+    </tr>
+
+  `).join('');
+}
 async function eliminarPago(id){
 
   if(profile?.rol !== 'admin'){
@@ -1408,47 +1505,195 @@ async function deleteControl(id){
 }
 
 function renderControlesRegistrados(){
- const residentBody=document.getElementById('residentControlsRows');
- const adminBody=document.getElementById('adminControlsRows');
- const select=document.getElementById('ctrlResidente');
 
- if(profile?.rol==='admin' && select){
-   const residentes=profiles.filter(p=>p.rol==='residente' && p.activo!==false);
-   select.innerHTML=residentes.map(r=>{
-     const count=controlesDeUnidad(r.unidad).length;
-     return `<option value="${r.id}">${esc(r.nombre)} — ${esc(r.unidad||'Sin unidad')} (${count}/3)</option>`;
-   }).join('');
- }
+  const residentBody =
+    document.getElementById('residentControlsRows');
 
- if(profile?.rol==='residente' && residentBody){
-   residentBody.innerHTML=controles.map(c=>{
-     const badge=c.estado==='suspendido'
-       ? '<span class="badge">⛔ Suspendido temporalmente</span>'
-       : '<span class="badge">✅ Activo</span>';
-     return `<tr><td><strong>${esc(c.numero_control)}</strong></td><td>${badge}</td></tr>`;
-   }).join('') || '<tr><td colspan="2" class="muted">No tienes controles registrados.</td></tr>';
- }
+  const adminBody =
+    document.getElementById('adminControlsRows');
 
- if(profile?.rol==='admin' && adminBody){
-   adminBody.innerHTML=controles.map(c=>{
-     const r=profiles.find(p=>p.id===c.residente_id)||{};
-     const badge=c.estado==='suspendido'
-       ? '⛔ Suspendido temporalmente'
-       : '✅ Activo';
-     const estadoBtn=c.estado==='suspendido'
-       ? `<button onclick="setControlEstado(${c.id},'activo')">Reactivar</button>`
-       : `<button class="danger" onclick="setControlEstado(${c.id},'suspendido')">Suspender</button>`;
-     return `<tr>
-       <td>${esc(r.nombre||'')}</td>
-       <td>${esc(c.unidad||r.unidad||'')}</td>
-       <td><strong>${esc(c.numero_control)}</strong></td>
-       <td>${badge}</td>
-       <td>${estadoBtn} <button class="danger" onclick="deleteControl(${c.id})">Eliminar</button></td>
-     </tr>`;
-   }).join('') || '<tr><td colspan="5" class="muted">No hay controles registrados.</td></tr>';
- }
+  const select =
+    document.getElementById('ctrlResidente');
+
+
+  if(profile?.rol === 'admin' && select){
+
+    const residentes = profiles
+      .filter(p =>
+        p.rol === 'residente' &&
+        p.activo !== false
+      )
+      .sort((a,b)=>{
+        return new Intl.Collator('es',{
+          numeric:true,
+          sensitivity:'base'
+        }).compare(
+          String(a.unidad || ''),
+          String(b.unidad || '')
+        );
+      });
+
+    select.innerHTML = residentes.map(r=>{
+
+      const count =
+        controlesDeUnidad(r.unidad).length;
+
+      return `
+        <option value="${r.id}">
+          ${esc(r.unidad || 'Sin casa')}
+          — ${esc(r.nombre)}
+          (${count}/3)
+        </option>
+      `;
+
+    }).join('');
+  }
+
+
+  if(profile?.rol === 'residente' && residentBody){
+
+    residentBody.innerHTML =
+      controles.map(c=>{
+
+        const badge =
+          c.estado === 'suspendido'
+          ? '<span class="badge">⛔ Suspendido temporalmente</span>'
+          : '<span class="badge">✅ Activo</span>';
+
+        return `
+          <tr>
+            <td>
+              <strong>${esc(c.numero_control)}</strong>
+            </td>
+            <td>${badge}</td>
+          </tr>
+        `;
+
+      }).join('') ||
+      '<tr><td colspan="2" class="muted">No tienes controles registrados.</td></tr>';
+  }
+
+
+  if(profile?.rol === 'admin' && adminBody){
+
+    const modo =
+      document.getElementById('ordenControles')?.value || 'asc';
+
+    const comparador =
+      new Intl.Collator('es',{
+        numeric:true,
+        sensitivity:'base'
+      });
+
+    const lista =
+      [...controles].sort((a,b)=>{
+
+        const residenteA =
+          profiles.find(
+            p => p.id === a.residente_id
+          ) || {};
+
+        const residenteB =
+          profiles.find(
+            p => p.id === b.residente_id
+          ) || {};
+
+        const casaA =
+          String(
+            a.unidad ||
+            residenteA.unidad ||
+            ''
+          );
+
+        const casaB =
+          String(
+            b.unidad ||
+            residenteB.unidad ||
+            ''
+          );
+
+        const resultado =
+          comparador.compare(
+            casaA,
+            casaB
+          );
+
+        return modo === 'desc'
+          ? -resultado
+          : resultado;
+      });
+
+
+    adminBody.innerHTML =
+      lista.map(c=>{
+
+        const r =
+          profiles.find(
+            p => p.id === c.residente_id
+          ) || {};
+
+        const badge =
+          c.estado === 'suspendido'
+          ? '⛔ Suspendido temporalmente'
+          : '✅ Activo';
+
+        const estadoBtn =
+          c.estado === 'suspendido'
+          ? `
+            <button
+              onclick="setControlEstado(${c.id},'activo')"
+            >
+              Reactivar
+            </button>
+          `
+          : `
+            <button
+              class="danger"
+              onclick="setControlEstado(${c.id},'suspendido')"
+            >
+              Suspender
+            </button>
+          `;
+
+        return `
+          <tr>
+
+            <td>
+              ${esc(r.nombre || '')}
+            </td>
+
+            <td>
+              <strong>
+                ${esc(c.unidad || r.unidad || '')}
+              </strong>
+            </td>
+
+            <td>
+              ${esc(c.numero_control)}
+            </td>
+
+            <td>
+              ${badge}
+            </td>
+
+            <td>
+              ${estadoBtn}
+
+              <button
+                class="danger"
+                onclick="deleteControl(${c.id})"
+              >
+                Eliminar
+              </button>
+            </td>
+
+          </tr>
+        `;
+
+      }).join('') ||
+      '<tr><td colspan="5" class="muted">No hay controles registrados.</td></tr>';
+  }
 }
-
 function renderPorton(){
  renderControlesRegistrados();
 
