@@ -134,7 +134,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 
 
 <section id="casas" class="adminOnly"><h2>🏠 Casas</h2>
-<div class="card"><h3>Agregar casa</h3><div class="form"><div><label>Número / Unidad</label><input id="casaNumero" placeholder="Ej. 24"></div><div><label>Nombre (opcional)</label><input id="casaNombre" placeholder="Ej. Casa esquina"></div></div><button class="primary" style="margin-top:12px" onclick="addCasa()">➕ Agregar casa</button></div>
+<div class="card"><h3>Agregar casa</h3><div class="form"><div><label>Número / Unidad</label><input id="casaNumeroInput" placeholder="Ej. 24"></div><div><label>Nombre (opcional)</label><input id="casaNombre" placeholder="Ej. Casa esquina"></div></div><button class="primary" style="margin-top:12px" onclick="addCasa()">➕ Agregar casa</button></div>
 <div class="card table" style="margin-top:14px"><table><thead><tr><th>Casa</th><th>Nombre</th><th>Residentes</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="casasRows"></tbody></table></div></section>
 
 <section id="solicitudes" class="adminOnly"><h2>📝 Solicitudes de registro</h2>
@@ -150,7 +150,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </div>
 <div class="card table" style="margin-top:14px">
 <table>
-<thead><tr><th>Residente</th><th>Unidad</th><th>Cuotas</th><th>Pagado</th><th>Deuda pendiente</th><th>Acciones</th></tr></thead>
+<thead><tr><th>Casa</th><th>Residentes</th><th>Cuotas</th><th>Pagado</th><th>Deuda pendiente</th><th>Acciones</th></tr></thead>
 <tbody id="deudasRows"></tbody>
 </table>
 </div>
@@ -201,7 +201,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     <div class="card table" style="margin-top:14px">
       <h3 style="padding:14px 14px 0">Controles registrados</h3>
       <table>
-        <thead><tr><th>Residente</th><th>Unidad</th><th>Número</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <thead><tr><th>Residente(s)</th><th>Casa</th><th>Número</th><th>Estado</th><th>Acciones</th></tr></thead>
         <tbody id="adminControlsRows"></tbody>
       </table>
     </div>
@@ -220,7 +220,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     <div class="card table" style="margin-top:14px">
       <h3 style="padding:14px 14px 0">Revisión por deuda vencida</h3>
       <table>
-        <thead><tr><th>Residente</th><th>Unidad</th><th>Deuda vencida</th><th>Estado sugerido</th><th>Controles</th></tr></thead>
+        <thead><tr><th>Residente(s)</th><th>Casa</th><th>Deuda vencida</th><th>Estado sugerido</th><th>Controles</th></tr></thead>
         <tbody id="portonRows"></tbody>
       </table>
     </div>
@@ -335,7 +335,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   <div class="card table" style="margin-top:14px">
     <table>
       <thead>
-        <tr><th>Residente</th><th>Concepto</th><th>Monto</th><th>Vencimiento</th><th>Estado</th><th class="adminOnly">Acción</th></tr>
+        <tr><th>Casa</th><th>Concepto</th><th>Monto</th><th>Vencimiento</th><th>Estado</th><th class="adminOnly">Acción</th></tr>
       </thead>
       <tbody id="cuotasRows"></tbody>
     </table>
@@ -380,7 +380,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   <div class="card table" style="margin-top:14px">
     <table>
       <thead>
-        <tr><th>Fecha</th><th>Residente</th><th>Monto</th><th>Método</th><th>Referencia</th><th class="adminOnly">Acciones</th></tr>
+        <tr><th>Fecha</th><th>Casa</th><th>Monto</th><th>Método</th><th>Referencia</th><th class="adminOnly">Acciones</th></tr>
       </thead>
       <tbody id="pagosRows"></tbody>
     </table>
@@ -502,7 +502,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   <h3 style="padding:14px 14px 0">Historial de pagos recibidos</h3>
   <table>
     <thead>
-      <tr><th>Fecha</th><th>Residente</th><th>Concepto</th><th>Método</th><th>Referencia</th><th>Monto</th></tr>
+      <tr><th>Fecha</th><th>Casa</th><th>Concepto</th><th>Método</th><th>Referencia</th><th>Monto</th></tr>
     </thead>
     <tbody id="historialPagosRows"></tbody>
   </table>
@@ -2120,11 +2120,11 @@ function renderGastos(){
  const pagosBody=document.getElementById('historialPagosRows');
  if(pagosBody){
    pagosBody.innerHTML=pagos.map(p=>{
-     const r=profiles.find(x=>x.id===p.residente_id)||{};
      const q=cuotas.find(x=>String(x.id)===String(p.cuota_id))||{};
-     return `<tr>
-       <td>${esc(p.fecha||'')}</td>
-       <td>${esc(r.nombre||'')}</td>
+   const casaId=casaIdDeRegistro(p)||casaIdDeRegistro(q);
+   return `<tr>
+     <td>${esc(p.fecha||'')}</td>
+     <td>${esc('Casa '+(casaNumero(casaId)||''))}</td>
        <td>${esc(q.concepto||'')}</td>
        <td>${esc(p.metodo||'')}</td>
        <td>${esc(p.referencia||'')}</td>
@@ -2140,10 +2140,10 @@ function generarExcelAdministracion(){
 
  const wb=XLSX.utils.book_new();
  const suspendidos=controles.filter(c=>c.estado==='suspendido').map(c=>{
-   const r=profiles.find(p=>p.id===c.residente_id)||{};
+   const casaId=casaIdDeRegistro(c);
    return {
-     'Casa / Unidad':c.unidad||r.unidad||'',
-     'Residente':r.nombre||'',
+     'Casa / Unidad':casaNumero(casaId)||c.unidad||'',
+     'Residente(s)':nombresCasa(casaId)||'',
      'Número de control':c.numero_control||'',
      'Estado':'Suspendido temporalmente',
      'Última actualización':c.actualizado_en?new Date(c.actualizado_en).toLocaleString('es-MX'):'',
@@ -2152,10 +2152,10 @@ function generarExcelAdministracion(){
  });
 
  const pagosExcel=pagos.map(p=>{
-   const r=profiles.find(x=>x.id===p.residente_id)||{};
    const q=cuotas.find(x=>String(x.id)===String(p.cuota_id))||{};
+   const casaId=casaIdDeRegistro(p)||casaIdDeRegistro(q);
    return {
-     'Fecha':p.fecha||'', 'Casa / Unidad':r.unidad||'', 'Residente':r.nombre||'',
+     'Fecha':p.fecha||'', 'Casa / Unidad':casaNumero(casaId)||'', 'Residente(s)':nombresCasa(casaId)||'',
      'Concepto':q.concepto||'', 'Método':p.metodo||'', 'Monto':Number(p.monto||0),
      'Referencia':p.referencia||''
    };
@@ -2178,8 +2178,8 @@ function generarExcelAdministracion(){
  ];
 
  const wsResumen=XLSX.utils.aoa_to_sheet(resumen);
- const wsControles=XLSX.utils.json_to_sheet(suspendidos.length?suspendidos:[{'Casa / Unidad':'','Residente':'','Número de control':'','Estado':'Sin controles suspendidos','Última actualización':'','Observación':''}]);
- const wsPagos=XLSX.utils.json_to_sheet(pagosExcel.length?pagosExcel:[{'Fecha':'','Casa / Unidad':'','Residente':'','Concepto':'','Método':'','Monto':0,'Referencia':''}]);
+ const wsControles=XLSX.utils.json_to_sheet(suspendidos.length?suspendidos:[{'Casa / Unidad':'','Residente(s)':'','Número de control':'','Estado':'Sin controles suspendidos','Última actualización':'','Observación':''}]);
+ const wsPagos=XLSX.utils.json_to_sheet(pagosExcel.length?pagosExcel:[{'Fecha':'','Casa / Unidad':'','Residente(s)':'','Concepto':'','Método':'','Monto':0,'Referencia':''}]);
  const wsGastos=XLSX.utils.json_to_sheet(gastosExcel.length?gastosExcel:[{'Fecha':'','Categoría':'','Concepto':'','Proveedor / Beneficiario':'','Referencia / Folio':'','Monto':0,'Descripción / Aclaración':'','Registrado por':''}]);
 
  wsResumen['!cols']=[{wch:30},{wch:22}];
@@ -2205,11 +2205,11 @@ function generarAclaracionGastos(){
  const fechaGeneracion=new Date().toLocaleString('es-MX');
 
  const pagosHtml=pagos.map(p=>{
-   const r=profiles.find(x=>x.id===p.residente_id)||{};
    const q=cuotas.find(x=>String(x.id)===String(p.cuota_id))||{};
+   const casaId=casaIdDeRegistro(p)||casaIdDeRegistro(q);
    return `<tr>
      <td>${esc(p.fecha||'')}</td>
-     <td>${esc(r.nombre||'')}</td>
+     <td>${esc('Casa '+(casaNumero(casaId)||''))}</td>
      <td>${esc(q.concepto||'')}</td>
      <td>${esc(p.metodo||'')}</td>
      <td>${esc(p.referencia||'')}</td>
@@ -2256,7 +2256,7 @@ th{background:#f2f2f2}
 
 <h2>Historial de pagos recibidos</h2>
 <table>
-<thead><tr><th>Fecha</th><th>Residente</th><th>Concepto</th><th>Método</th><th>Referencia</th><th>Monto</th></tr></thead>
+<thead><tr><th>Fecha</th><th>Casa</th><th>Concepto</th><th>Método</th><th>Referencia</th><th>Monto</th></tr></thead>
 <tbody>${pagosHtml}</tbody>
 </table>
 
@@ -2352,8 +2352,8 @@ function renderMetodosPago(){
 }
 
 async function addCasa(){
- if(profile?.rol!=='admin')return;const numero=casaNumero.value.trim(),nombre=casaNombre.value.trim()||null;if(!numero)return alert('Escribe el número de la casa.');
- const {error}=await sb.from('casas').insert({numero,nombre,activo:true});if(error)return alert('No se pudo crear la casa: '+error.message);casaNumero.value='';casaNombre.value='';await loadAll();
+ if(profile?.rol!=='admin')return;const numero=document.getElementById('casaNumeroInput').value.trim(),nombre=document.getElementById('casaNombre').value.trim()||null;if(!numero)return alert('Escribe el número de la casa.');
+ const {error}=await sb.from('casas').insert({numero,nombre,activo:true});if(error)return alert('No se pudo crear la casa: '+error.message);document.getElementById('casaNumeroInput').value='';document.getElementById('casaNombre').value='';await loadAll();
 }
 async function cambiarEstadoCasa(id,activo){if(profile?.rol!=='admin')return;const {error}=await sb.from('casas').update({activo}).eq('id',id);if(error)return alert(error.message);await loadAll();}
 function renderCasas(){const body=document.getElementById('casasRows');if(!body||profile?.rol!=='admin')return;const coll=new Intl.Collator('es',{numeric:true,sensitivity:'base'});body.innerHTML=[...casas].sort((a,b)=>coll.compare(String(a.numero||''),String(b.numero||''))).map(c=>{const accion=c.activo!==false?'<button class="danger" onclick="cambiarEstadoCasa(\''+c.id+'\',false)">Desactivar</button>':'<button class="primary" onclick="cambiarEstadoCasa(\''+c.id+'\',true)">Activar</button>';return '<tr><td><strong>Casa '+esc(c.numero||'')+'</strong></td><td>'+esc(c.nombre||'')+'</td><td>'+esc(nombresCasa(c.id)||'Sin residente')+'</td><td><span class="badge">'+(c.activo!==false?'✅ Activa':'⛔ Inactiva')+'</span></td><td>'+accion+'</td></tr>';}).join('')||'<tr><td colspan="5" class="muted">No hay casas registradas.</td></tr>';}
