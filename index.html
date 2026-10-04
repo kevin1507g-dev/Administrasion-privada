@@ -1562,7 +1562,7 @@ async function eliminarCuota(id){
    return alert('No se puede eliminar esta cuota porque ya tiene pagos registrados.');
  }
 
- const residente=pname(cuota.residente_id)||'Residente';
+ const residente='Casa '+(casaNumero(casaIdDeRegistro(cuota))||'');
  const concepto=cuota.concepto||'Cuota';
  const ok=confirm(
    `¿Eliminar esta cuota?\n\n`+
@@ -2334,24 +2334,78 @@ async function addCasa(){
 async function cambiarEstadoCasa(id,activo){if(profile?.rol!=='admin')return;const {error}=await sb.from('casas').update({activo}).eq('id',id);if(error)return alert(error.message);await loadAll();}
 function renderCasas(){const body=document.getElementById('casasRows');if(!body||profile?.rol!=='admin')return;const coll=new Intl.Collator('es',{numeric:true,sensitivity:'base'});body.innerHTML=[...casas].sort((a,b)=>coll.compare(String(a.numero||''),String(b.numero||''))).map(c=>{const accion=c.activo!==false?'<button class="danger" onclick="cambiarEstadoCasa(\''+c.id+'\',false)">Desactivar</button>':'<button class="primary" onclick="cambiarEstadoCasa(\''+c.id+'\',true)">Activar</button>';return '<tr><td><strong>Casa '+esc(c.numero||'')+'</strong></td><td>'+esc(c.nombre||'')+'</td><td>'+esc(nombresCasa(c.id)||'Sin residente')+'</td><td><span class="badge">'+(c.activo!==false?'✅ Activa':'⛔ Inactiva')+'</span></td><td>'+accion+'</td></tr>';}).join('')||'<tr><td colspan="5" class="muted">No hay casas registradas.</td></tr>';}
 async function addProfile(){
- const row={id:rId.value.trim(),nombre:rNombre.value.trim(),unidad:rUnidad.value.trim()||null,rol:rRol.value,activo:true};
- const {error}=await sb.from('profiles').insert(row); if(error)return alert(error.message); await loadAll();
+  const unidad=rUnidad.value.trim()||null;
+  const rol=rRol.value;
+  const casa=unidad?casas.find(c=>String(c.numero||'').trim()===unidad):null;
+
+  if(rol==='residente' && (!unidad || !casa)){
+    return alert('Para un residente usa una casa que ya exista en 🏠 Casas.');
+  }
+
+  const row={
+    id:rId.value.trim(),
+    nombre:rNombre.value.trim(),
+    unidad:casa?.numero||unidad,
+    casa_id:casa?.id||null,
+    rol,
+    activo:true
+  };
+
+  const {error}=await sb.from('profiles').insert(row);
+  if(error) return alert(error.message);
+  await loadAll();
 }
+
 async function addCuota(){
- const {error}=await sb.from('cuotas').insert({residente_id:cRes.value,concepto:cConcepto.value,monto:Number(cMonto.value),vencimiento:cFecha.value,estado:'pendiente'});
- if(error)return alert(error.message);await loadAll();
+  const casaId=cRes.value;
+  if(!casaPorId(casaId)) return alert('Selecciona una casa.');
+
+  const {error}=await sb.from('cuotas').insert({
+    casa_id:casaId,
+    residente_id:null,
+    concepto:cConcepto.value,
+    monto:Number(cMonto.value),
+    vencimiento:cFecha.value,
+    estado:'pendiente'
+  });
+
+  if(error) return alert(error.message);
+  await loadAll();
 }
+
 async function addPago(){
- const q=cuotas.find(x=>String(x.id)===String(pCuota.value)); if(!q)return alert('Selecciona una cuota');
- const monto=Number(pMonto.value); const {error}=await sb.from('pagos').insert({cuota_id:q.id,residente_id:q.residente_id,monto,metodo:pMetodo.value,referencia:pRef.value,fecha:new Date().toISOString().slice(0,10)});
- if(error)return alert(error.message); if(monto>=Number(q.monto)) await sb.from('cuotas').update({estado:'pagada'}).eq('id',q.id); await loadAll();
+  const q=cuotas.find(x=>String(x.id)===String(pCuota.value));
+  if(!q) return alert('Selecciona una cuota');
+
+  const monto=Number(pMonto.value);
+  const {error}=await sb.from('pagos').insert({
+    cuota_id:q.id,
+    casa_id:casaIdDeRegistro(q),
+    residente_id:q.residente_id||null,
+    monto,
+    metodo:pMetodo.value,
+    referencia:pRef.value,
+    fecha:new Date().toISOString().slice(0,10)
+  });
+
+  if(error) return alert(error.message);
+
+  const totalDespues=
+    pagos.filter(p=>String(p.cuota_id)===String(q.id))
+      .reduce((sum,p)=>sum+Number(p.monto||0),0)+monto;
+
+  await sb.from('cuotas')
+    .update({estado:totalDespues+0.009>=Number(q.monto||0)?'pagada':'pendiente'})
+    .eq('id',q.id);
+
+  await loadAll();
 }
 
 async function editarPago(id){
  if(profile?.rol!=='admin') return;
  const pago=pagos.find(p=>String(p.id)===String(id));
  if(!pago) return alert('No se encontró el pago.');
- const residente=pname(pago.residente_id)||'Residente';
+ const residente='Casa '+(casaNumero(casaIdDeRegistro(pago))||'');
  const actual=Number(pago.monto||0);
  const valor=prompt(`Editar total pagado de ${residente}:`, String(actual));
  if(valor===null) return;
@@ -2378,15 +2432,47 @@ async function editarPago(id){
  alert('Total pagado actualizado correctamente.');
 }
 async function addVisita(){
- const rid=profile.rol==='residente'?user.id:null;
- if(!rid)return alert('En esta versión, el administrador registra visitas desde una cuenta de residente. Próxima mejora: selector de residente.');
- const {error}=await sb.from('visitas').insert({residente_id:rid,visitante:vNombre.value,unidad:vUnidad.value,placas:vPlacas.value,motivo:vMotivo.value,fecha:vFecha.value,hora:vHora.value,estado:'esperada'});
- if(error)return alert(error.message);await loadAll();
+  const rid=profile.rol==='residente'?user.id:null;
+  const casaId=profile.rol==='residente'?profile.casa_id:vUnidad.value;
+  const casa=casaPorId(casaId);
+
+  if(!casa) return alert('Selecciona una casa.');
+
+  const {error}=await sb.from('visitas').insert({
+    casa_id:casaId,
+    residente_id:rid,
+    visitante:vNombre.value,
+    unidad:casa.numero,
+    placas:vPlacas.value,
+    motivo:vMotivo.value,
+    fecha:vFecha.value,
+    hora:vHora.value,
+    estado:'esperada'
+  });
+
+  if(error) return alert(error.message);
+  await loadAll();
 }
+
 async function addAcceso(){
- const {error}=await sb.from('accesos').insert({persona:aPersona.value,tipo:aTipo.value,movimiento:aMov.value,unidad:aUnidad.value,observaciones:aObs.value,registrado_por:user.id});
- if(error)return alert(error.message);await loadAll();
+  const casaId=aUnidad.value||null;
+  const casa=casaPorId(casaId);
+  if(!casa) return alert('Selecciona una casa.');
+
+  const {error}=await sb.from('accesos').insert({
+    casa_id:casaId,
+    persona:aPersona.value,
+    tipo:aTipo.value,
+    movimiento:aMov.value,
+    unidad:casa.numero,
+    observaciones:aObs.value,
+    registrado_por:user.id
+  });
+
+  if(error) return alert(error.message);
+  await loadAll();
 }
+
 document.getElementById('loginBtn').addEventListener('click', signIn);
 document.getElementById('password').addEventListener('keydown', e => {
   if(e.key === 'Enter') signIn();
