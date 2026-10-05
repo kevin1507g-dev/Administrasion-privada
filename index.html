@@ -1268,40 +1268,38 @@ async function activarNotificaciones(){
   }
 }
   async function enviarNotificacionGeneral(){
-  if(profile?.rol !== 'admin'){
+  if(profile?.rol!=='admin'){
     return alert('Solo el administrador puede enviar notificaciones.');
   }
 
-  const titulo = prompt('Título de la notificación:');
-  if(!titulo) return;
+  const titulo=prompt('Título de la notificación:');
+  if(!titulo)return;
 
-  const mensaje = prompt('Mensaje para los residentes:');
-  if(!mensaje) return;
+  const mensaje=prompt('Mensaje para los residentes:');
+  if(!mensaje)return;
 
-  try{
-    const { data, error } = await sb.functions.invoke('send-push', {
-      body: {
-        title: titulo,
-        message: mensaje,
-        url: window.location.href
-      }
-    });
+  const referencia='admin_general:'+crypto.randomUUID();
 
-    if(error){
-      console.error(error);
-      return alert('No se pudo enviar: ' + error.message);
-    }
+  const {error}=await sb.from('notificaciones_push').insert({
+    user_id:null,
+    titulo:'📣 '+titulo.trim(),
+    mensaje:mensaje.trim(),
+    tipo:'admin_general',
+    referencia,
+    destino:'notificaciones'
+  });
 
-    alert(
-      `✅ Notificación enviada.\n` +
-      `Enviadas: ${data?.enviados || 0}\n` +
-      `Fallidas: ${data?.fallidos || 0}`
-    );
-
-  }catch(error){
+  if(error){
     console.error(error);
-    alert('Error: ' + error.message);
+    return alert('No se pudo guardar la notificación: '+error.message);
   }
+
+  await loadAll();
+
+  alert(
+    '✅ Notificación guardada.\n\n'+
+    'Aparecerá en el centro de notificaciones y el envío push se procesará automáticamente.'
+  );
 }
 const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const money=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(n||0));
@@ -1353,9 +1351,14 @@ function destinoPorTipoNotificacion(tipo){
   const mapa={
     nueva_cuota:'cuotas',
     cuota_por_vencer:'cuotas',
+    cuota_vence_5_dias:'cuotas',
+    cuota_vence_manana:'cuotas',
+    cuota_vencida:'cuotas',
     pago_registrado:'pagos',
     paquete_recibido:'paqueteria',
+    paquete_entregado:'paqueteria',
     visita_registrada:'visitas',
+    visita_estado:'visitas',
     control_suspendido:'porton',
     control_reactivado:'porton',
     mantenimiento_estado:'mantenimiento',
@@ -1364,6 +1367,8 @@ function destinoPorTipoNotificacion(tipo){
     incidente_seguimiento:'incidentes',
     incidente_estado:'incidentes',
     pagado_hasta:'cuotas',
+    miembro_agregado:'miembrosCasa',
+    admin_general:'notificaciones',
     aviso:'avisos'
   };
   return mapa[tipo]||'notificaciones';
