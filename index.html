@@ -135,7 +135,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 
 <section id="casas" class="adminOnly"><h2>🏠 Casas</h2>
 <div class="card"><h3>Agregar casa</h3><div class="form"><div><label>Número / Unidad</label><input id="casaNumeroInput" placeholder="Ej. 24"></div><div><label>Nombre (opcional)</label><input id="casaNombre" placeholder="Ej. Casa esquina"></div></div><button class="primary" style="margin-top:12px" onclick="addCasa()">➕ Agregar casa</button></div>
-<div class="card table" style="margin-top:14px"><table><thead><tr><th>Casa</th><th>Nombre</th><th>Residentes</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="casasRows"></tbody></table></div></section>
+<div class="card table" style="margin-top:14px"><table><thead><tr><th>Casa</th><th>Nombre</th><th>Residentes</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="casasRows"></tbody></table></div></section>
 
 <section id="solicitudes" class="adminOnly"><h2>📝 Solicitudes de registro</h2>
 <div class="card">
@@ -2357,8 +2357,89 @@ async function addCasa(){
  if(profile?.rol!=='admin')return;const numero=document.getElementById('casaNumeroInput').value.trim(),nombre=document.getElementById('casaNombre').value.trim()||null;if(!numero)return alert('Escribe el número de la casa.');
  const {error}=await sb.from('casas').insert({numero,nombre,activo:true});if(error)return alert('No se pudo crear la casa: '+error.message);document.getElementById('casaNumeroInput').value='';document.getElementById('casaNombre').value='';await loadAll();
 }
-async function cambiarEstadoCasa(id,activo){if(profile?.rol!=='admin')return;const {error}=await sb.from('casas').update({activo}).eq('id',id);if(error)return alert(error.message);await loadAll();}
-function renderCasas(){const body=document.getElementById('casasRows');if(!body||profile?.rol!=='admin')return;const coll=new Intl.Collator('es',{numeric:true,sensitivity:'base'});body.innerHTML=[...casas].sort((a,b)=>coll.compare(String(a.numero||''),String(b.numero||''))).map(c=>{const accion=c.activo!==false?'<button class="danger" onclick="cambiarEstadoCasa(\''+c.id+'\',false)">Desactivar</button>':'<button class="primary" onclick="cambiarEstadoCasa(\''+c.id+'\',true)">Activar</button>';return '<tr><td><strong>Casa '+esc(c.numero||'')+'</strong></td><td>'+esc(c.nombre||'')+'</td><td>'+esc(nombresCasa(c.id)||'Sin residente')+'</td><td><span class="badge">'+(c.activo!==false?'✅ Activa':'⛔ Inactiva')+'</span></td><td>'+accion+'</td></tr>';}).join('')||'<tr><td colspan="5" class="muted">No hay casas registradas.</td></tr>';}
+async function cambiarEstadoCasa(id,activo){
+  if(profile?.rol!=='admin')return;
+  const {error}=await sb.from('casas').update({activo}).eq('id',id);
+  if(error)return alert(error.message);
+  await loadAll();
+}
+
+async function eliminarCasa(id){
+  if(profile?.rol!=='admin')return;
+
+  const casa=casaPorId(id);
+  if(!casa)return alert('No se encontró la casa.');
+
+  const relaciones=[
+    ['profiles','residentes o perfiles'],
+    ['cuotas','cuotas'],
+    ['pagos','pagos'],
+    ['controles_residenciales','controles de portón'],
+    ['visitas','visitas'],
+    ['accesos','accesos'],
+    ['reportes_mantenimiento','reportes de mantenimiento'],
+    ['paquetes','paquetes'],
+    ['reservaciones','reservaciones']
+  ];
+
+  const usados=[];
+
+  for(const [tabla,nombre] of relaciones){
+    const {count,error}=await sb.from(tabla)
+      .select('*',{count:'exact',head:true})
+      .eq('casa_id',id);
+
+    if(error){
+      return alert('No se pudo verificar si la Casa '+casa.numero+' tiene información relacionada: '+error.message);
+    }
+
+    if((count||0)>0) usados.push(nombre+' ('+count+')');
+  }
+
+  if(usados.length){
+    return alert(
+      'No se puede eliminar la Casa '+casa.numero+' porque todavía tiene información registrada:\n\n'+
+      usados.join('\n')+
+      '\n\nPrimero mueve o elimina esos registros. Así evitamos borrar información por accidente.'
+    );
+  }
+
+  if(!confirm(
+    '¿Eliminar definitivamente la Casa '+casa.numero+'?\n\n'+
+    'Esta casa está vacía y se eliminará de la lista.'
+  ))return;
+
+  const {error}=await sb.from('casas').delete().eq('id',id);
+  if(error)return alert('No se pudo eliminar la casa: '+error.message);
+
+  await loadAll();
+  alert('Casa '+casa.numero+' eliminada correctamente.');
+}
+
+function renderCasas(){
+  const body=document.getElementById('casasRows');
+  if(!body||profile?.rol!=='admin')return;
+
+  const coll=new Intl.Collator('es',{numeric:true,sensitivity:'base'});
+
+  body.innerHTML=[...casas]
+    .sort((a,b)=>coll.compare(String(a.numero||''),String(b.numero||'')))
+    .map(c=>{
+      const estadoBtn=c.activo!==false
+        ? '<button onclick="cambiarEstadoCasa(\''+c.id+'\',false)">Desactivar</button>'
+        : '<button class="primary" onclick="cambiarEstadoCasa(\''+c.id+'\',true)">Activar</button>';
+
+      const eliminarBtn='<button class="danger" onclick="eliminarCasa(\''+c.id+'\')">🗑️ Eliminar</button>';
+
+      return '<tr>'+
+        '<td><strong>Casa '+esc(c.numero||'')+'</strong></td>'+
+        '<td>'+esc(c.nombre||'')+'</td>'+
+        '<td>'+esc(nombresCasa(c.id)||'Sin residente')+'</td>'+
+        '<td><span class="badge">'+(c.activo!==false?'✅ Activa':'⛔ Inactiva')+'</span></td>'+
+        '<td><div class="actions">'+estadoBtn+eliminarBtn+'</div></td>'+
+      '</tr>';
+    }).join('')||'<tr><td colspan="5" class="muted">No hay casas registradas.</td></tr>';
+}
 async function addProfile(){
   const unidad=rUnidad.value.trim()||null;
   const rol=rRol.value;
