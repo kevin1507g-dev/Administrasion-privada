@@ -91,6 +91,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <button onclick="show('eventos')">📅 Eventos</button>
 <button onclick="show('avisos')">📢 Avisos</button>
 <button class="residentAdminOnly" onclick="show('mantenimiento')">🛠️ Mantenimiento</button>
+<button class="residentAdminOnly" onclick="show('incidentes')">⚠️ Reportar incidente</button>
 <button onclick="show('paqueteria')">📦 Paquetería</button>
 <button class="residentAdminOnly" onclick="show('reservaciones')">🏡 Reservaciones</button>
 <button onclick="show('documentos')">📄 Documentos</button>
@@ -109,6 +110,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <button class="primary" style="width:100%;margin-top:12px" onclick="show('deudas')">Ver deudas por casa</button></div>
 <div class="card"><div class="muted">Avisos activos</div><div id="kAvisos" class="kpi">0</div></div>
 <div class="card residentAdminOnly"><div class="muted">Reportes pendientes</div><div id="kReportes" class="kpi">0</div></div>
+<div class="card residentAdminOnly"><div class="muted">Incidentes abiertos</div><div id="kIncidentes" class="kpi">0</div></div>
 <div class="card"><div class="muted">Paquetes por entregar</div><div id="kPaquetes" class="kpi">0</div></div>
 </div>
 <div id="avisosInicio" style="margin-top:14px"></div>
@@ -641,6 +643,79 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Casa</th><th>Categoría</th><th>Descripción</th><th>Prioridad</th><th>Estado</th><th>Foto</th><th>Acciones</th></tr></thead><tbody id="reportesRows"></tbody></table></div>
 </section>
 
+<section id="incidentes" class="residentAdminOnly">
+  <h2>⚠️ Reportes privados de incidentes</h2>
+
+  <div class="card residentOnly">
+    <h3>Enviar reporte privado</h3>
+    <p class="muted">
+      Este reporte es confidencial. Los demás residentes no pueden verlo ni saber quién lo envió.
+      Solo los administradores pueden ver tu identidad para dar seguimiento.
+    </p>
+    <div class="form">
+      <div>
+        <label>Categoría</label>
+        <select id="incCategoria">
+          <option>Convivencia</option><option>Ruido</option><option>Estacionamiento</option>
+          <option>Mascotas</option><option>Seguridad</option><option>Daños</option>
+          <option>Reglamento</option><option>Otro</option>
+        </select>
+      </div>
+      <div>
+        <label>Prioridad</label>
+        <select id="incPrioridad">
+          <option value="normal">Normal</option>
+          <option value="alta">Alta</option>
+          <option value="urgente">Urgente</option>
+        </select>
+      </div>
+      <div class="full"><label>Persona involucrada (opcional)</label><input id="incPersona" placeholder="Nombre, casa o descripción de la persona"></div>
+      <div class="full"><label>Asunto</label><input id="incTitulo" placeholder="Ej. Problema recurrente de ruido"></div>
+      <div class="full"><label>Descripción</label><textarea id="incDescripcion" placeholder="Describe lo ocurrido con el mayor detalle posible"></textarea></div>
+    </div>
+    <button class="primary" style="margin-top:12px" onclick="addIncidente()">⚠️ Enviar reporte privado</button>
+    <div id="incMsg" class="muted" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card table" style="margin-top:14px">
+    <h3 style="padding:14px 14px 0">Seguimiento de reportes</h3>
+    <table>
+      <thead><tr>
+        <th>Fecha</th><th class="adminOnly">Enviado por</th><th class="adminOnly">Casa</th>
+        <th>Categoría</th><th>Prioridad</th><th>Asunto</th><th>Estado</th><th>Seguimiento</th>
+      </tr></thead>
+      <tbody id="incidentesRows"></tbody>
+    </table>
+  </div>
+
+  <div id="incidenteDetalle" class="card hidden" style="margin-top:14px">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+      <div><h3 id="incDetalleTitulo">Seguimiento</h3><div id="incDetalleMeta" class="muted"></div></div>
+      <button onclick="cerrarIncidenteDetalle()">Cerrar</button>
+    </div>
+
+    <div class="adminOnly" style="margin-top:14px">
+      <label>Estado del reporte</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <select id="incEstado" style="max-width:240px">
+          <option value="nuevo">Nuevo</option><option value="en_revision">En revisión</option>
+          <option value="resuelto">Resuelto</option><option value="cerrado">Cerrado</option>
+        </select>
+        <button class="primary" onclick="cambiarEstadoIncidente()">Actualizar estado</button>
+      </div>
+    </div>
+
+    <div id="incDetalleDescripcion" class="card" style="margin-top:14px"></div>
+    <div id="incMensajes" style="margin-top:14px"></div>
+
+    <div style="margin-top:14px">
+      <label>Agregar seguimiento</label>
+      <textarea id="incNuevoMensaje" placeholder="Escribe un mensaje de seguimiento"></textarea>
+      <button class="primary" style="margin-top:10px" onclick="enviarMensajeIncidente()">💬 Enviar mensaje</button>
+    </div>
+  </div>
+</section>
+
 <section id="paqueteria"><h2>📦 Paquetería</h2>
 <div class="staffOnly card">
   <h3>Registrar paquete recibido</h3>
@@ -1073,7 +1148,8 @@ async function guardarMontoAutomatico(){
 const SB_URL='https://nndlfkuelwpwklldvtfo.supabase.co';
 const SB_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
 const sb=supabase.createClient(SB_URL,SB_KEY);
-let user=null, profile=null, casas=[], profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
+let user=null, profile=null, casas=[], profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], incidentes=[], incidenteMensajes=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
+let incidenteActualId=null;
 const VAPID_PUBLIC_KEY =
 'BCh7-PSmKO_r5DL9TBy1tJ2k9NHNvdeCfKlvwZj8OyDqnPvs1ZLc_mPbfewqLYO_J7VeLDn65WADAxiU19dw_Zo';
 
