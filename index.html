@@ -1,8 +1,15 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Administración Residencial</title>
+<meta name="theme-color" content="#0f172a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="My Condominio">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./pwa-icon.svg" type="image/svg+xml">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
@@ -48,6 +55,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <label>Contraseña</label><input id="password" type="password" autocomplete="current-password">
 <button id="loginBtn" class="primary" style="width:100%;margin-top:16px" type="button">Iniciar sesión</button>
 <button style="width:100%;margin-top:10px" type="button" onclick="mostrarRegistro()">Crear mi cuenta</button>
+<button id="installAppLoginBtn" style="width:100%;margin-top:10px" type="button" onclick="instalarAplicacion()">📲 Instalar aplicación en este teléfono</button>
 <div id="loginMsg" class="err"></div>
 </div>
 <div id="registerPanel" class="hidden">
@@ -69,6 +77,9 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div id="menuOverlay" class="menuOverlay" onclick="closeMenu()"></div>
 <aside id="sideMenu" aria-hidden="true"><div class="menuHeader"><h3>🏢 Condominio</h3><button class="menuClose" type="button" aria-label="Cerrar menú" onclick="closeMenu()">×</button></div><div id="who" class="muted"></div>
 <div class="nav">
+<button id="installAppMenuBtn" type="button" onclick="instalarAplicacion()">
+  📲 Instalar aplicación
+</button>
 <button id="pushBtn" class="primary" type="button" onclick="activarNotificaciones()">
   🔔 Activar notificaciones
 </button>
@@ -1184,6 +1195,75 @@ let user=null, profile=null, casas=[], profiles=[], cuotas=[], pagos=[], visitas
 let incidenteActualId=null;
 const VAPID_PUBLIC_KEY =
 'BCh7-PSmKO_r5DL9TBy1tJ2k9NHNvdeCfKlvwZj8OyDqnPvs1ZLc_mPbfewqLYO_J7VeLDn65WADAxiU19dw_Zo';
+
+let deferredInstallPrompt=null;
+
+function appYaInstalada(){
+  return window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true;
+}
+
+function actualizarBotonesInstalacion(){
+  const instalada=appYaInstalada();
+  ['installAppLoginBtn','installAppMenuBtn'].forEach(id=>{
+    const btn=document.getElementById(id);
+    if(btn)btn.classList.toggle('hidden',instalada);
+  });
+}
+
+window.addEventListener('beforeinstallprompt',event=>{
+  event.preventDefault();
+  deferredInstallPrompt=event;
+  actualizarBotonesInstalacion();
+});
+
+window.addEventListener('appinstalled',()=>{
+  deferredInstallPrompt=null;
+  actualizarBotonesInstalacion();
+});
+
+async function instalarAplicacion(){
+  if(appYaInstalada()){
+    return alert('La aplicación ya está instalada en este teléfono.');
+  }
+
+  if(deferredInstallPrompt){
+    deferredInstallPrompt.prompt();
+    const resultado=await deferredInstallPrompt.userChoice;
+    if(resultado?.outcome==='accepted'){
+      deferredInstallPrompt=null;
+    }
+    actualizarBotonesInstalacion();
+    return;
+  }
+
+  const esIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+
+  if(esIOS){
+    return alert(
+      'Para instalar My Condominio en iPhone:\n\n'+
+      '1. Abre esta página en Safari.\n'+
+      '2. Toca el botón Compartir.\n'+
+      '3. Elige “Agregar a pantalla de inicio”.\n'+
+      '4. Toca “Agregar”.\n\n'+
+      'Después aparecerá como una aplicación más en tu pantalla.'
+    );
+  }
+
+  alert(
+    'Para instalar My Condominio:\n\n'+
+    'Abre el menú del navegador y selecciona “Instalar aplicación” o “Agregar a pantalla de inicio”.'
+  );
+}
+
+async function registrarPWA(){
+  if(!('serviceWorker' in navigator))return;
+  try{
+    await navigator.serviceWorker.register('./sw.js');
+  }catch(error){
+    console.warn('No se pudo registrar la aplicación instalable:',error);
+  }
+}
 
 function urlBase64ToUint8Array(base64String){
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -3358,6 +3438,8 @@ window.addEventListener('error', e => {
 
 (async()=>{
   try{
+    await registrarPWA();
+    actualizarBotonesInstalacion();
     const {data,error}=await sb.auth.getSession();
     if(error) console.error('Session error:', error);
     if(data?.session){user=data.session.user;await enter()}
