@@ -180,7 +180,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 
 <section id="casas" class="adminOnly"><h2>🏠 Casas</h2>
 <div class="card"><h3>Agregar casa</h3><div class="form"><div><label>Número / Unidad</label><input id="casaNumeroInput" placeholder="Ej. 24"></div><div><label>Nombre (opcional)</label><input id="casaNombre" placeholder="Ej. Casa esquina"></div></div><button class="primary" style="margin-top:12px" onclick="addCasa()">➕ Agregar casa</button></div>
-<div class="card table" style="margin-top:14px"><table><thead><tr><th>Casa</th><th>Nombre</th><th>Residentes</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="casasRows"></tbody></table></div></section>
+<div class="card table" style="margin-top:14px"><table><thead><tr><th>Casa</th><th>Nombre</th><th>Residentes</th><th>Pagado hasta</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="casasRows"></tbody></table></div></section>
 
 <section id="solicitudes" class="adminOnly"><h2>📝 Solicitudes de registro</h2>
 <div class="card">
@@ -342,6 +342,14 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <section id="cuotas">
   <h2>🧾 Cuotas</h2>
 
+  <div class="card residentOnly">
+    <div class="muted">Mensualidades cubiertas</div>
+    <div id="residentPaidUntil" class="kpi" style="margin-top:6px">Sin adelanto registrado</div>
+    <p class="muted" style="margin-top:10px">
+      Mientras tu casa esté cubierta por adelantado, el cobro automático no agregará nuevas mensualidades dentro de ese periodo.
+    </p>
+  </div>
+
   <div class="card adminOnly">
     <h3>⚙️ Cobro automático mensual</h3>
     <div class="form">
@@ -364,6 +372,28 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       El nuevo monto se aplicará a las próximas cuotas automáticas.
       Las cuotas que ya existen no se modificarán.
     </p>
+  </div>
+
+  <div class="card adminOnly" style="margin-top:14px">
+    <h3>⏩ Mensualidades adelantadas por casa</h3>
+    <p class="muted">
+      Indica hasta qué mes está cubierta una casa. El cobro automático no generará nuevas mensualidades durante ese periodo.
+    </p>
+    <div class="form">
+      <div>
+        <label>Casa</label>
+        <select id="paidUntilCasa" onchange="cargarPagadoHastaCasa()"></select>
+      </div>
+      <div>
+        <label>Pagado hasta</label>
+        <input id="paidUntilMonth" type="month">
+      </div>
+    </div>
+    <div id="paidUntilCurrent" class="muted" style="margin-top:10px">Sin adelanto registrado.</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+      <button class="primary" onclick="guardarPagadoHasta()">💾 Guardar / editar fecha</button>
+      <button class="danger" onclick="quitarPagadoHasta()">Quitar fecha</button>
+    </div>
   </div>
 
   <div class="card adminOnly" style="margin-top:14px">
@@ -1915,6 +1945,23 @@ function render(){
  const collCasa=new Intl.Collator('es',{numeric:true,sensitivity:'base'}),casasActivas=[...casas].filter(c=>c.activo!==false).sort((a,b)=>collCasa.compare(String(a.numero||''),String(b.numero||'')));
   const houseOptions=casasActivas.map(c=>'<option value="'+c.id+'">Casa '+esc(c.numero||'')+(nombresCasa(c.id)?' — '+esc(nombresCasa(c.id)):'')+'</option>').join('');
   if(document.getElementById('cRes')&&profile?.rol==='admin')cRes.innerHTML=houseOptions;
+
+  const paidUntilCasaEl=document.getElementById('paidUntilCasa');
+  if(paidUntilCasaEl&&profile?.rol==='admin'){
+    const prev=paidUntilCasaEl.value;
+    paidUntilCasaEl.innerHTML=houseOptions;
+    if(prev&&[...paidUntilCasaEl.options].some(o=>o.value===prev))paidUntilCasaEl.value=prev;
+    cargarPagadoHastaCasa();
+  }
+
+  const residentPaidUntilEl=document.getElementById('residentPaidUntil');
+  if(residentPaidUntilEl&&profile?.rol==='residente'){
+    const miCasa=casaPorId(profile.casa_id);
+    residentPaidUntilEl.textContent=miCasa?.pagado_hasta
+      ? 'Pagado hasta '+textoMesPagado(miCasa.pagado_hasta)
+      : 'Sin adelanto registrado';
+  }
+
   cuotasRows.innerHTML=cuotas.map(x=>'<tr><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td>'+esc(x.concepto)+'</td><td>'+money(x.monto)+'</td><td>'+esc(x.vencimiento)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td><td class="adminOnly">'+(profile?.rol==='admin'?'<button onclick="editarVencimientoCuota('+x.id+', \''+esc(x.vencimiento||'')+'\')">Editar vencimiento</button> <button class="danger" onclick="eliminarCuota('+x.id+')">🗑️ Eliminar</button>':'')+'</td></tr>').join('');
   pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>'<option value="'+x.id+'">Casa '+esc(casaNumero(casaIdDeRegistro(x)))+' — '+esc(x.concepto)+' — '+money(x.monto)+'</option>').join('');
   pagosRows.innerHTML=pagos.map(x=>'<tr><td>'+esc(x.fecha)+'</td><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td><strong>'+money(x.monto)+'</strong></td><td>'+esc(x.metodo)+'</td><td>'+esc(x.referencia)+'</td><td class="adminOnly">'+(profile?.rol==='admin'?'<button onclick="editarPago('+x.id+')">✏️ Editar total pagado</button> <button class="danger" onclick="eliminarPago('+x.id+')">🗑️ Eliminar pago</button>':'')+'</td></tr>').join('');
@@ -2501,6 +2548,93 @@ async function agregarMiembroCasa(){
   }
 }
 
+function textoMesPagado(fecha){
+  if(!fecha)return 'Sin adelanto';
+  const partes=String(fecha).slice(0,10).split('-');
+  if(partes.length<2)return 'Sin adelanto';
+  const y=Number(partes[0]),m=Number(partes[1]);
+  if(!y||!m)return 'Sin adelanto';
+  return new Intl.DateTimeFormat('es-MX',{month:'long',year:'numeric'})
+    .format(new Date(Date.UTC(y,m-1,1)));
+}
+
+function finDeMesDesdeInput(valor){
+  if(!/^\d{4}-\d{2}$/.test(String(valor||'')))return null;
+  const [y,m]=valor.split('-').map(Number);
+  if(!y||m<1||m>12)return null;
+  const ultimo=new Date(Date.UTC(y,m,0)).getUTCDate();
+  return valor+'-'+String(ultimo).padStart(2,'0');
+}
+
+function cargarPagadoHastaCasa(){
+  if(profile?.rol!=='admin')return;
+
+  const select=document.getElementById('paidUntilCasa');
+  const input=document.getElementById('paidUntilMonth');
+  const actual=document.getElementById('paidUntilCurrent');
+  if(!select||!input||!actual)return;
+
+  const casa=casaPorId(select.value);
+  if(!casa){
+    input.value='';
+    actual.textContent='Selecciona una casa.';
+    return;
+  }
+
+  input.value=casa.pagado_hasta?String(casa.pagado_hasta).slice(0,7):'';
+  actual.textContent=casa.pagado_hasta
+    ? 'Casa '+casa.numero+' cubierta hasta '+textoMesPagado(casa.pagado_hasta)+'.'
+    : 'Casa '+casa.numero+' sin adelanto registrado.';
+}
+
+async function guardarPagadoHasta(){
+  if(profile?.rol!=='admin')return;
+
+  const casaId=document.getElementById('paidUntilCasa')?.value;
+  const mes=document.getElementById('paidUntilMonth')?.value;
+  const casa=casaPorId(casaId);
+  if(!casa)return alert('Selecciona una casa.');
+
+  const fecha=finDeMesDesdeInput(mes);
+  if(!fecha)return alert('Selecciona el mes hasta donde está pagado.');
+
+  if(!confirm(
+    '¿Marcar la Casa '+casa.numero+' como pagada hasta '+textoMesPagado(fecha)+'?\n\n'+
+    'El cobro automático no generará nuevas mensualidades para esta casa durante ese periodo.'
+  ))return;
+
+  const {error}=await sb.from('casas')
+    .update({pagado_hasta:fecha})
+    .eq('id',casaId);
+
+  if(error)return alert('No se pudo guardar la fecha: '+error.message);
+
+  await loadAll();
+  alert('Casa '+casa.numero+' actualizada correctamente.');
+}
+
+async function quitarPagadoHasta(){
+  if(profile?.rol!=='admin')return;
+
+  const casaId=document.getElementById('paidUntilCasa')?.value;
+  const casa=casaPorId(casaId);
+  if(!casa)return alert('Selecciona una casa.');
+
+  if(!confirm(
+    '¿Quitar la fecha de mensualidades adelantadas de la Casa '+casa.numero+'?\n\n'+
+    'El cobro automático volverá a generar la mensualidad cuando corresponda.'
+  ))return;
+
+  const {error}=await sb.from('casas')
+    .update({pagado_hasta:null})
+    .eq('id',casaId);
+
+  if(error)return alert('No se pudo quitar la fecha: '+error.message);
+
+  await loadAll();
+  alert('Fecha eliminada correctamente.');
+}
+
 async function addCasa(){
  if(profile?.rol!=='admin')return;const numero=document.getElementById('casaNumeroInput').value.trim(),nombre=document.getElementById('casaNombre').value.trim()||null;if(!numero)return alert('Escribe el número de la casa.');
  const {error}=await sb.from('casas').insert({numero,nombre,activo:true});if(error)return alert('No se pudo crear la casa: '+error.message);document.getElementById('casaNumeroInput').value='';document.getElementById('casaNombre').value='';await loadAll();
@@ -2578,16 +2712,19 @@ function renderCasas(){
         : '<button class="primary" onclick="cambiarEstadoCasa(\''+c.id+'\',true)">Activar</button>';
 
       const eliminarBtn='<button class="danger" onclick="eliminarCasa(\''+c.id+'\')">🗑️ Eliminar</button>';
+      const cubierto=c.pagado_hasta?'✅ '+textoMesPagado(c.pagado_hasta):'—';
 
       return '<tr>'+
         '<td><strong>Casa '+esc(c.numero||'')+'</strong></td>'+
         '<td>'+esc(c.nombre||'')+'</td>'+
         '<td>'+esc(nombresCasa(c.id)||'Sin residente')+'</td>'+
+        '<td>'+esc(cubierto)+'</td>'+
         '<td><span class="badge">'+(c.activo!==false?'✅ Activa':'⛔ Inactiva')+'</span></td>'+
         '<td><div class="actions">'+estadoBtn+eliminarBtn+'</div></td>'+
       '</tr>';
-    }).join('')||'<tr><td colspan="5" class="muted">No hay casas registradas.</td></tr>';
+    }).join('')||'<tr><td colspan="6" class="muted">No hay casas registradas.</td></tr>';
 }
+
 async function addProfile(){
   const unidad=rUnidad.value.trim()||null;
   const rol=rRol.value;
