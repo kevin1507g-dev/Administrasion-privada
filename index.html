@@ -2251,8 +2251,9 @@ function render(){
   ['repResidente','resResidente','histResidente','vUnidad','paqUnidad','aUnidad'].forEach(id=>{const el=document.getElementById(id);if(!el)return;const prev=el.value;el.innerHTML=houseOptions;if(profile?.rol==='residente'&&profile.casa_id&&[...el.options].some(o=>o.value===String(profile.casa_id)))el.value=String(profile.casa_id);else if(prev&&[...el.options].some(o=>o.value===prev))el.value=prev;});
   if(document.getElementById('kAvisos')) kAvisos.textContent=avisos.length;
  if(document.getElementById('kReportes')) kReportes.textContent=reportes.filter(x=>x.estado!=='resuelto').length;
+ if(document.getElementById('kIncidentes')) kIncidentes.textContent=incidentes.filter(x=>!['resuelto','cerrado'].includes(x.estado)).length;
  if(document.getElementById('kPaquetes')) kPaquetes.textContent=paquetes.filter(x=>x.estado!=='entregado').length;
- renderCasas(); renderMiembrosCasa(); renderAvisos(); renderReportes(); renderPaquetes(); renderReservas(); renderDocumentos(); renderEmergencia(); renderHistorial();
+ renderCasas(); renderMiembrosCasa(); renderAvisos(); renderReportes(); renderIncidentes(); renderPaquetes(); renderReservas(); renderDocumentos(); renderEmergencia(); renderHistorial();
  renderPorton();
  renderEventos();
  renderGastos();
