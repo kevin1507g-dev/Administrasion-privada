@@ -72,6 +72,9 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <button id="pushBtn" class="primary" type="button" onclick="activarNotificaciones()">
   🔔 Activar notificaciones
 </button>
+<button class="residentAdminOnly" onclick="show('notificaciones')">
+  🔔 Notificaciones <span id="notifBadge" class="badge">0</span>
+</button>
 <button class="adminOnly" onclick="enviarNotificacionGeneral()">
   📣 Enviar notificación
 </button>
@@ -116,6 +119,19 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div id="avisosInicio" style="margin-top:14px"></div>
 </section>
 
+<section id="notificaciones" class="residentAdminOnly">
+  <h2>🔔 Centro de notificaciones</h2>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+      <div>
+        <h3 style="margin:0">Tus notificaciones</h3>
+        <div id="notifResumen" class="muted" style="margin-top:6px">Sin notificaciones nuevas.</div>
+      </div>
+      <button onclick="marcarTodasNotificacionesLeidas()">✓ Marcar todas como leídas</button>
+    </div>
+  </div>
+  <div id="notificacionesLista" style="margin-top:14px"></div>
+</section>
 
 
 <section id="camaras" class="cameraOnly">
@@ -1148,7 +1164,7 @@ async function guardarMontoAutomatico(){
 const SB_URL='https://nndlfkuelwpwklldvtfo.supabase.co';
 const SB_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
 const sb=supabase.createClient(SB_URL,SB_KEY);
-let user=null, profile=null, casas=[], profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], incidentes=[], incidenteMensajes=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
+let user=null, profile=null, casas=[], profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], incidentes=[], incidenteMensajes=[], notificaciones=[], notificacionLecturas=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
 let incidenteActualId=null;
 const VAPID_PUBLIC_KEY =
 'BCh7-PSmKO_r5DL9TBy1tJ2k9NHNvdeCfKlvwZj8OyDqnPvs1ZLc_mPbfewqLYO_J7VeLDn65WADAxiU19dw_Zo';
@@ -1470,7 +1486,7 @@ async function enter(){
  await loadAll();
 }
 async function loadAll(){
- const [ca,pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,inc,im,pk,rs,dc,em]=await Promise.all([
+ const [ca,pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,inc,im,nt,nl,pk,rs,dc,em]=await Promise.all([
    sb.from('casas').select('*').order('numero',{ascending:true}),
    ['admin','residente'].includes(profile.rol)?sb.from('profiles').select('*').order('nombre'):Promise.resolve({data:[profile]}),
    sb.from('cuotas').select('*').order('created_at',{ascending:false}),
@@ -1485,6 +1501,8 @@ async function loadAll(){
    ['admin','residente'].includes(profile.rol)?sb.from('reportes_mantenimiento').select('*').order('created_at',{ascending:false}):Promise.resolve({data:[]}),
    ['admin','residente'].includes(profile.rol)?sb.from('incidentes').select('*').order('updated_at',{ascending:false}):Promise.resolve({data:[]}),
    ['admin','residente'].includes(profile.rol)?sb.from('incidente_mensajes').select('*').order('created_at',{ascending:true}):Promise.resolve({data:[]}),
+   ['admin','residente'].includes(profile.rol)?sb.from('notificaciones_push').select('*').or('user_id.eq.'+user.id+',user_id.is.null').order('created_at',{ascending:false}).limit(100):Promise.resolve({data:[]}),
+   ['admin','residente'].includes(profile.rol)?sb.from('notificacion_lecturas').select('*').eq('user_id',user.id):Promise.resolve({data:[]}),
    sb.from('paquetes').select('*').order('created_at',{ascending:false}),
    ['admin','residente'].includes(profile.rol)?sb.from('reservaciones').select('*').order('fecha',{ascending:true}):Promise.resolve({data:[]}),
    sb.from('documentos_condominio').select('*').order('created_at',{ascending:false}),
@@ -1492,8 +1510,8 @@ async function loadAll(){
  ]);
  casas=ca.data||[]; profiles=pr.data||[]; cuotas=cu.data||[]; pagos=pa.data||[]; visitas=vi.data||[]; accesos=ac.data||[];
  eventos=ev.data||[]; controles=ct.data||[]; gastos=ga.data||[]; metodosPago=mp.data||[];
- avisos=av.data||[]; reportes=rp.data||[]; incidentes=inc.data||[]; incidenteMensajes=im.data||[]; paquetes=pk.data||[]; reservas=rs.data||[]; documentos=dc.data||[]; contactosEmergencia=em.data||[];
- [ca,av,rp,inc,im,pk,rs,dc,em].forEach((r,i)=>{if(r?.error) console.warn(['Casas','Avisos','Reportes','Incidentes','Mensajes de incidentes','Paquetes','Reservaciones','Documentos','Emergencia'][i]+':',r.error)});
+ avisos=av.data||[]; reportes=rp.data||[]; incidentes=inc.data||[]; incidenteMensajes=im.data||[]; notificaciones=nt.data||[]; notificacionLecturas=nl.data||[]; paquetes=pk.data||[]; reservas=rs.data||[]; documentos=dc.data||[]; contactosEmergencia=em.data||[];
+ [ca,av,rp,inc,im,nt,nl,pk,rs,dc,em].forEach((r,i)=>{if(r?.error) console.warn(['Casas','Avisos','Reportes','Incidentes','Mensajes de incidentes','Notificaciones','Lecturas de notificaciones','Paquetes','Reservaciones','Documentos','Emergencia'][i]+':',r.error)});
  if(ga.error && profile.rol==='admin') console.warn('Gastos:',ga.error);
  if(mp.error && ['admin','residente'].includes(profile.rol)) console.warn('Métodos de pago:',mp.error);
  render();
