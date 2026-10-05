@@ -76,6 +76,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   📣 Enviar notificación
 </button>
 <button onclick="show('inicio')">🏠 Inicio</button>
+<button class="residentOnly" onclick="show('miembrosCasa')">👨‍👩‍👧 Miembros de mi casa</button>
 <button class="cameraOnly" onclick="show('camaras')">📹 Cámaras</button>
 <button class="adminOnly" onclick="show('residentes')">👥 Residentes</button>
 <button class="adminOnly" onclick="show('solicitudes')">📝 Solicitudes</button>
@@ -132,6 +133,50 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   </div>
 </section>
 
+
+<section id="miembrosCasa" class="residentOnly">
+  <h2>👨‍👩‍👧 Miembros de mi casa</h2>
+
+  <div class="card">
+    <div class="muted">Casa vinculada</div>
+    <div id="miCasaNumero" class="kpi" style="margin-top:6px">—</div>
+    <p class="muted" style="margin-top:10px">
+      Puedes agregar a otra persona de tu misma casa. Su cuenta quedará activa inmediatamente y no necesitará aprobación del administrador.
+    </p>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>Agregar miembro</h3>
+    <div class="form">
+      <div>
+        <label>Nombre completo</label>
+        <input id="memberNombre" autocomplete="name" placeholder="Ej. Juan Pérez">
+      </div>
+      <div>
+        <label>Correo</label>
+        <input id="memberEmail" type="email" autocomplete="email" placeholder="correo@ejemplo.com">
+      </div>
+      <div>
+        <label>Contraseña temporal</label>
+        <input id="memberPassword" type="password" minlength="6" autocomplete="new-password" placeholder="Mínimo 6 caracteres">
+      </div>
+      <div>
+        <label>Confirmar contraseña</label>
+        <input id="memberPassword2" type="password" minlength="6" autocomplete="new-password">
+      </div>
+    </div>
+    <button id="addMemberBtn" class="primary" style="margin-top:12px" onclick="agregarMiembroCasa()">➕ Agregar miembro</button>
+    <div id="memberMsg" class="muted" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card table" style="margin-top:14px">
+    <h3 style="padding:14px 14px 0">Personas registradas en mi casa</h3>
+    <table>
+      <thead><tr><th>Nombre</th><th>Correo</th><th>Estado</th></tr></thead>
+      <tbody id="memberRows"></tbody>
+    </table>
+  </div>
+</section>
 
 <section id="casas" class="adminOnly"><h2>🏠 Casas</h2>
 <div class="card"><h3>Agregar casa</h3><div class="form"><div><label>Número / Unidad</label><input id="casaNumeroInput" placeholder="Ej. 24"></div><div><label>Nombre (opcional)</label><input id="casaNombre" placeholder="Ej. Casa esquina"></div></div><button class="primary" style="margin-top:12px" onclick="addCasa()">➕ Agregar casa</button></div>
@@ -1321,7 +1366,7 @@ async function enter(){
 async function loadAll(){
  const [ca,pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,pk,rs,dc,em]=await Promise.all([
    sb.from('casas').select('*').order('numero',{ascending:true}),
-   profile.rol==='admin'?sb.from('profiles').select('*').order('nombre'):Promise.resolve({data:[profile]}),
+   ['admin','residente'].includes(profile.rol)?sb.from('profiles').select('*').order('nombre'):Promise.resolve({data:[profile]}),
    sb.from('cuotas').select('*').order('created_at',{ascending:false}),
    sb.from('pagos').select('*').order('created_at',{ascending:false}),
    sb.from('visitas').select('*').order('created_at',{ascending:false}),
@@ -1879,7 +1924,7 @@ function render(){
   if(document.getElementById('kAvisos')) kAvisos.textContent=avisos.length;
  if(document.getElementById('kReportes')) kReportes.textContent=reportes.filter(x=>x.estado!=='resuelto').length;
  if(document.getElementById('kPaquetes')) kPaquetes.textContent=paquetes.filter(x=>x.estado!=='entregado').length;
- renderCasas(); renderAvisos(); renderReportes(); renderPaquetes(); renderReservas(); renderDocumentos(); renderEmergencia(); renderHistorial();
+ renderCasas(); renderMiembrosCasa(); renderAvisos(); renderReportes(); renderPaquetes(); renderReservas(); renderDocumentos(); renderEmergencia(); renderHistorial();
  renderPorton();
  renderEventos();
  renderGastos();
@@ -2351,6 +2396,109 @@ function renderMetodosPago(){
    const acciones=profile.rol==='admin'?`<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button onclick="editarMetodoPago(${m.id})">✏️ Editar</button>${m.activo!==false?`<button class="danger" onclick="cambiarEstadoMetodoPago(${m.id},false)">Suspender</button>`:`<button class="primary" onclick="cambiarEstadoMetodoPago(${m.id},true)">Activar</button>`}<button class="danger" onclick="eliminarMetodoPago(${m.id})">🗑️ Eliminar</button></div>`:'';
    return `<div class="card" style="margin-bottom:14px"><h3>💳 ${esc(m.nombre||'Método de pago')}</h3>${profile.rol==='admin'?`<div class="badge">${m.activo!==false?'✅ Activo':'⛔ Suspendido'}</div>`:''}${m.descripcion?`<p>${esc(m.descripcion)}</p>`:''}${m.banco?`<p><strong>Banco:</strong> ${esc(m.banco)}</p>`:''}${m.beneficiario?`<p><strong>Beneficiario:</strong> ${esc(m.beneficiario)}</p>`:''}${cuenta}${m.instrucciones?`<p style="margin-top:12px"><strong>Instrucciones:</strong><br>${esc(m.instrucciones)}</p>`:''}${acciones}</div>`;
  }).join('')||'<div class="card muted">No hay métodos de pago disponibles.</div>';
+}
+
+function renderMiembrosCasa(){
+  if(profile?.rol!=='residente')return;
+
+  const numero=document.getElementById('miCasaNumero');
+  const body=document.getElementById('memberRows');
+
+  if(numero){
+    numero.textContent=profile.casa_id?'Casa '+(casaNumero(profile.casa_id)||profile.unidad||''):'Sin casa asignada';
+  }
+
+  if(!body)return;
+
+  const miembros=profiles
+    .filter(p=>p.rol==='residente' && String(p.casa_id||'')===String(profile.casa_id||''))
+    .sort((a,b)=>String(a.nombre||'').localeCompare(String(b.nombre||''),'es',{sensitivity:'base'}));
+
+  body.innerHTML=miembros.map(m=>{
+    const propio=String(m.id)===String(user?.id);
+    const estado=m.activo!==false && m.estado_registro==='aprobado'
+      ? '✅ Activo'
+      : (m.estado_registro==='pendiente'?'⏳ Pendiente':'⛔ Inactivo');
+
+    return '<tr>'+
+      '<td><strong>'+esc(m.nombre||'')+'</strong>'+(propio?' <span class="badge">Tú</span>':'')+'</td>'+
+      '<td>'+esc(m.email||'')+'</td>'+
+      '<td><span class="badge">'+estado+'</span></td>'+
+    '</tr>';
+  }).join('')||'<tr><td colspan="3" class="muted">No hay miembros registrados.</td></tr>';
+}
+
+async function agregarMiembroCasa(){
+  if(profile?.rol!=='residente')return;
+
+  const nombre=document.getElementById('memberNombre')?.value.trim()||'';
+  const email=document.getElementById('memberEmail')?.value.trim().toLowerCase()||'';
+  const password=document.getElementById('memberPassword')?.value||'';
+  const password2=document.getElementById('memberPassword2')?.value||'';
+  const msg=document.getElementById('memberMsg');
+  const btn=document.getElementById('addMemberBtn');
+
+  if(msg)msg.textContent='';
+
+  if(!nombre||!email||!password||!password2){
+    if(msg)msg.textContent='Completa todos los campos.';
+    return;
+  }
+
+  if(password.length<6){
+    if(msg)msg.textContent='La contraseña debe tener al menos 6 caracteres.';
+    return;
+  }
+
+  if(password!==password2){
+    if(msg)msg.textContent='Las contraseñas no coinciden.';
+    return;
+  }
+
+  if(btn){
+    btn.disabled=true;
+    btn.textContent='Agregando miembro...';
+  }
+
+  try{
+    const {data,error}=await sb.functions.invoke('add-house-member',{
+      body:{nombre,email,password}
+    });
+
+    if(error){
+      let detalle=error.message||'No se pudo agregar el miembro.';
+      try{
+        const respuesta=await error.context?.json?.();
+        if(respuesta?.error)detalle=respuesta.error;
+      }catch(_){}
+      if(msg)msg.textContent=detalle;
+      return;
+    }
+
+    if(data?.error){
+      if(msg)msg.textContent=data.error;
+      return;
+    }
+
+    document.getElementById('memberNombre').value='';
+    document.getElementById('memberEmail').value='';
+    document.getElementById('memberPassword').value='';
+    document.getElementById('memberPassword2').value='';
+
+    await loadAll();
+
+    if(msg){
+      msg.style.color='#bbf7d0';
+      msg.textContent='Miembro agregado correctamente a tu casa. Ya puede iniciar sesión.';
+    }
+  }catch(err){
+    if(msg)msg.textContent='Error técnico: '+(err?.message||String(err));
+  }finally{
+    if(btn){
+      btn.disabled=false;
+      btn.textContent='➕ Agregar miembro';
+    }
+  }
 }
 
 async function addCasa(){
