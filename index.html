@@ -1470,7 +1470,7 @@ async function enter(){
  await loadAll();
 }
 async function loadAll(){
- const [ca,pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,pk,rs,dc,em]=await Promise.all([
+ const [ca,pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,inc,im,pk,rs,dc,em]=await Promise.all([
    sb.from('casas').select('*').order('numero',{ascending:true}),
    ['admin','residente'].includes(profile.rol)?sb.from('profiles').select('*').order('nombre'):Promise.resolve({data:[profile]}),
    sb.from('cuotas').select('*').order('created_at',{ascending:false}),
@@ -1483,6 +1483,8 @@ async function loadAll(){
    ['admin','residente'].includes(profile.rol)?sb.from('metodos_pago').select('*').order('created_at',{ascending:true}):Promise.resolve({data:[]}),
    sb.from('avisos_condominio').select('*').order('created_at',{ascending:false}),
    ['admin','residente'].includes(profile.rol)?sb.from('reportes_mantenimiento').select('*').order('created_at',{ascending:false}):Promise.resolve({data:[]}),
+   ['admin','residente'].includes(profile.rol)?sb.from('incidentes').select('*').order('updated_at',{ascending:false}):Promise.resolve({data:[]}),
+   ['admin','residente'].includes(profile.rol)?sb.from('incidente_mensajes').select('*').order('created_at',{ascending:true}):Promise.resolve({data:[]}),
    sb.from('paquetes').select('*').order('created_at',{ascending:false}),
    ['admin','residente'].includes(profile.rol)?sb.from('reservaciones').select('*').order('fecha',{ascending:true}):Promise.resolve({data:[]}),
    sb.from('documentos_condominio').select('*').order('created_at',{ascending:false}),
@@ -1490,8 +1492,8 @@ async function loadAll(){
  ]);
  casas=ca.data||[]; profiles=pr.data||[]; cuotas=cu.data||[]; pagos=pa.data||[]; visitas=vi.data||[]; accesos=ac.data||[];
  eventos=ev.data||[]; controles=ct.data||[]; gastos=ga.data||[]; metodosPago=mp.data||[];
- avisos=av.data||[]; reportes=rp.data||[]; paquetes=pk.data||[]; reservas=rs.data||[]; documentos=dc.data||[]; contactosEmergencia=em.data||[];
- [ca,av,rp,pk,rs,dc,em].forEach((r,i)=>{if(r?.error) console.warn(['Casas','Avisos','Reportes','Paquetes','Reservaciones','Documentos','Emergencia'][i]+':',r.error)});
+ avisos=av.data||[]; reportes=rp.data||[]; incidentes=inc.data||[]; incidenteMensajes=im.data||[]; paquetes=pk.data||[]; reservas=rs.data||[]; documentos=dc.data||[]; contactosEmergencia=em.data||[];
+ [ca,av,rp,inc,im,pk,rs,dc,em].forEach((r,i)=>{if(r?.error) console.warn(['Casas','Avisos','Reportes','Incidentes','Mensajes de incidentes','Paquetes','Reservaciones','Documentos','Emergencia'][i]+':',r.error)});
  if(ga.error && profile.rol==='admin') console.warn('Gastos:',ga.error);
  if(mp.error && ['admin','residente'].includes(profile.rol)) console.warn('Métodos de pago:',mp.error);
  render();
