@@ -2117,6 +2117,99 @@ async function cambiarEstadoIncidente(){
   abrirIncidente(id);
 }
 
+function renderNotificaciones(){
+  if(!['admin','residente'].includes(profile?.rol))return;
+
+  const lista=document.getElementById('notificacionesLista');
+  const badge=document.getElementById('notifBadge');
+  const resumen=document.getElementById('notifResumen');
+
+  const leidas=new Set(notificacionLecturas.map(x=>String(x.notificacion_id)));
+  const noLeidas=notificaciones.filter(n=>!leidas.has(String(n.id)));
+
+  if(badge){
+    badge.textContent=String(noLeidas.length);
+    badge.classList.toggle('hidden',noLeidas.length===0);
+  }
+
+  if(resumen){
+    resumen.textContent=noLeidas.length
+      ? noLeidas.length+' notificación'+(noLeidas.length===1?' nueva':'es nuevas')
+      : 'No tienes notificaciones nuevas.';
+  }
+
+  if(!lista)return;
+
+  lista.innerHTML=notificaciones.map(n=>{
+    const leida=leidas.has(String(n.id));
+    return '<div class="card" style="margin-bottom:10px">'+
+      '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">'+
+        '<div style="min-width:0;flex:1">'+
+          '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+            (!leida?'<span class="badge">● Nueva</span>':'')+
+            '<strong>'+esc(n.titulo||'Notificación')+'</strong>'+
+          '</div>'+
+          '<div style="margin-top:8px">'+esc(n.mensaje||'')+'</div>'+
+          '<div class="muted" style="margin-top:8px">'+esc(fechaHora(n.created_at))+'</div>'+
+        '</div>'+
+        '<button onclick="abrirNotificacion(\''+n.id+'\')">Abrir</button>'+
+      '</div>'+
+    '</div>';
+  }).join('')||'<div class="card muted">Todavía no tienes notificaciones.</div>';
+}
+
+async function marcarNotificacionLeida(id){
+  if(!user||!id)return;
+  if(notificacionLecturas.some(x=>String(x.notificacion_id)===String(id)))return;
+
+  const {error}=await sb.from('notificacion_lecturas').insert({
+    notificacion_id:id,
+    user_id:user.id
+  });
+
+  if(error){
+    console.warn('No se pudo marcar la notificación como leída:',error);
+    return;
+  }
+
+  notificacionLecturas.push({
+    notificacion_id:id,
+    user_id:user.id,
+    leida_at:new Date().toISOString()
+  });
+
+  renderNotificaciones();
+}
+
+async function marcarTodasNotificacionesLeidas(){
+  if(!user||!notificaciones.length)return;
+
+  const leidas=new Set(notificacionLecturas.map(x=>String(x.notificacion_id)));
+  const pendientes=notificaciones.filter(n=>!leidas.has(String(n.id)));
+
+  if(!pendientes.length)return;
+
+  const filas=pendientes.map(n=>({
+    notificacion_id:n.id,
+    user_id:user.id
+  }));
+
+  const {error}=await sb.from('notificacion_lecturas').insert(filas);
+
+  if(error)return alert('No se pudieron marcar todas como leídas: '+error.message);
+
+  notificacionLecturas.push(...filas.map(x=>({...x,leida_at:new Date().toISOString()})));
+  renderNotificaciones();
+}
+
+async function abrirNotificacion(id){
+  const n=notificaciones.find(x=>String(x.id)===String(id));
+  if(!n)return;
+
+  await marcarNotificacionLeida(id);
+  abrirDestinoNotificacion(n.destino,n.referencia,n.tipo);
+}
+
 async function addPaquete(){
   if(!['admin','guardia'].includes(profile?.rol)) return;
 
@@ -2333,7 +2426,7 @@ function render(){
  if(document.getElementById('kReportes')) kReportes.textContent=reportes.filter(x=>x.estado!=='resuelto').length;
  if(document.getElementById('kIncidentes')) kIncidentes.textContent=incidentes.filter(x=>!['resuelto','cerrado'].includes(x.estado)).length;
  if(document.getElementById('kPaquetes')) kPaquetes.textContent=paquetes.filter(x=>x.estado!=='entregado').length;
- renderCasas(); renderMiembrosCasa(); renderAvisos(); renderReportes(); renderIncidentes(); renderPaquetes(); renderReservas(); renderDocumentos(); renderEmergencia(); renderHistorial();
+ renderCasas(); renderMiembrosCasa(); renderAvisos(); renderReportes(); renderIncidentes(); renderNotificaciones(); renderPaquetes(); renderReservas(); renderDocumentos(); renderEmergencia(); renderHistorial();
  renderPorton();
  renderEventos();
  renderGastos();
