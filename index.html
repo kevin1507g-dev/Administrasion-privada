@@ -12,6 +12,7 @@
 <link rel="icon" href="./pwa-icon.svg" type="image/svg+xml">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
 :root{--bg:#0f172a;--p:#111827;--p2:#1e293b;--t:#f8fafc;--m:#94a3b8;--g:#22c55e;--r:#ef4444;--b:#38bdf8}
 *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--t)}
@@ -106,6 +107,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <button onclick="show('avisos')">📢 Avisos</button>
 <button class="residentAdminOnly" onclick="show('mantenimiento')">🛠️ Mantenimiento</button>
 <button class="residentAdminOnly" onclick="show('incidentes')">⚠️ Reportar incidente</button>
+<button class="residentAdminOnly" onclick="show('entregas')">🛵 Repartidores</button>
 <button onclick="show('paqueteria')">📦 Paquetería</button>
 <button class="residentAdminOnly" onclick="show('reservaciones')">🏡 Reservaciones</button>
 <button onclick="show('documentos')">📄 Documentos</button>
@@ -125,6 +127,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div class="card"><div class="muted">Avisos activos</div><div id="kAvisos" class="kpi">0</div></div>
 <div class="card residentAdminOnly"><div class="muted">Reportes pendientes</div><div id="kReportes" class="kpi">0</div></div>
 <div class="card residentAdminOnly"><div class="muted">Incidentes abiertos</div><div id="kIncidentes" class="kpi">0</div></div>
+<div class="card residentAdminOnly"><div class="muted">Repartidores esperando</div><div id="kEntregas" class="kpi">0</div></div>
 <div class="card"><div class="muted">Paquetes por entregar</div><div id="kPaquetes" class="kpi">0</div></div>
 </div>
 
@@ -759,6 +762,53 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   </div>
 </section>
 
+<section id="entregas" class="residentAdminOnly">
+  <h2>🛵 Repartidores y entregas</h2>
+
+  <div class="card adminOnly">
+    <h3>QR para repartidores</h3>
+    <p class="muted">
+      Coloca este QR en la entrada. El repartidor lo escanea, escribe el número de casa y el residente recibe una notificación sin compartir su teléfono.
+    </p>
+    <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+      <div id="deliveryQr" style="background:white;padding:12px;border-radius:14px"></div>
+      <div style="flex:1;min-width:260px">
+        <label>Enlace del portal</label>
+        <input id="deliveryPortalUrl" readonly>
+        <div class="actions" style="margin-top:12px">
+          <button class="primary" onclick="abrirPortalRepartidor()">Abrir portal</button>
+          <button onclick="copiarPortalRepartidor()">Copiar enlace</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="residentOnly" style="margin-top:14px">
+    <div class="card">
+      <h3>Solicitudes en la entrada</h3>
+      <p class="muted">Responde rápidamente sin mostrar tu número telefónico ni tus datos personales al repartidor.</p>
+      <div id="entregasPendientes"></div>
+    </div>
+  </div>
+
+  <div class="card table" style="margin-top:14px">
+    <h3 style="padding:14px 14px 0">Historial de entregas</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th class="adminOnly">Casa</th>
+          <th>Tipo</th>
+          <th>Empresa / repartidor</th>
+          <th>Estado</th>
+          <th>Respuesta</th>
+        </tr>
+      </thead>
+      <tbody id="entregasRows"></tbody>
+    </table>
+  </div>
+</section>
+
 <section id="paqueteria"><h2>📦 Paquetería</h2>
 <div class="staffOnly card">
   <h3>Registrar paquete recibido</h3>
@@ -1191,7 +1241,7 @@ async function guardarMontoAutomatico(){
 const SB_URL='https://nndlfkuelwpwklldvtfo.supabase.co';
 const SB_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
 const sb=supabase.createClient(SB_URL,SB_KEY);
-let user=null, profile=null, casas=[], profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], incidentes=[], incidenteMensajes=[], notificaciones=[], notificacionLecturas=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
+let user=null, profile=null, casas=[], profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], incidentes=[], incidenteMensajes=[], entregas=[], notificaciones=[], notificacionLecturas=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
 let incidenteActualId=null;
 const VAPID_PUBLIC_KEY =
 'BCh7-PSmKO_r5DL9TBy1tJ2k9NHNvdeCfKlvwZj8OyDqnPvs1ZLc_mPbfewqLYO_J7VeLDn65WADAxiU19dw_Zo';
@@ -1462,6 +1512,7 @@ function destinoPorTipoNotificacion(tipo){
     incidente_respuesta:'incidentes',
     incidente_seguimiento:'incidentes',
     incidente_estado:'incidentes',
+    entrega_entrada:'entregas',
     pagado_hasta:'cuotas',
     miembro_agregado:'miembrosCasa',
     admin_general:'notificaciones',
@@ -1649,7 +1700,7 @@ async function enter(){
  await abrirRutaNotificacion();
 }
 async function loadAll(){
- const [ca,pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,inc,im,nt,nl,pk,rs,dc,em]=await Promise.all([
+ const [ca,pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,inc,im,en,nt,nl,pk,rs,dc,em]=await Promise.all([
    sb.from('casas').select('*').order('numero',{ascending:true}),
    ['admin','residente'].includes(profile.rol)?sb.from('profiles').select('*').order('nombre'):Promise.resolve({data:[profile]}),
    sb.from('cuotas').select('*').order('created_at',{ascending:false}),
@@ -1664,6 +1715,7 @@ async function loadAll(){
    ['admin','residente'].includes(profile.rol)?sb.from('reportes_mantenimiento').select('*').order('created_at',{ascending:false}):Promise.resolve({data:[]}),
    ['admin','residente'].includes(profile.rol)?sb.from('incidentes').select('*').order('updated_at',{ascending:false}):Promise.resolve({data:[]}),
    ['admin','residente'].includes(profile.rol)?sb.from('incidente_mensajes').select('*').order('created_at',{ascending:true}):Promise.resolve({data:[]}),
+   ['admin','residente'].includes(profile.rol)?sb.from('entregas_contacto').select('id,casa_id,tipo,empresa,repartidor,mensaje,estado,respuesta,respondido_por,respondido_at,created_at,expires_at').order('created_at',{ascending:false}).limit(100):Promise.resolve({data:[]}),
    ['admin','residente'].includes(profile.rol)?sb.from('notificaciones_push').select('*').or('user_id.eq.'+user.id+',user_id.is.null').order('created_at',{ascending:false}).limit(100):Promise.resolve({data:[]}),
    ['admin','residente'].includes(profile.rol)?sb.from('notificacion_lecturas').select('*').eq('user_id',user.id):Promise.resolve({data:[]}),
    sb.from('paquetes').select('*').order('created_at',{ascending:false}),
@@ -1673,8 +1725,8 @@ async function loadAll(){
  ]);
  casas=ca.data||[]; profiles=pr.data||[]; cuotas=cu.data||[]; pagos=pa.data||[]; visitas=vi.data||[]; accesos=ac.data||[];
  eventos=ev.data||[]; controles=ct.data||[]; gastos=ga.data||[]; metodosPago=mp.data||[];
- avisos=av.data||[]; reportes=rp.data||[]; incidentes=inc.data||[]; incidenteMensajes=im.data||[]; notificaciones=nt.data||[]; notificacionLecturas=nl.data||[]; paquetes=pk.data||[]; reservas=rs.data||[]; documentos=dc.data||[]; contactosEmergencia=em.data||[];
- [ca,av,rp,inc,im,nt,nl,pk,rs,dc,em].forEach((r,i)=>{if(r?.error) console.warn(['Casas','Avisos','Reportes','Incidentes','Mensajes de incidentes','Notificaciones','Lecturas de notificaciones','Paquetes','Reservaciones','Documentos','Emergencia'][i]+':',r.error)});
+ avisos=av.data||[]; reportes=rp.data||[]; incidentes=inc.data||[]; incidenteMensajes=im.data||[]; entregas=en.data||[]; notificaciones=nt.data||[]; notificacionLecturas=nl.data||[]; paquetes=pk.data||[]; reservas=rs.data||[]; documentos=dc.data||[]; contactosEmergencia=em.data||[];
+ [ca,av,rp,inc,im,en,nt,nl,pk,rs,dc,em].forEach((r,i)=>{if(r?.error) console.warn(['Casas','Avisos','Reportes','Incidentes','Mensajes de incidentes','Entregas','Notificaciones','Lecturas de notificaciones','Paquetes','Reservaciones','Documentos','Emergencia'][i]+':',r.error)});
  if(ga.error && profile.rol==='admin') console.warn('Gastos:',ga.error);
  if(mp.error && ['admin','residente'].includes(profile.rol)) console.warn('Métodos de pago:',mp.error);
  render();
@@ -2218,6 +2270,158 @@ async function cambiarEstadoIncidente(){
   abrirIncidente(id);
 }
 
+function textoTipoEntrega(tipo){
+  return {
+    comida:'🍔 Comida',
+    paqueteria:'📦 Paquetería',
+    farmacia:'💊 Farmacia',
+    otro:'🛵 Otra entrega'
+  }[tipo]||tipo||'Entrega';
+}
+
+function textoRespuestaEntrega(respuesta){
+  return {
+    voy_por_el_pedido:'🚶 Voy por el pedido',
+    dejar_en_caseta:'📦 Déjalo en caseta',
+    permitir_acceso:'🚪 Permitir acceso',
+    no_lo_espero:'❌ No estoy esperando este pedido'
+  }[respuesta]||'—';
+}
+
+function entregaEstaActiva(e){
+  return e.estado==='esperando' && new Date(e.expires_at).getTime()>Date.now();
+}
+
+async function responderEntrega(id,respuesta){
+  if(profile?.rol!=='residente')return;
+
+  const entrega=entregas.find(x=>String(x.id)===String(id));
+  if(!entrega||!entregaEstaActiva(entrega)){
+    return alert('Esta solicitud ya no está activa.');
+  }
+
+  const {error}=await sb.from('entregas_contacto')
+    .update({
+      respuesta,
+      estado:'respondido',
+      respondido_por:user.id,
+      respondido_at:new Date().toISOString()
+    })
+    .eq('id',id)
+    .eq('estado','esperando');
+
+  if(error)return alert('No se pudo enviar la respuesta: '+error.message);
+
+  await loadAll();
+  alert('Respuesta enviada al repartidor.');
+}
+
+function renderPortalRepartidor(){
+  if(profile?.rol!=='admin')return;
+
+  const input=document.getElementById('deliveryPortalUrl');
+  const qr=document.getElementById('deliveryQr');
+  if(!input||!qr)return;
+
+  const url=new URL('./repartidor.html',location.href).href;
+  input.value=url;
+
+  qr.innerHTML='';
+  if(window.QRCode){
+    new QRCode(qr,{
+      text:url,
+      width:180,
+      height:180,
+      colorDark:'#0f172a',
+      colorLight:'#ffffff',
+      correctLevel:QRCode.CorrectLevel.M
+    });
+  }else{
+    qr.textContent='QR no disponible';
+  }
+}
+
+function abrirPortalRepartidor(){
+  const url=document.getElementById('deliveryPortalUrl')?.value ||
+    new URL('./repartidor.html',location.href).href;
+  window.open(url,'_blank','noopener');
+}
+
+async function copiarPortalRepartidor(){
+  const url=document.getElementById('deliveryPortalUrl')?.value ||
+    new URL('./repartidor.html',location.href).href;
+
+  try{
+    await navigator.clipboard.writeText(url);
+    alert('Enlace copiado.');
+  }catch(_){
+    const input=document.getElementById('deliveryPortalUrl');
+    if(input){
+      input.select();
+      document.execCommand('copy');
+      alert('Enlace copiado.');
+    }
+  }
+}
+
+function renderEntregas(){
+  if(!['admin','residente'].includes(profile?.rol))return;
+
+  const body=document.getElementById('entregasRows');
+  const pendientes=document.getElementById('entregasPendientes');
+
+  const lista=[...entregas].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+
+  if(pendientes&&profile?.rol==='residente'){
+    const activas=lista.filter(entregaEstaActiva);
+
+    pendientes.innerHTML=activas.map(e=>{
+      const quien=[e.empresa,e.repartidor].filter(Boolean).join(' · ')||'Repartidor';
+      return '<div class="card" style="margin-top:10px;border-color:#22c55e">'+
+        '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">'+
+          '<strong>'+esc(textoTipoEntrega(e.tipo))+'</strong>'+
+          '<span class="badge">Esperando respuesta</span>'+
+        '</div>'+
+        '<div style="margin-top:8px"><strong>'+esc(quien)+'</strong></div>'+
+        (e.mensaje?'<div class="muted" style="margin-top:6px">'+esc(e.mensaje)+'</div>':'')+
+        '<div class="actions" style="margin-top:12px">'+
+          '<button class="primary" onclick="responderEntrega(\''+e.id+'\',\'voy_por_el_pedido\')">🚶 Voy por el pedido</button>'+
+          '<button onclick="responderEntrega(\''+e.id+'\',\'dejar_en_caseta\')">📦 Déjalo en caseta</button>'+
+          '<button onclick="responderEntrega(\''+e.id+'\',\'permitir_acceso\')">🚪 Permitir acceso</button>'+
+          '<button class="danger" onclick="responderEntrega(\''+e.id+'\',\'no_lo_espero\')">❌ No lo espero</button>'+
+        '</div>'+
+      '</div>';
+    }).join('')||'<div class="muted">No hay repartidores esperando respuesta en este momento.</div>';
+  }
+
+  if(body){
+    body.innerHTML=lista.map(e=>{
+      const casa=casaPorId(e.casa_id);
+      const quien=[e.empresa,e.repartidor].filter(Boolean).join(' · ')||'—';
+      let estado=e.estado;
+      if(estado==='esperando' && new Date(e.expires_at).getTime()<=Date.now())estado='expirado';
+
+      const estadoTexto={
+        esperando:'⏳ Esperando',
+        respondido:'✅ Respondido',
+        expirado:'⌛ Expirado',
+        cancelado:'🚫 Cancelado'
+      }[estado]||estado;
+
+      return '<tr>'+
+        '<td>'+esc(fechaHora(e.created_at))+'</td>'+
+        '<td class="adminOnly">'+esc(casa?.numero||'')+'</td>'+
+        '<td>'+esc(textoTipoEntrega(e.tipo))+'</td>'+
+        '<td>'+esc(quien)+'</td>'+
+        '<td><span class="badge">'+esc(estadoTexto)+'</span></td>'+
+        '<td>'+esc(textoRespuestaEntrega(e.respuesta))+'</td>'+
+      '</tr>';
+    }).join('')||'<tr><td colspan="6" class="muted">Todavía no hay entregas registradas.</td></tr>';
+  }
+
+  renderPortalRepartidor();
+}
+
 function renderNotificaciones(){
   if(!['admin','residente'].includes(profile?.rol))return;
 
@@ -2532,8 +2736,9 @@ function render(){
   if(document.getElementById('kAvisos')) kAvisos.textContent=avisos.length;
  if(document.getElementById('kReportes')) kReportes.textContent=reportes.filter(x=>x.estado!=='resuelto').length;
  if(document.getElementById('kIncidentes')) kIncidentes.textContent=incidentes.filter(x=>!['resuelto','cerrado'].includes(x.estado)).length;
+ if(document.getElementById('kEntregas')) kEntregas.textContent=entregas.filter(entregaEstaActiva).length;
  if(document.getElementById('kPaquetes')) kPaquetes.textContent=paquetes.filter(x=>x.estado!=='entregado').length;
- renderCasas(); renderMiembrosCasa(); renderAvisos(); renderReportes(); renderIncidentes(); renderNotificaciones(); renderPaquetes(); renderReservas(); renderDocumentos(); renderEmergencia(); renderHistorial();
+ renderCasas(); renderMiembrosCasa(); renderAvisos(); renderReportes(); renderIncidentes(); renderEntregas(); renderNotificaciones(); renderPaquetes(); renderReservas(); renderDocumentos(); renderEmergencia(); renderHistorial();
  renderPorton();
  renderEventos();
  renderGastos();
