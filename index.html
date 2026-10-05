@@ -116,6 +116,22 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div class="card residentAdminOnly"><div class="muted">Incidentes abiertos</div><div id="kIncidentes" class="kpi">0</div></div>
 <div class="card"><div class="muted">Paquetes por entregar</div><div id="kPaquetes" class="kpi">0</div></div>
 </div>
+
+<div class="card residentAdminOnly" style="margin-top:14px">
+  <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+    <div>
+      <div class="muted">Acceso directo</div>
+      <h3 style="margin:6px 0 0">🔔 Centro de notificaciones</h3>
+      <div class="muted" style="margin-top:6px">
+        Revisa avisos, pagos, paquetes, visitas, mantenimiento e incidentes desde un solo lugar.
+      </div>
+    </div>
+    <button class="primary" style="min-width:220px" onclick="show('notificaciones')">
+      Abrir notificaciones <span id="homeNotifBadge" class="badge">0</span>
+    </button>
+  </div>
+</div>
+
 <div id="avisosInicio" style="margin-top:14px"></div>
 </section>
 
@@ -2127,6 +2143,7 @@ function renderNotificaciones(){
 
   const lista=document.getElementById('notificacionesLista');
   const badge=document.getElementById('notifBadge');
+  const homeBadge=document.getElementById('homeNotifBadge');
   const resumen=document.getElementById('notifResumen');
 
   const leidas=new Set(notificacionLecturas.map(x=>String(x.notificacion_id)));
@@ -2135,6 +2152,11 @@ function renderNotificaciones(){
   if(badge){
     badge.textContent=String(noLeidas.length);
     badge.classList.toggle('hidden',noLeidas.length===0);
+  }
+
+  if(homeBadge){
+    homeBadge.textContent=String(noLeidas.length);
+    homeBadge.classList.toggle('hidden',noLeidas.length===0);
   }
 
   if(resumen){
