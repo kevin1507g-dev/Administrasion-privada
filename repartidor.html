@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>Contactar residente · My Condominio</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#0f172a;--card:#111827;--line:#334155;--text:#f8fafc;--muted:#94a3b8;--green:#22c55e;--blue:#38bdf8;--red:#ef4444}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;padding:20px}
+.wrap{width:min(560px,100%);margin:0 auto}.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px;margin-top:16px}
+h1,h2{margin-top:0}.muted{color:var(--muted)}label{display:block;color:#cbd5e1;margin:14px 0 6px}
+input,select,textarea,button{font:inherit}input,select,textarea{width:100%;padding:13px;border:1px solid var(--line);border-radius:11px;background:#020617;color:white}
+textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radius:12px;padding:13px 16px;font-weight:800;cursor:pointer;background:#334155;color:white}.primary{background:var(--green);color:#052e16}.hidden{display:none!important}
+.status{font-size:20px;font-weight:800}.answer{font-size:25px;font-weight:900;margin-top:10px}.pill{display:inline-block;padding:5px 9px;border-radius:99px;background:#1e293b;color:#cbd5e1}
+.footer{text-align:center;color:var(--muted);font-size:.9rem;margin:20px 0}.loader{display:inline-block;width:18px;height:18px;border:3px solid #475569;border-top-color:var(--green);border-radius:50%;animation:spin 1s linear infinite;vertical-align:-3px;margin-right:8px}@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="pill">🏢 My Condominio</div>
+    <h1 style="margin-top:14px">🛵 Contactar residente</h1>
+    <p class="muted">Escribe el número de casa. El residente recibirá una notificación sin mostrarte su teléfono, correo ni datos personales.</p>
+  </div>
+
+  <div id="formCard" class="card">
+    <label>Número de casa</label>
+    <input id="casa" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Ej. 35" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+
+    <label>Tipo de entrega</label>
+    <select id="tipo">
+      <option value="comida">🍔 Comida</option>
+      <option value="paqueteria">📦 Paquetería</option>
+      <option value="farmacia">💊 Farmacia</option>
+      <option value="otro">🛵 Otra entrega</option>
+    </select>
+
+    <label>Empresa / plataforma (opcional)</label>
+    <input id="empresa" maxlength="80" placeholder="Ej. Uber Eats, Amazon, DHL">
+
+    <label>Nombre del repartidor (opcional)</label>
+    <input id="repartidor" maxlength="80" placeholder="Tu nombre">
+
+    <label>Mensaje (opcional)</label>
+    <textarea id="mensaje" maxlength="240" placeholder="Ej. Traigo un pedido grande"></textarea>
+
+    <button id="sendBtn" class="primary" style="margin-top:18px" onclick="enviarSolicitud()">🔔 Contactar residente</button>
+    <div id="error" style="margin-top:12px;color:#fecaca"></div>
+  </div>
+
+  <div id="waitCard" class="card hidden">
+    <div id="waitTitle" class="status"><span class="loader"></span>Esperando respuesta del residente…</div>
+    <div id="waitText" class="muted" style="margin-top:10px">La solicitud estará activa durante unos minutos.</div>
+    <div id="answer" class="answer"></div>
+    <button id="newBtn" class="hidden" style="margin-top:18px" onclick="nuevaSolicitud()">Nueva entrega</button>
+  </div>
+
+  <div class="footer">🔒 Los datos del residente permanecen privados.</div>
+</div>
+
+<script>
+const SB_URL='https://nndlfkuelwpwklldvtfo.supabase.co';
+const SB_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+
+let token=null;
+let pollTimer=null;
+let expiresAt=null;
+
+const respuestas={
+  voy_por_el_pedido:'🚶 El residente va por el pedido.',
+  dejar_en_caseta:'📦 Déjalo en caseta.',
+  permitir_acceso:'🚪 El residente autorizó el acceso.',
+  no_lo_espero:'❌ El residente indica que no está esperando este pedido.'
+};
+
+async function enviarSolicitud(){
+  const casa=document.getElementById('casa').value.trim();
+  const tipo=document.getElementById('tipo').value;
+  const empresa=document.getElementById('empresa').value.trim();
+  const repartidor=document.getElementById('repartidor').value.trim();
+  const mensaje=document.getElementById('mensaje').value.trim();
+  const error=document.getElementById('error');
+  const btn=document.getElementById('sendBtn');
+
+  error.textContent='';
+  if(!/^[0-9]+$/.test(casa) || Number(casa)<=0){
+    error.textContent='Escribe un número de casa válido.';
+    return;
+  }
+
+  btn.disabled=true;
+  btn.textContent='Enviando…';
+
+  try{
+    const {data,error:fnError}=await sb.functions.invoke('delivery-contact',{
+      body:{casa,tipo,empresa,repartidor,mensaje}
+    });
+
+    if(fnError){
+      let detalle=fnError.message||'No se pudo enviar la solicitud.';
+      try{
+        const r=await fnError.context?.json?.();
+        if(r?.error)detalle=r.error;
+      }catch(_){}
+      error.textContent=detalle;
+      return;
+    }
+
+    if(data?.error){
+      error.textContent=data.error;
+      return;
+    }
+
+    token=data?.token||null;
+    expiresAt=data?.expires_at||null;
+
+    document.getElementById('formCard').classList.add('hidden');
+    document.getElementById('waitCard').classList.remove('hidden');
+    document.getElementById('answer').textContent='';
+    document.getElementById('newBtn').classList.add('hidden');
+
+    if(token){
+      consultarEstado();
+      pollTimer=setInterval(consultarEstado,3000);
+    }
+  }catch(e){
+    error.textContent='Error de conexión. Intenta nuevamente.';
+  }finally{
+    btn.disabled=false;
+    btn.textContent='🔔 Contactar residente';
+  }
+}
+
+async function consultarEstado(){
+  if(!token)return;
+
+  try{
+    const {data}=await sb.functions.invoke('delivery-status',{body:{token}});
+    if(!data)return;
+
+    if(data.estado==='respondido'){
+      detenerConsulta();
+      document.getElementById('waitTitle').textContent='✅ Respuesta recibida';
+      document.getElementById('waitText').textContent='El residente respondió a tu solicitud.';
+      document.getElementById('answer').textContent=respuestas[data.respuesta]||'El residente respondió.';
+      document.getElementById('newBtn').classList.remove('hidden');
+      return;
+    }
+
+    if(data.estado==='expirado'){
+      detenerConsulta();
+      document.getElementById('waitTitle').textContent='⌛ Solicitud finalizada';
+      document.getElementById('waitText').textContent='No se recibió respuesta. Comunícate con caseta.';
+      document.getElementById('answer').textContent='';
+      document.getElementById('newBtn').classList.remove('hidden');
+      return;
+    }
+
+    if(data.expires_at)expiresAt=data.expires_at;
+    actualizarTiempo();
+  }catch(_){}
+}
+
+function actualizarTiempo(){
+  if(!expiresAt)return;
+  const ms=new Date(expiresAt).getTime()-Date.now();
+  const min=Math.max(0,Math.ceil(ms/60000));
+  document.getElementById('waitText').textContent=
+    'Esperando respuesta. Tiempo aproximado restante: '+min+' min.';
+}
+
+function detenerConsulta(){
+  if(pollTimer)clearInterval(pollTimer);
+  pollTimer=null;
+}
+
+function nuevaSolicitud(){
+  detenerConsulta();
+  token=null;
+  expiresAt=null;
+  document.getElementById('waitCard').classList.add('hidden');
+  document.getElementById('formCard').classList.remove('hidden');
+}
+
+window.addEventListener('beforeunload',detenerConsulta);
+</script>
+</body>
+</html>
