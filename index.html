@@ -1348,6 +1348,67 @@ function show(id){
 
   closeMenu();
 }
+
+function destinoPorTipoNotificacion(tipo){
+  const mapa={
+    nueva_cuota:'cuotas',
+    cuota_por_vencer:'cuotas',
+    pago_registrado:'pagos',
+    paquete_recibido:'paqueteria',
+    visita_registrada:'visitas',
+    control_suspendido:'porton',
+    control_reactivado:'porton',
+    mantenimiento_estado:'mantenimiento',
+    incidente_nuevo:'incidentes',
+    incidente_respuesta:'incidentes',
+    incidente_seguimiento:'incidentes',
+    incidente_estado:'incidentes',
+    pagado_hasta:'cuotas',
+    aviso:'avisos'
+  };
+  return mapa[tipo]||'notificaciones';
+}
+
+function abrirDestinoNotificacion(destino,referencia,tipo){
+  const seccion=destino||destinoPorTipoNotificacion(tipo);
+  if(document.getElementById(seccion))show(seccion);
+
+  if(seccion==='incidentes' && referencia){
+    const partes=String(referencia).split(':');
+    const incidenteId=partes[0]==='incidente'?partes[1]:null;
+    if(incidenteId){
+      setTimeout(()=>abrirIncidente(incidenteId),0);
+    }
+  }
+}
+
+async function abrirRutaNotificacion(){
+  if(!location.hash)return;
+
+  let ruta='';
+  try{
+    ruta=decodeURIComponent(location.hash.slice(1));
+  }catch(_){
+    ruta=location.hash.slice(1);
+  }
+
+  if(!ruta)return;
+
+  const partes=ruta.split('/');
+  const seccion=partes[0];
+  const id=partes[1]||null;
+
+  if(document.getElementById(seccion)){
+    show(seccion);
+
+    if(seccion==='incidentes'&&id){
+      setTimeout(()=>abrirIncidente(id),0);
+    }
+  }
+
+  history.replaceState(null,'',location.pathname+location.search);
+}
+
 document.addEventListener('keydown',e=>{if(e.key==='Escape') closeMenu();});
 
 function cargarCamara(){
@@ -1484,6 +1545,7 @@ async function enter(){
  if(profile.rol==='guardia') visitCreate.classList.add('hidden');
  vFecha.value=new Date().toISOString().slice(0,10); cFecha.value=new Date().toISOString().slice(0,10); if(document.getElementById('resFecha')) resFecha.value=new Date().toISOString().slice(0,10);
  await loadAll();
+ await abrirRutaNotificacion();
 }
 async function loadAll(){
  const [ca,pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,inc,im,nt,nl,pk,rs,dc,em]=await Promise.all([
