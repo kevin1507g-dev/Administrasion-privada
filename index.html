@@ -1834,6 +1834,209 @@ function renderReportes(){
  body.innerHTML=reportes.map(r=>`<tr><td>${fechaHora(r.created_at)}</td><td>${esc(r.unidad||'')}</td><td>${esc(r.categoria||'')}</td><td>${esc(r.descripcion||'')}</td><td>${esc(prioridadTexto(r.prioridad))}</td><td><span class="badge">${esc(r.estado||'')}</span></td><td>${r.foto_path?`<button class="mini" onclick="abrirArchivo('${encodeURIComponent(r.foto_path)}')">📷 Ver foto</button>`:'—'}</td><td>${profile?.rol==='admin'?`<div class="actions"><button class="mini" onclick="setReporteEstado('${r.id}','en proceso')">En proceso</button><button class="primary mini" onclick="setReporteEstado('${r.id}','resuelto')">Resuelto</button><button class="danger mini" onclick="eliminarReporte('${r.id}')">Eliminar</button></div>`:'—'}</td></tr>`).join('')||'<tr><td colspan="8" class="muted">No hay reportes.</td></tr>';
 }
 
+function textoEstadoIncidente(estado){
+  return {
+    nuevo:'🆕 Nuevo',
+    en_revision:'🔎 En revisión',
+    resuelto:'✅ Resuelto',
+    cerrado:'🔒 Cerrado'
+  }[estado]||estado||'';
+}
+
+function textoPrioridadIncidente(prioridad){
+  return {
+    normal:'Normal',
+    alta:'⚠️ Alta',
+    urgente:'🚨 Urgente'
+  }[prioridad]||prioridad||'';
+}
+
+async function addIncidente(){
+  if(profile?.rol!=='residente')return;
+
+  const categoria=document.getElementById('incCategoria')?.value||'Otro';
+  const prioridad=document.getElementById('incPrioridad')?.value||'normal';
+  const persona=document.getElementById('incPersona')?.value.trim()||null;
+  const titulo=document.getElementById('incTitulo')?.value.trim()||'';
+  const descripcion=document.getElementById('incDescripcion')?.value.trim()||'';
+  const msg=document.getElementById('incMsg');
+
+  if(msg){
+    msg.style.color='';
+    msg.textContent='';
+  }
+
+  if(!profile.casa_id){
+    if(msg)msg.textContent='Tu cuenta no tiene una casa asignada.';
+    return;
+  }
+
+  if(!titulo||!descripcion){
+    if(msg)msg.textContent='Escribe el asunto y la descripción.';
+    return;
+  }
+
+  const {error}=await sb.from('incidentes').insert({
+    casa_id:profile.casa_id,
+    reportado_por:user.id,
+    categoria,
+    prioridad,
+    persona_involucrada:persona,
+    titulo,
+    descripcion,
+    estado:'nuevo'
+  });
+
+  if(error){
+    if(msg)msg.textContent='No se pudo enviar el reporte: '+error.message;
+    return;
+  }
+
+  document.getElementById('incPersona').value='';
+  document.getElementById('incTitulo').value='';
+  document.getElementById('incDescripcion').value='';
+
+  await loadAll();
+
+  if(msg){
+    msg.style.color='#bbf7d0';
+    msg.textContent='Reporte enviado de forma privada. La administración recibió una notificación.';
+  }
+}
+
+function renderIncidentes(){
+  const body=document.getElementById('incidentesRows');
+  if(!body||!['admin','residente'].includes(profile?.rol))return;
+
+  const lista=[...incidentes].sort((a,b)=>
+    new Date(b.updated_at||b.created_at)-new Date(a.updated_at||a.created_at)
+  );
+
+  body.innerHTML=lista.map(i=>{
+    const remitente=profiles.find(p=>String(p.id)===String(i.reportado_por));
+    const casa=casaPorId(i.casa_id);
+
+    return '<tr>'+
+      '<td>'+esc(fechaHora(i.created_at))+'</td>'+
+      '<td class="adminOnly"><strong>'+esc(remitente?.nombre||'Residente')+'</strong><div class="muted">'+esc(remitente?.email||'')+'</div></td>'+
+      '<td class="adminOnly">'+esc(casa?.numero||'')+'</td>'+
+      '<td>'+esc(i.categoria||'')+'</td>'+
+      '<td>'+esc(textoPrioridadIncidente(i.prioridad))+'</td>'+
+      '<td><strong>'+esc(i.titulo||'')+'</strong></td>'+
+      '<td><span class="badge">'+esc(textoEstadoIncidente(i.estado))+'</span></td>'+
+      '<td><button onclick="abrirIncidente(\''+i.id+'\')">Ver / seguimiento</button></td>'+
+    '</tr>';
+  }).join('')||'<tr><td colspan="8" class="muted">No hay reportes de incidentes.</td></tr>';
+}
+
+function abrirIncidente(id){
+  const inc=incidentes.find(x=>String(x.id)===String(id));
+  if(!inc)return alert('No se encontró el reporte.');
+
+  incidenteActualId=inc.id;
+
+  const detalle=document.getElementById('incidenteDetalle');
+  const titulo=document.getElementById('incDetalleTitulo');
+  const meta=document.getElementById('incDetalleMeta');
+  const desc=document.getElementById('incDetalleDescripcion');
+  const estado=document.getElementById('incEstado');
+
+  if(detalle)detalle.classList.remove('hidden');
+  if(titulo)titulo.textContent=inc.titulo||'Seguimiento';
+
+  const remitente=profiles.find(p=>String(p.id)===String(inc.reportado_por));
+  const casa=casaPorId(inc.casa_id);
+
+  if(meta){
+    meta.textContent=profile?.rol==='admin'
+      ? 'Enviado por '+(remitente?.nombre||'Residente')+' · Casa '+(casa?.numero||'')+' · '+fechaHora(inc.created_at)
+      : 'Reporte privado · '+fechaHora(inc.created_at);
+  }
+
+  if(desc){
+    desc.innerHTML=
+      '<div><strong>Categoría:</strong> '+esc(inc.categoria||'')+'</div>'+
+      '<div style="margin-top:6px"><strong>Prioridad:</strong> '+esc(textoPrioridadIncidente(inc.prioridad))+'</div>'+
+      (inc.persona_involucrada?'<div style="margin-top:6px"><strong>Persona involucrada:</strong> '+esc(inc.persona_involucrada)+'</div>':'')+
+      '<div style="margin-top:10px">'+esc(inc.descripcion||'')+'</div>';
+  }
+
+  if(estado)estado.value=inc.estado||'nuevo';
+
+  renderMensajesIncidente();
+  detalle?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function cerrarIncidenteDetalle(){
+  incidenteActualId=null;
+  document.getElementById('incidenteDetalle')?.classList.add('hidden');
+  const input=document.getElementById('incNuevoMensaje');
+  if(input)input.value='';
+}
+
+function renderMensajesIncidente(){
+  const caja=document.getElementById('incMensajes');
+  if(!caja||!incidenteActualId)return;
+
+  const mensajes=incidenteMensajes
+    .filter(m=>String(m.incidente_id)===String(incidenteActualId))
+    .sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+
+  caja.innerHTML=mensajes.map(m=>{
+    const esMio=String(m.autor_id)===String(user?.id);
+    const autor=profiles.find(p=>String(p.id)===String(m.autor_id));
+    const etiqueta=esMio
+      ? 'Tú'
+      : (profile?.rol==='admin' ? (autor?.nombre||'Residente') : 'Administración');
+
+    return '<div class="card" style="margin-bottom:10px">'+
+      '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">'+
+        '<strong>'+esc(etiqueta)+'</strong>'+
+        '<span class="muted">'+esc(fechaHora(m.created_at))+'</span>'+
+      '</div>'+
+      '<div style="margin-top:8px">'+esc(m.mensaje||'')+'</div>'+
+    '</div>';
+  }).join('')||'<div class="muted">Todavía no hay mensajes de seguimiento.</div>';
+}
+
+async function enviarMensajeIncidente(){
+  if(!incidenteActualId||!['admin','residente'].includes(profile?.rol))return;
+
+  const input=document.getElementById('incNuevoMensaje');
+  const mensaje=input?.value.trim()||'';
+  if(!mensaje)return alert('Escribe un mensaje.');
+
+  const {error}=await sb.from('incidente_mensajes').insert({
+    incidente_id:incidenteActualId,
+    autor_id:user.id,
+    mensaje
+  });
+
+  if(error)return alert('No se pudo enviar el seguimiento: '+error.message);
+
+  if(input)input.value='';
+  const id=incidenteActualId;
+  await loadAll();
+  abrirIncidente(id);
+}
+
+async function cambiarEstadoIncidente(){
+  if(profile?.rol!=='admin'||!incidenteActualId)return;
+
+  const estado=document.getElementById('incEstado')?.value;
+  if(!estado)return;
+
+  const {error}=await sb.from('incidentes')
+    .update({estado,updated_at:new Date().toISOString()})
+    .eq('id',incidenteActualId);
+
+  if(error)return alert('No se pudo actualizar el estado: '+error.message);
+
+  const id=incidenteActualId;
+  await loadAll();
+  abrirIncidente(id);
+}
+
 async function addPaquete(){
   if(!['admin','guardia'].includes(profile?.rol)) return;
 
