@@ -52,7 +52,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div id="login" class="login"><div class="card">
 <div id="loginPanel">
 <h2>Administración Residencial</h2><p class="muted">Acceso seguro con Supabase</p>
-<label>Correo</label><input id="email" type="email" autocomplete="username">
+<label>Correo o nombre completo</label><input id="email" type="text" autocomplete="username" placeholder="Ej. correo@ejemplo.com o José Gutiérrez">
 <label>Contraseña</label><input id="password" type="password" autocomplete="current-password">
 <button id="loginBtn" class="primary" style="width:100%;margin-top:16px" type="button">Iniciar sesión</button>
 <button style="width:100%;margin-top:10px" type="button" onclick="mostrarRegistro()">Crear mi cuenta</button>
@@ -1624,50 +1624,106 @@ async function registrarResidente(){
 }
 
 async function signIn(){
- const msg = document.getElementById('loginMsg');
- const btn = document.getElementById('loginBtn');
- const emailEl = document.getElementById('email');
- const passEl = document.getElementById('password');
+  const msg=document.getElementById('loginMsg');
+  const btn=document.getElementById('loginBtn');
+  const identificadorEl=document.getElementById('email');
+  const passEl=document.getElementById('password');
 
- msg.textContent = '';
- if(!emailEl.value.trim() || !passEl.value){
-   msg.textContent = 'Escribe tu correo y contraseña.';
-   return;
- }
- if(!window.supabase){
-   msg.textContent = 'No se pudo cargar la conexión con Supabase. Revisa tu conexión a Internet y vuelve a abrir la página.';
-   return;
- }
+  const identificador=identificadorEl.value.trim();
+  const password=passEl.value;
 
- btn.disabled = true;
- btn.textContent = 'Conectando...';
- msg.textContent = 'Intentando iniciar sesión...';
+  msg.textContent='';
 
- try{
-   const {data,error}=await sb.auth.signInWithPassword({
-     email: emailEl.value.trim(),
-     password: passEl.value
-   });
-   if(error){
-     console.error('Supabase login error:', error);
-     msg.textContent = 'Error de acceso: ' + (error.message || 'No se pudo iniciar sesión.');
-     return;
-   }
-   if(!data || !data.user){
-     msg.textContent = 'Supabase no devolvió un usuario. Intenta nuevamente.';
-     return;
-   }
-   user=data.user;
-   msg.textContent='Sesión iniciada. Cargando panel...';
-   await enter();
- }catch(err){
-   console.error('Login exception:', err);
-   msg.textContent='Error técnico: ' + (err?.message || String(err));
- }finally{
-   btn.disabled=false;
-   btn.textContent='Iniciar sesión';
- }
+  if(!identificador||!password){
+    msg.textContent='Escribe tu correo o nombre completo y contraseña.';
+    return;
+  }
+
+  if(!window.supabase){
+    msg.textContent='No se pudo cargar la conexión con Supabase. Revisa tu conexión a Internet y vuelve a abrir la página.';
+    return;
+  }
+
+  btn.disabled=true;
+  btn.textContent='Conectando...';
+  msg.textContent='Intentando iniciar sesión...';
+
+  try{
+    let authUser=null;
+
+    if(identificador.includes('@')){
+      const {data,error}=await sb.auth.signInWithPassword({
+        email:identificador,
+        password
+      });
+
+      if(error){
+        console.error('Supabase login error:',error);
+        msg.textContent='Correo o contraseña incorrectos.';
+        return;
+      }
+
+      authUser=data?.user||null;
+    }else{
+      const {data,error}=await sb.functions.invoke('login-by-name',{
+        body:{
+          nombre:identificador,
+          password
+        }
+      });
+
+      if(error){
+        let detalle='Nombre o contraseña incorrectos.';
+        try{
+          const respuesta=await error.context?.json?.();
+          if(respuesta?.error)detalle=respuesta.error;
+        }catch(_){}
+
+        msg.textContent=detalle;
+        return;
+      }
+
+      if(data?.error){
+        msg.textContent=data.error;
+        return;
+      }
+
+      if(!data?.access_token||!data?.refresh_token){
+        msg.textContent='No se pudo iniciar sesión con ese nombre.';
+        return;
+      }
+
+      const {data:sessionData,error:sessionError}=await sb.auth.setSession({
+        access_token:data.access_token,
+        refresh_token:data.refresh_token
+      });
+
+      if(sessionError){
+        console.error('Set session error:',sessionError);
+        msg.textContent='No se pudo completar el inicio de sesión.';
+        return;
+      }
+
+      authUser=sessionData?.user||null;
+    }
+
+    if(!authUser){
+      msg.textContent='No se pudo iniciar sesión. Intenta nuevamente.';
+      return;
+    }
+
+    user=authUser;
+    msg.textContent='Sesión iniciada. Cargando panel...';
+    await enter();
+  }catch(err){
+    console.error('Login exception:',err);
+    msg.textContent='Error técnico: '+(err?.message||String(err));
+  }finally{
+    btn.disabled=false;
+    btn.textContent='Iniciar sesión';
+  }
 }
+
 async function signOut(){detenerCamara();await sb.auth.signOut();location.reload()}
 async function enter(){
  const {data,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
