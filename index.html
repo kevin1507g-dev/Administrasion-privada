@@ -174,6 +174,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </button>
 <button onclick="show('inicio')">🏠 Inicio</button>
 <button class="residentOnly" onclick="show('miembrosCasa')">👨‍👩‍👧 Miembros de mi casa</button>
+<button class="residentOnly" onclick="show('comunicacion')">💬 Comunicación</button>
 <button class="cameraOnly" onclick="show('camaras')">📹 Cámaras</button>
 <button class="adminOnly" onclick="show('residentes')">👥 Residentes</button>
 <button class="adminOnly" onclick="show('solicitudes')">📝 Solicitudes</button>
@@ -305,6 +306,55 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       <thead><tr><th>Nombre</th><th>Correo</th><th>Estado</th></tr></thead>
       <tbody id="memberRows"></tbody>
     </table>
+  </div>
+</section>
+
+<section id="comunicacion" class="residentOnly">
+  <h2>💬 Comunicación</h2>
+
+  <div class="grid">
+    <div class="card">
+      <div class="muted">Administración</div>
+      <h3 style="margin-top:8px">Contactar a un administrador</h3>
+      <p class="muted">Puedes iniciar una conversación privada con administración en cualquier momento.</p>
+      <button class="primary" onclick="abrirChatFlotante()">💬 Escribir a administración</button>
+    </div>
+
+    <div class="card">
+      <div class="muted">Otros residentes</div>
+      <h3 style="margin-top:8px">Solicitar comunicación</h3>
+      <p class="muted">Escribe el número de la casa con la que quieres comunicarte. La otra persona debe aceptar primero.</p>
+      <label>Número de casa</label>
+      <input id="contactoCasa" inputmode="numeric" pattern="[0-9]*" placeholder="Ej. 35" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+      <label>Motivo (opcional)</label>
+      <textarea id="contactoMotivo" maxlength="300" placeholder="Ej. Quiero hablar sobre un tema de estacionamiento"></textarea>
+      <button class="primary" style="margin-top:12px" onclick="solicitarContactoResidente()">📨 Enviar solicitud</button>
+      <div id="contactoMsg" class="muted" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>Solicitudes recibidas</h3>
+    <div id="contactoSolicitudesEntrantes" class="muted">No tienes solicitudes pendientes.</div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>Mis solicitudes y conversaciones</h3>
+    <div id="contactoSolicitudesLista" class="muted">No tienes solicitudes.</div>
+  </div>
+
+  <div id="contactoChatPanel" class="card hidden" style="margin-top:14px">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+      <div>
+        <h3 id="contactoChatTitulo" style="margin-bottom:4px">Conversación</h3>
+        <div id="contactoChatSubtitulo" class="muted"></div>
+      </div>
+      <button onclick="cerrarConversacionResidente()">Cerrar</button>
+    </div>
+    <div id="contactoChatMensajes" style="margin-top:14px;max-height:360px;overflow:auto"></div>
+    <label>Mensaje</label>
+    <textarea id="contactoChatInput" maxlength="1500" placeholder="Escribe un mensaje privado"></textarea>
+    <button class="primary" style="margin-top:10px" onclick="enviarMensajeContactoResidente()">Enviar mensaje</button>
   </div>
 </section>
 
@@ -1354,10 +1404,11 @@ async function guardarMontoAutomatico(){
 const SB_URL='https://nndlfkuelwpwklldvtfo.supabase.co';
 const SB_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
 const sb=supabase.createClient(SB_URL,SB_KEY);
-let user=null, profile=null, casas=[], profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], incidentes=[], incidenteMensajes=[], entregas=[], notificaciones=[], notificacionLecturas=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
+let user=null, profile=null, casas=[], profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], incidentes=[], incidenteMensajes=[], entregas=[], solicitudesContacto=[], mensajesContacto=[], notificaciones=[], notificacionLecturas=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
 let incidenteActualId=null;
 let chatConversaciones=[], chatMensajes=[], chatLecturas=[];
 let chatConversacionActual=null, chatPolling=null, chatDragMovio=false;
+let contactoActualId=null;
 const VAPID_PUBLIC_KEY =
 'BCh7-PSmKO_r5DL9TBy1tJ2k9NHNvdeCfKlvwZj8OyDqnPvs1ZLc_mPbfewqLYO_J7VeLDn65WADAxiU19dw_Zo';
 
@@ -1629,6 +1680,10 @@ function destinoPorTipoNotificacion(tipo){
     incidente_estado:'incidentes',
     entrega_entrada:'entregas',
     chat_mensaje:'chat',
+    contacto_residente_solicitud:'comunicacion',
+    contacto_residente_aceptada:'comunicacion',
+    contacto_residente_rechazada:'comunicacion',
+    contacto_residente_mensaje:'comunicacion',
     pagado_hasta:'cuotas',
     miembro_agregado:'miembrosCasa',
     admin_general:'notificaciones',
@@ -1648,6 +1703,17 @@ function abrirDestinoNotificacion(destino,referencia,tipo){
   }
 
   if(document.getElementById(seccion))show(seccion);
+
+  if(seccion==='comunicacion' && referencia){
+    const partes=String(referencia).split(':');
+    const solicitudId=partes[0]==='contacto'?partes[1]:null;
+    if(solicitudId){
+      setTimeout(()=>{
+        const solicitud=solicitudesContacto.find(x=>String(x.id)===String(solicitudId));
+        if(solicitud?.estado==='aceptada') abrirConversacionResidente(solicitudId);
+      },0);
+    }
+  }
 
   if(seccion==='incidentes' && referencia){
     const partes=String(referencia).split(':');
@@ -1885,7 +1951,7 @@ async function enter(){
  await abrirRutaNotificacion();
 }
 async function loadAll(){
- const [ca,pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,inc,im,en,nt,nl,pk,rs,dc,em]=await Promise.all([
+ const [ca,pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,inc,im,en,cs,cm,nt,nl,pk,rs,dc,em]=await Promise.all([
    sb.from('casas').select('*').order('numero',{ascending:true}),
    ['admin','residente'].includes(profile.rol)?sb.from('profiles').select('*').order('nombre'):Promise.resolve({data:[profile]}),
    sb.from('cuotas').select('*').order('created_at',{ascending:false}),
@@ -1901,6 +1967,8 @@ async function loadAll(){
    ['admin','residente'].includes(profile.rol)?sb.from('incidentes').select('*').order('updated_at',{ascending:false}):Promise.resolve({data:[]}),
    ['admin','residente'].includes(profile.rol)?sb.from('incidente_mensajes').select('*').order('created_at',{ascending:true}):Promise.resolve({data:[]}),
    ['admin','residente'].includes(profile.rol)?sb.from('entregas_contacto').select('id,casa_id,tipo,empresa,repartidor,mensaje,estado,respuesta,respondido_por,respondido_at,created_at,expires_at').order('created_at',{ascending:false}).limit(100):Promise.resolve({data:[]}),
+   profile.rol==='residente'?sb.from('contacto_residente_solicitudes').select('*').order('updated_at',{ascending:false}).limit(100):Promise.resolve({data:[]}),
+   profile.rol==='residente'?sb.from('contacto_residente_mensajes').select('*').order('created_at',{ascending:true}).limit(500):Promise.resolve({data:[]}),
    ['admin','residente'].includes(profile.rol)?sb.from('notificaciones_push').select('*').or('user_id.eq.'+user.id+',user_id.is.null').order('created_at',{ascending:false}).limit(100):Promise.resolve({data:[]}),
    ['admin','residente'].includes(profile.rol)?sb.from('notificacion_lecturas').select('*').eq('user_id',user.id):Promise.resolve({data:[]}),
    sb.from('paquetes').select('*').order('created_at',{ascending:false}),
@@ -1910,8 +1978,8 @@ async function loadAll(){
  ]);
  casas=ca.data||[]; profiles=pr.data||[]; cuotas=cu.data||[]; pagos=pa.data||[]; visitas=vi.data||[]; accesos=ac.data||[];
  eventos=ev.data||[]; controles=ct.data||[]; gastos=ga.data||[]; metodosPago=mp.data||[];
- avisos=av.data||[]; reportes=rp.data||[]; incidentes=inc.data||[]; incidenteMensajes=im.data||[]; entregas=en.data||[]; notificaciones=nt.data||[]; notificacionLecturas=nl.data||[]; paquetes=pk.data||[]; reservas=rs.data||[]; documentos=dc.data||[]; contactosEmergencia=em.data||[];
- [ca,av,rp,inc,im,en,nt,nl,pk,rs,dc,em].forEach((r,i)=>{if(r?.error) console.warn(['Casas','Avisos','Reportes','Incidentes','Mensajes de incidentes','Entregas','Notificaciones','Lecturas de notificaciones','Paquetes','Reservaciones','Documentos','Emergencia'][i]+':',r.error)});
+ avisos=av.data||[]; reportes=rp.data||[]; incidentes=inc.data||[]; incidenteMensajes=im.data||[]; entregas=en.data||[]; solicitudesContacto=cs.data||[]; mensajesContacto=cm.data||[]; notificaciones=nt.data||[]; notificacionLecturas=nl.data||[]; paquetes=pk.data||[]; reservas=rs.data||[]; documentos=dc.data||[]; contactosEmergencia=em.data||[];
+ [ca,av,rp,inc,im,en,cs,cm,nt,nl,pk,rs,dc,em].forEach((r,i)=>{if(r?.error) console.warn(['Casas','Avisos','Reportes','Incidentes','Mensajes de incidentes','Entregas','Solicitudes de contacto','Mensajes entre residentes','Notificaciones','Lecturas de notificaciones','Paquetes','Reservaciones','Documentos','Emergencia'][i]+':',r.error)});
  if(ga.error && profile.rol==='admin') console.warn('Gastos:',ga.error);
  if(mp.error && ['admin','residente'].includes(profile.rol)) console.warn('Métodos de pago:',mp.error);
  render();
@@ -2607,6 +2675,253 @@ function renderEntregas(){
   renderPortalRepartidor();
 }
 
+function estadoContactoTexto(estado){
+  return {
+    pendiente:'⏳ Pendiente',
+    aceptada:'✅ Aceptada',
+    rechazada:'❌ Rechazada',
+    cancelada:'🚫 Cancelada'
+  }[estado]||estado||'';
+}
+
+async function cargarContactoResidenteDatos(){
+  if(profile?.rol!=='residente'||!user)return;
+
+  const [cs,cm]=await Promise.all([
+    sb.from('contacto_residente_solicitudes')
+      .select('*')
+      .order('updated_at',{ascending:false})
+      .limit(100),
+    sb.from('contacto_residente_mensajes')
+      .select('*')
+      .order('created_at',{ascending:true})
+      .limit(500)
+  ]);
+
+  if(!cs.error)solicitudesContacto=cs.data||[];
+  if(!cm.error)mensajesContacto=cm.data||[];
+
+  renderComunicacionResidentes();
+
+  if(contactoActualId){
+    renderContactoMensajes();
+  }
+}
+
+async function solicitarContactoResidente(){
+  if(profile?.rol!=='residente')return;
+
+  const casa=document.getElementById('contactoCasa')?.value.trim()||'';
+  const motivo=document.getElementById('contactoMotivo')?.value.trim()||'';
+  const msg=document.getElementById('contactoMsg');
+
+  if(msg){
+    msg.style.color='';
+    msg.textContent='';
+  }
+
+  if(!/^[0-9]+$/.test(casa)||Number(casa)<=0){
+    if(msg)msg.textContent='Escribe un número de casa válido.';
+    return;
+  }
+
+  if(String(profile.unidad||'').trim()===String(Number(casa))){
+    if(msg)msg.textContent='No necesitas solicitar comunicación con tu propia casa.';
+    return;
+  }
+
+  try{
+    const {data,error}=await sb.functions.invoke('request-resident-contact',{
+      body:{casa,motivo}
+    });
+
+    if(error){
+      let detalle=error.message||'No se pudo enviar la solicitud.';
+      try{
+        const r=await error.context?.json?.();
+        if(r?.error)detalle=r.error;
+      }catch(_){}
+      if(msg)msg.textContent=detalle;
+      return;
+    }
+
+    if(data?.error){
+      if(msg)msg.textContent=data.error;
+      return;
+    }
+
+    const casaInput=document.getElementById('contactoCasa');
+    const motivoInput=document.getElementById('contactoMotivo');
+    if(casaInput)casaInput.value='';
+    if(motivoInput)motivoInput.value='';
+
+    await cargarContactoResidenteDatos();
+
+    if(msg){
+      msg.style.color='#bbf7d0';
+      msg.textContent='Solicitud enviada. La otra casa recibió una notificación.';
+    }
+  }catch(e){
+    if(msg)msg.textContent='Error de conexión: '+(e?.message||String(e));
+  }
+}
+
+async function responderSolicitudContacto(id,accion){
+  if(profile?.rol!=='residente')return;
+  if(!['aceptar','rechazar'].includes(accion))return;
+
+  const texto=accion==='aceptar'?'aceptar':'rechazar';
+  if(!confirm('¿Quieres '+texto+' esta solicitud de comunicación?'))return;
+
+  try{
+    const {data,error}=await sb.functions.invoke('respond-resident-contact',{
+      body:{solicitud_id:id,accion}
+    });
+
+    if(error){
+      let detalle=error.message||'No se pudo responder la solicitud.';
+      try{
+        const r=await error.context?.json?.();
+        if(r?.error)detalle=r.error;
+      }catch(_){}
+      return alert(detalle);
+    }
+
+    if(data?.error)return alert(data.error);
+
+    await cargarContactoResidenteDatos();
+
+    if(accion==='aceptar'){
+      abrirConversacionResidente(id);
+    }
+  }catch(e){
+    alert('Error de conexión: '+(e?.message||String(e)));
+  }
+}
+
+function renderComunicacionResidentes(){
+  if(profile?.rol!=='residente')return;
+
+  const entradas=document.getElementById('contactoSolicitudesEntrantes');
+  const lista=document.getElementById('contactoSolicitudesLista');
+  if(!entradas||!lista)return;
+
+  const entrantes=[...solicitudesContacto]
+    .filter(s=>String(s.destino_casa_id)===String(profile.casa_id) && s.estado==='pendiente')
+    .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+
+  entradas.innerHTML=entrantes.map(s=>
+    '<div class="card" style="margin-top:10px;border-color:#38bdf8">'+
+      '<div><strong>'+esc(s.solicitante_nombre||'Residente')+' · Casa '+esc(s.solicitante_casa_numero||'')+'</strong></div>'+
+      (s.motivo?'<div class="muted" style="margin-top:6px">'+esc(s.motivo)+'</div>':'')+
+      '<div class="muted" style="margin-top:6px">'+esc(fechaHora(s.created_at))+'</div>'+
+      '<div class="actions" style="margin-top:12px">'+
+        '<button class="primary" onclick="responderSolicitudContacto(\''+s.id+'\',\'aceptar\')">✅ Aceptar</button>'+
+        '<button class="danger" onclick="responderSolicitudContacto(\''+s.id+'\',\'rechazar\')">❌ Rechazar</button>'+
+      '</div>'+
+    '</div>'
+  ).join('')||'<div class="muted">No tienes solicitudes pendientes.</div>';
+
+  const relevantes=[...solicitudesContacto]
+    .filter(s=>String(s.solicitante_id)===String(user.id) || String(s.aceptado_por)===String(user.id))
+    .sort((a,b)=>new Date(b.updated_at||b.created_at)-new Date(a.updated_at||a.created_at));
+
+  lista.innerHTML=relevantes.map(s=>{
+    const saliente=String(s.solicitante_id)===String(user.id);
+    const otraCasa=saliente?s.destino_casa_numero:s.solicitante_casa_numero;
+    const otraPersona=saliente?(s.aceptado_nombre||'Residente'):(s.solicitante_nombre||'Residente');
+    const puedeChat=s.estado==='aceptada' &&
+      (String(s.solicitante_id)===String(user.id) || String(s.aceptado_por)===String(user.id));
+
+    return '<div class="card" style="margin-top:10px">'+
+      '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">'+
+        '<strong>'+esc(otraPersona)+' · Casa '+esc(otraCasa||'')+'</strong>'+
+        '<span class="badge">'+esc(estadoContactoTexto(s.estado))+'</span>'+
+      '</div>'+
+      (s.motivo?'<div class="muted" style="margin-top:6px">'+esc(s.motivo)+'</div>':'')+
+      '<div class="muted" style="margin-top:6px">'+esc(fechaHora(s.created_at))+'</div>'+
+      (puedeChat?'<button class="primary" style="margin-top:10px" onclick="abrirConversacionResidente(\''+s.id+'\')">💬 Abrir conversación</button>':'')+
+    '</div>';
+  }).join('')||'<div class="muted">No tienes solicitudes o conversaciones todavía.</div>';
+}
+
+function abrirConversacionResidente(id){
+  const solicitud=solicitudesContacto.find(s=>String(s.id)===String(id));
+  if(!solicitud||solicitud.estado!=='aceptada')return;
+
+  const participante=
+    String(solicitud.solicitante_id)===String(user.id) ||
+    String(solicitud.aceptado_por)===String(user.id);
+
+  if(!participante)return;
+
+  contactoActualId=solicitud.id;
+
+  const panel=document.getElementById('contactoChatPanel');
+  const titulo=document.getElementById('contactoChatTitulo');
+  const subtitulo=document.getElementById('contactoChatSubtitulo');
+
+  if(panel)panel.classList.remove('hidden');
+
+  const saliente=String(solicitud.solicitante_id)===String(user.id);
+  const nombre=saliente?(solicitud.aceptado_nombre||'Residente'):(solicitud.solicitante_nombre||'Residente');
+  const casa=saliente?solicitud.destino_casa_numero:solicitud.solicitante_casa_numero;
+
+  if(titulo)titulo.textContent='💬 '+nombre;
+  if(subtitulo)subtitulo.textContent='Casa '+(casa||'')+' · Conversación privada';
+
+  renderContactoMensajes();
+  panel?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function cerrarConversacionResidente(){
+  contactoActualId=null;
+  document.getElementById('contactoChatPanel')?.classList.add('hidden');
+  const input=document.getElementById('contactoChatInput');
+  if(input)input.value='';
+}
+
+function renderContactoMensajes(){
+  const body=document.getElementById('contactoChatMensajes');
+  if(!body||!contactoActualId)return;
+
+  const mensajes=mensajesContacto
+    .filter(m=>String(m.solicitud_id)===String(contactoActualId))
+    .sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+
+  body.innerHTML=mensajes.map(m=>{
+    const mio=String(m.autor_id)===String(user.id);
+    return '<div class="chatMsg '+(mio?'mine':'')+'">'+
+      '<div class="chatBubble">'+
+        '<div>'+esc(m.mensaje||'')+'</div>'+
+        '<div class="chatMeta">'+(mio?'Tú':'Residente')+' · '+esc(fechaHora(m.created_at))+'</div>'+
+      '</div>'+
+    '</div>';
+  }).join('')||'<div class="muted">Aún no hay mensajes. Escribe el primero.</div>';
+
+  requestAnimationFrame(()=>{body.scrollTop=body.scrollHeight;});
+}
+
+async function enviarMensajeContactoResidente(){
+  if(profile?.rol!=='residente'||!contactoActualId)return;
+
+  const input=document.getElementById('contactoChatInput');
+  const mensaje=input?.value.trim()||'';
+  if(!mensaje)return;
+
+  const {error}=await sb.from('contacto_residente_mensajes').insert({
+    solicitud_id:contactoActualId,
+    autor_id:user.id,
+    mensaje
+  });
+
+  if(error)return alert('No se pudo enviar el mensaje: '+error.message);
+
+  if(input)input.value='';
+  await cargarContactoResidenteDatos();
+  renderContactoMensajes();
+}
+
 function residentesDisponiblesChat(){
   return profiles
     .filter(p=>p.rol==='residente' && p.activo!==false && p.estado_registro!=='rechazado' && p.estado_registro!=='pendiente')
@@ -2783,15 +3098,13 @@ function renderChatPanel(){
     titulo.textContent='💬 Administración';
     subtitulo.textContent='Conversación privada';
 
-    if(!chatConversacionActual){
-      input.disabled=true;
-      send.disabled=true;
-      body.innerHTML='<div class="muted">La administración todavía no ha iniciado una conversación contigo.</div>';
-      return;
-    }
-
     input.disabled=false;
     send.disabled=false;
+
+    if(!chatConversacionActual){
+      body.innerHTML='<div class="muted">Escribe tu primer mensaje para contactar a la administración.</div>';
+      return;
+    }
   }
 
   const mensajes=chatConversacionActual
@@ -2822,8 +3135,32 @@ function renderChatPanel(){
 
 async function obtenerOCrearConversacionChat(){
   if(profile?.rol==='residente'){
-    const conv=chatConversaciones.find(c=>String(c.residente_id)===String(user.id));
-    return conv?.id||null;
+    let conv=chatConversaciones.find(c=>String(c.residente_id)===String(user.id));
+    if(conv)return conv.id;
+
+    const {data,error}=await sb.from('chat_conversaciones')
+      .insert({residente_id:user.id})
+      .select('*')
+      .single();
+
+    if(error){
+      const existente=await sb.from('chat_conversaciones')
+        .select('*')
+        .eq('residente_id',user.id)
+        .maybeSingle();
+
+      if(existente.data){
+        conv=existente.data;
+      }else{
+        alert('No se pudo iniciar la conversación con administración: '+error.message);
+        return null;
+      }
+    }else{
+      conv=data;
+    }
+
+    chatConversaciones.unshift(conv);
+    return conv.id;
   }
 
   if(profile?.rol!=='admin')return null;
@@ -2870,7 +3207,7 @@ async function enviarChatMensaje(){
 
   if(!convId){
     if(profile?.rol==='residente'){
-      return alert('La administración debe enviarte el primer mensaje para iniciar la conversación.');
+      return alert('No se pudo iniciar la conversación con administración.');
     }
     return alert('Selecciona un residente.');
   }
@@ -2928,6 +3265,9 @@ function iniciarChatPolling(){
   chatPolling=setInterval(async()=>{
     if(!user)return;
     await cargarChatDatos();
+    if(profile?.rol==='residente'){
+      await cargarContactoResidenteDatos();
+    }
 
     const panel=document.getElementById('chatPanel');
     if(panel && !panel.classList.contains('hidden')){
@@ -3355,7 +3695,7 @@ function render(){
  if(document.getElementById('kIncidentes')) kIncidentes.textContent=incidentes.filter(x=>!['resuelto','cerrado'].includes(x.estado)).length;
  if(document.getElementById('kEntregas')) kEntregas.textContent=entregas.filter(entregaEstaActiva).length;
  if(document.getElementById('kPaquetes')) kPaquetes.textContent=paquetes.filter(x=>x.estado!=='entregado').length;
- renderCasas(); renderMiembrosCasa(); renderAvisos(); renderReportes(); renderIncidentes(); renderEntregas(); renderNotificaciones(); renderPaquetes(); renderReservas(); renderDocumentos(); renderEmergencia(); renderHistorial();
+ renderCasas(); renderMiembrosCasa(); renderComunicacionResidentes(); renderAvisos(); renderReportes(); renderIncidentes(); renderEntregas(); renderNotificaciones(); renderPaquetes(); renderReservas(); renderDocumentos(); renderEmergencia(); renderHistorial();
  renderPorton();
  renderEventos();
  renderGastos();
