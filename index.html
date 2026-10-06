@@ -1012,7 +1012,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <button class="primary" style="margin-top:12px" onclick="addAcceso()">Registrar acceso</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Persona</th><th>Tipo</th><th>Movimiento</th><th>Unidad</th></tr></thead><tbody id="accesosRows"></tbody></table></div></section>
 </main>
 
-<div id="chatPanel" class="chatPanel residentAdminOnly hidden" aria-live="polite">
+<div id="chatPanel" class="chatPanel hidden" aria-live="polite">
   <div class="chatHeader">
     <div>
       <h3 id="chatTitulo">💬 Mensajes</h3>
@@ -1933,6 +1933,7 @@ async function enter(){
    user=null; profile=null;
    return;
  }
+ cerrarChatFlotante();
  login.classList.add('hidden');app.classList.remove('hidden');
  who.textContent=`${profile.nombre} · ${profile.rol}${profile.unidad?' · '+profile.unidad:''}`;
  document.querySelectorAll('.adminOnly').forEach(x=>x.classList.toggle('hidden',profile.rol!=='admin'));
