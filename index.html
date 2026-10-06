@@ -46,6 +46,88 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 .modal.hidden{display:none!important}
 .modalBox{width:min(560px,100%); max-height:90vh; overflow:auto}
 
+.chatFloatBtn{
+  position:fixed;
+  right:18px;
+  bottom:18px;
+  width:58px;
+  height:58px;
+  border-radius:50%;
+  padding:0;
+  z-index:10060;
+  display:grid;
+  place-items:center;
+  font-size:25px;
+  background:var(--g);
+  color:#052e16;
+  border:2px solid rgba(255,255,255,.18);
+  box-shadow:0 10px 28px rgba(0,0,0,.42);
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.chatFloatBtn:focus-visible{outline:3px solid var(--b);outline-offset:3px}
+.chatUnread{
+  position:absolute;
+  top:-6px;
+  right:-5px;
+  min-width:22px;
+  height:22px;
+  padding:0 6px;
+  border-radius:99px;
+  display:grid;
+  place-items:center;
+  background:var(--r);
+  color:white;
+  font-size:12px;
+  line-height:1;
+  border:2px solid var(--bg);
+}
+.chatPanel{
+  position:fixed;
+  right:16px;
+  bottom:88px;
+  z-index:10055;
+  width:min(390px,calc(100vw - 24px));
+  max-height:calc(100vh - 112px);
+  background:#0b1220;
+  border:1px solid #334155;
+  border-radius:18px;
+  box-shadow:0 18px 50px rgba(0,0,0,.5);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+.chatHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:13px 14px;
+  background:#111827;
+  border-bottom:1px solid #334155;
+}
+.chatHeader h3{margin:0;font-size:17px}
+.chatBody{padding:12px;overflow:auto;min-height:210px;max-height:330px}
+.chatMsg{display:flex;margin:8px 0}
+.chatMsg.mine{justify-content:flex-end}
+.chatBubble{
+  max-width:82%;
+  padding:10px 12px;
+  border-radius:14px;
+  background:#1e293b;
+  overflow-wrap:anywhere;
+}
+.chatMsg.mine .chatBubble{background:#166534}
+.chatMeta{font-size:11px;color:#cbd5e1;margin-top:5px}
+.chatCompose{padding:10px;border-top:1px solid #334155;background:#111827}
+.chatCompose textarea{min-height:58px;max-height:110px}
+.chatResidentPicker{padding:10px 12px;border-bottom:1px solid #334155;background:#0f172a}
+@media(max-width:520px){
+  .chatPanel{left:10px;right:10px;bottom:82px;width:auto;max-height:calc(100vh - 96px)}
+  .chatBody{max-height:300px}
+}
+
 </style>
 </head>
 <body>
@@ -878,7 +960,38 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div><label>Persona</label><input id="aPersona"></div><div><label>Tipo</label><select id="aTipo"><option>Residente</option><option>Visita</option><option>Proveedor</option><option>Personal</option></select></div>
 <div><label>Movimiento</label><select id="aMov"><option>Entrada</option><option>Salida</option></select></div><div><label>Casa</label><select id="aUnidad"></select></div><div class="full"><label>Observaciones</label><input id="aObs"></div></div>
 <button class="primary" style="margin-top:12px" onclick="addAcceso()">Registrar acceso</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Persona</th><th>Tipo</th><th>Movimiento</th><th>Unidad</th></tr></thead><tbody id="accesosRows"></tbody></table></div></section>
-</main></div>
+</main>
+
+<div id="chatPanel" class="chatPanel residentAdminOnly hidden" aria-live="polite">
+  <div class="chatHeader">
+    <div>
+      <h3 id="chatTitulo">💬 Mensajes</h3>
+      <div id="chatSubtitulo" class="muted" style="font-size:12px;margin-top:2px"></div>
+    </div>
+    <button type="button" class="mini" onclick="cerrarChatFlotante()" aria-label="Cerrar mensajes">✕</button>
+  </div>
+
+  <div id="chatAdminPicker" class="chatResidentPicker adminOnly hidden">
+    <label style="margin:0 0 6px">Residente</label>
+    <select id="chatResidentSelect" onchange="seleccionarChatResidente()"></select>
+  </div>
+
+  <div id="chatBody" class="chatBody">
+    <div class="muted">Cargando mensajes…</div>
+  </div>
+
+  <div class="chatCompose">
+    <textarea id="chatInput" maxlength="1500" placeholder="Escribe un mensaje privado"></textarea>
+    <button id="chatSendBtn" class="primary" style="width:100%;margin-top:8px" type="button" onclick="enviarChatMensaje()">Enviar mensaje</button>
+  </div>
+</div>
+
+<button id="chatFloatingBtn" class="chatFloatBtn residentAdminOnly hidden" type="button" aria-label="Abrir mensajes privados">
+  💬
+  <span id="chatUnreadBadge" class="chatUnread hidden">0</span>
+</button>
+
+</div>
 
 <script>
 
@@ -1243,6 +1356,8 @@ const SB_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 let user=null, profile=null, casas=[], profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], incidentes=[], incidenteMensajes=[], entregas=[], notificaciones=[], notificacionLecturas=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
 let incidenteActualId=null;
+let chatConversaciones=[], chatMensajes=[], chatLecturas=[];
+let chatConversacionActual=null, chatPolling=null, chatDragMovio=false;
 const VAPID_PUBLIC_KEY =
 'BCh7-PSmKO_r5DL9TBy1tJ2k9NHNvdeCfKlvwZj8OyDqnPvs1ZLc_mPbfewqLYO_J7VeLDn65WADAxiU19dw_Zo';
 
@@ -1513,6 +1628,7 @@ function destinoPorTipoNotificacion(tipo){
     incidente_seguimiento:'incidentes',
     incidente_estado:'incidentes',
     entrega_entrada:'entregas',
+    chat_mensaje:'chat',
     pagado_hasta:'cuotas',
     miembro_agregado:'miembrosCasa',
     admin_general:'notificaciones',
@@ -1523,6 +1639,14 @@ function destinoPorTipoNotificacion(tipo){
 
 function abrirDestinoNotificacion(destino,referencia,tipo){
   const seccion=destino||destinoPorTipoNotificacion(tipo);
+
+  if(seccion==='chat'){
+    const partes=String(referencia||'').split(':');
+    const conversacionId=partes[0]==='chat'?partes[1]:null;
+    abrirChatFlotante(conversacionId||null);
+    return;
+  }
+
   if(document.getElementById(seccion))show(seccion);
 
   if(seccion==='incidentes' && referencia){
@@ -1550,7 +1674,9 @@ async function abrirRutaNotificacion(){
   const seccion=partes[0];
   const id=partes[1]||null;
 
-  if(document.getElementById(seccion)){
+  if(seccion==='chat'){
+    setTimeout(()=>abrirChatFlotante(id||null),0);
+  }else if(document.getElementById(seccion)){
     show(seccion);
 
     if(seccion==='incidentes'&&id){
@@ -1753,6 +1879,9 @@ async function enter(){
  if(profile.rol==='guardia') visitCreate.classList.add('hidden');
  vFecha.value=new Date().toISOString().slice(0,10); cFecha.value=new Date().toISOString().slice(0,10); if(document.getElementById('resFecha')) resFecha.value=new Date().toISOString().slice(0,10);
  await loadAll();
+ await cargarChatDatos();
+ iniciarChatPolling();
+ prepararBotonChatMovible();
  await abrirRutaNotificacion();
 }
 async function loadAll(){
@@ -2476,6 +2605,438 @@ function renderEntregas(){
   }
 
   renderPortalRepartidor();
+}
+
+function residentesDisponiblesChat(){
+  return profiles
+    .filter(p=>p.rol==='residente' && p.activo!==false && p.estado_registro!=='rechazado' && p.estado_registro!=='pendiente')
+    .sort((a,b)=>{
+      const coll=new Intl.Collator('es',{numeric:true,sensitivity:'base'});
+      const ca=String(a.unidad||'');
+      const cb=String(b.unidad||'');
+      const porCasa=coll.compare(ca,cb);
+      return porCasa!==0?porCasa:String(a.nombre||'').localeCompare(String(b.nombre||''),'es',{sensitivity:'base'});
+    });
+}
+
+async function cargarChatDatos(){
+  if(!user||!['admin','residente'].includes(profile?.rol))return;
+
+  const conv=await sb.from('chat_conversaciones')
+    .select('*')
+    .order('updated_at',{ascending:false});
+
+  chatConversaciones=conv.data||[];
+
+  const ids=chatConversaciones.map(c=>c.id);
+  if(ids.length){
+    const [mens,lect]=await Promise.all([
+      sb.from('chat_mensajes')
+        .select('*')
+        .in('conversacion_id',ids)
+        .order('created_at',{ascending:true}),
+      sb.from('chat_lecturas')
+        .select('*')
+        .eq('user_id',user.id)
+    ]);
+    chatMensajes=mens.data||[];
+    chatLecturas=lect.data||[];
+  }else{
+    chatMensajes=[];
+    chatLecturas=[];
+  }
+
+  renderChatBadge();
+
+  const panel=document.getElementById('chatPanel');
+  if(panel && !panel.classList.contains('hidden')){
+    renderChatPanel();
+  }
+}
+
+function contarChatNoLeidos(){
+  const leidos=new Set(chatLecturas.map(x=>String(x.mensaje_id)));
+  return chatMensajes.filter(m=>
+    String(m.autor_id)!==String(user?.id) &&
+    !leidos.has(String(m.id))
+  ).length;
+}
+
+function renderChatBadge(){
+  const badge=document.getElementById('chatUnreadBadge');
+  if(!badge)return;
+  const total=contarChatNoLeidos();
+  badge.textContent=String(total>99?'99+':total);
+  badge.classList.toggle('hidden',total===0);
+}
+
+function llenarSelectorChatAdmin(){
+  if(profile?.rol!=='admin')return;
+  const picker=document.getElementById('chatAdminPicker');
+  const select=document.getElementById('chatResidentSelect');
+  if(!picker||!select)return;
+
+  picker.classList.remove('hidden');
+
+  const residentes=residentesDisponiblesChat();
+  const actual=select.value;
+
+  select.innerHTML='<option value="">Selecciona un residente</option>'+
+    residentes.map(r=>
+      '<option value="'+r.id+'">Casa '+esc(r.unidad||'')+' — '+esc(r.nombre||'')+'</option>'
+    ).join('');
+
+  if(actual && [...select.options].some(o=>o.value===actual)){
+    select.value=actual;
+  }else if(chatConversacionActual){
+    const conv=chatConversaciones.find(c=>String(c.id)===String(chatConversacionActual));
+    if(conv && [...select.options].some(o=>o.value===String(conv.residente_id))){
+      select.value=String(conv.residente_id);
+    }
+  }
+}
+
+async function abrirChatFlotante(conversacionId=null){
+  if(!user||!['admin','residente'].includes(profile?.rol))return;
+
+  const panel=document.getElementById('chatPanel');
+  if(!panel)return;
+
+  panel.classList.remove('hidden');
+  await cargarChatDatos();
+
+  if(profile.rol==='admin'){
+    llenarSelectorChatAdmin();
+
+    if(conversacionId){
+      const conv=chatConversaciones.find(c=>String(c.id)===String(conversacionId));
+      if(conv){
+        chatConversacionActual=conv.id;
+        const select=document.getElementById('chatResidentSelect');
+        if(select)select.value=String(conv.residente_id);
+      }
+    }else if(!chatConversacionActual){
+      const conNoLeidos=chatConversaciones.find(c=>
+        chatMensajes.some(m=>
+          String(m.conversacion_id)===String(c.id) &&
+          String(m.autor_id)!==String(user.id) &&
+          !chatLecturas.some(l=>String(l.mensaje_id)===String(m.id))
+        )
+      );
+      if(conNoLeidos){
+        chatConversacionActual=conNoLeidos.id;
+        const select=document.getElementById('chatResidentSelect');
+        if(select)select.value=String(conNoLeidos.residente_id);
+      }
+    }
+  }else{
+    const conv=chatConversaciones.find(c=>String(c.residente_id)===String(user.id));
+    chatConversacionActual=conv?.id||null;
+  }
+
+  renderChatPanel();
+  await marcarChatActualLeido();
+}
+
+function cerrarChatFlotante(){
+  document.getElementById('chatPanel')?.classList.add('hidden');
+}
+
+function seleccionarChatResidente(){
+  if(profile?.rol!=='admin')return;
+
+  const rid=document.getElementById('chatResidentSelect')?.value||'';
+  const conv=chatConversaciones.find(c=>String(c.residente_id)===String(rid));
+  chatConversacionActual=conv?.id||null;
+
+  renderChatPanel();
+  marcarChatActualLeido();
+}
+
+function renderChatPanel(){
+  const body=document.getElementById('chatBody');
+  const titulo=document.getElementById('chatTitulo');
+  const subtitulo=document.getElementById('chatSubtitulo');
+  const input=document.getElementById('chatInput');
+  const send=document.getElementById('chatSendBtn');
+  if(!body||!titulo||!subtitulo||!input||!send)return;
+
+  if(profile?.rol==='admin'){
+    llenarSelectorChatAdmin();
+    const rid=document.getElementById('chatResidentSelect')?.value||'';
+    const residente=profiles.find(p=>String(p.id)===String(rid));
+
+    titulo.textContent='💬 Mensajes privados';
+    subtitulo.textContent=residente
+      ? (residente.nombre+' · Casa '+(residente.unidad||''))
+      : 'Selecciona un residente';
+
+    input.disabled=!residente;
+    send.disabled=!residente;
+
+    if(!residente){
+      body.innerHTML='<div class="muted">Selecciona un residente para iniciar o continuar una conversación.</div>';
+      return;
+    }
+  }else{
+    document.getElementById('chatAdminPicker')?.classList.add('hidden');
+    titulo.textContent='💬 Administración';
+    subtitulo.textContent='Conversación privada';
+
+    if(!chatConversacionActual){
+      input.disabled=true;
+      send.disabled=true;
+      body.innerHTML='<div class="muted">La administración todavía no ha iniciado una conversación contigo.</div>';
+      return;
+    }
+
+    input.disabled=false;
+    send.disabled=false;
+  }
+
+  const mensajes=chatConversacionActual
+    ? chatMensajes.filter(m=>String(m.conversacion_id)===String(chatConversacionActual))
+    : [];
+
+  body.innerHTML=mensajes.map(m=>{
+    const mio=String(m.autor_id)===String(user.id);
+    const autor=profiles.find(p=>String(p.id)===String(m.autor_id));
+    let etiqueta='Administración';
+
+    if(mio){
+      etiqueta='Tú';
+    }else if(profile?.rol==='admin'){
+      etiqueta=autor?.nombre||'Residente';
+    }
+
+    return '<div class="chatMsg '+(mio?'mine':'')+'">'+
+      '<div class="chatBubble">'+
+        '<div>'+esc(m.mensaje||'')+'</div>'+
+        '<div class="chatMeta">'+esc(etiqueta)+' · '+esc(fechaHora(m.created_at))+'</div>'+
+      '</div>'+
+    '</div>';
+  }).join('')||'<div class="muted">Aún no hay mensajes. Escribe el primero.</div>';
+
+  requestAnimationFrame(()=>{body.scrollTop=body.scrollHeight;});
+}
+
+async function obtenerOCrearConversacionChat(){
+  if(profile?.rol==='residente'){
+    const conv=chatConversaciones.find(c=>String(c.residente_id)===String(user.id));
+    return conv?.id||null;
+  }
+
+  if(profile?.rol!=='admin')return null;
+
+  const rid=document.getElementById('chatResidentSelect')?.value||'';
+  if(!rid)return null;
+
+  let conv=chatConversaciones.find(c=>String(c.residente_id)===String(rid));
+  if(conv)return conv.id;
+
+  const {data,error}=await sb.from('chat_conversaciones')
+    .insert({residente_id:rid})
+    .select('*')
+    .single();
+
+  if(error){
+    const existente=await sb.from('chat_conversaciones')
+      .select('*')
+      .eq('residente_id',rid)
+      .maybeSingle();
+
+    if(existente.data){
+      conv=existente.data;
+    }else{
+      alert('No se pudo iniciar la conversación: '+error.message);
+      return null;
+    }
+  }else{
+    conv=data;
+  }
+
+  chatConversaciones.unshift(conv);
+  return conv.id;
+}
+
+async function enviarChatMensaje(){
+  if(!user||!['admin','residente'].includes(profile?.rol))return;
+
+  const input=document.getElementById('chatInput');
+  const mensaje=input?.value.trim()||'';
+  if(!mensaje)return;
+
+  const convId=await obtenerOCrearConversacionChat();
+
+  if(!convId){
+    if(profile?.rol==='residente'){
+      return alert('La administración debe enviarte el primer mensaje para iniciar la conversación.');
+    }
+    return alert('Selecciona un residente.');
+  }
+
+  const btn=document.getElementById('chatSendBtn');
+  if(btn)btn.disabled=true;
+
+  const {error}=await sb.from('chat_mensajes').insert({
+    conversacion_id:convId,
+    autor_id:user.id,
+    mensaje
+  });
+
+  if(btn)btn.disabled=false;
+  if(error)return alert('No se pudo enviar el mensaje: '+error.message);
+
+  if(input)input.value='';
+  chatConversacionActual=convId;
+
+  await cargarChatDatos();
+  renderChatPanel();
+}
+
+async function marcarChatActualLeido(){
+  if(!chatConversacionActual||!user)return;
+
+  const leidos=new Set(chatLecturas.map(x=>String(x.mensaje_id)));
+  const pendientes=chatMensajes.filter(m=>
+    String(m.conversacion_id)===String(chatConversacionActual) &&
+    String(m.autor_id)!==String(user.id) &&
+    !leidos.has(String(m.id))
+  );
+
+  if(!pendientes.length)return;
+
+  const filas=pendientes.map(m=>({
+    mensaje_id:m.id,
+    user_id:user.id
+  }));
+
+  const {error}=await sb.from('chat_lecturas').insert(filas);
+  if(error){
+    console.warn('No se pudieron marcar los mensajes como leídos:',error);
+    return;
+  }
+
+  chatLecturas.push(...filas.map(x=>({...x,leido_at:new Date().toISOString()})));
+  renderChatBadge();
+}
+
+function iniciarChatPolling(){
+  if(chatPolling)clearInterval(chatPolling);
+  if(!['admin','residente'].includes(profile?.rol))return;
+
+  chatPolling=setInterval(async()=>{
+    if(!user)return;
+    await cargarChatDatos();
+
+    const panel=document.getElementById('chatPanel');
+    if(panel && !panel.classList.contains('hidden')){
+      await marcarChatActualLeido();
+    }
+  },8000);
+}
+
+function guardarPosicionBotonChat(){
+  const btn=document.getElementById('chatFloatingBtn');
+  if(!btn)return;
+
+  const r=btn.getBoundingClientRect();
+  try{
+    localStorage.setItem('chatFloatPos',JSON.stringify({
+      left:r.left,
+      top:r.top
+    }));
+  }catch(_){}
+}
+
+function aplicarPosicionGuardadaChat(){
+  const btn=document.getElementById('chatFloatingBtn');
+  if(!btn)return;
+
+  let pos=null;
+  try{
+    pos=JSON.parse(localStorage.getItem('chatFloatPos')||'null');
+  }catch(_){}
+
+  if(!pos||!Number.isFinite(pos.left)||!Number.isFinite(pos.top))return;
+
+  const maxLeft=Math.max(8,window.innerWidth-btn.offsetWidth-8);
+  const maxTop=Math.max(8,window.innerHeight-btn.offsetHeight-8);
+
+  btn.style.left=Math.min(Math.max(8,pos.left),maxLeft)+'px';
+  btn.style.top=Math.min(Math.max(8,pos.top),maxTop)+'px';
+  btn.style.right='auto';
+  btn.style.bottom='auto';
+}
+
+function prepararBotonChatMovible(){
+  const btn=document.getElementById('chatFloatingBtn');
+  if(!btn||btn.dataset.dragReady==='1')return;
+  btn.dataset.dragReady='1';
+
+  aplicarPosicionGuardadaChat();
+
+  let inicioX=0,inicioY=0,left0=0,top0=0,arrastrando=false;
+
+  btn.addEventListener('pointerdown',e=>{
+    if(e.button!==undefined && e.button!==0)return;
+    const r=btn.getBoundingClientRect();
+    inicioX=e.clientX;
+    inicioY=e.clientY;
+    left0=r.left;
+    top0=r.top;
+    arrastrando=true;
+    chatDragMovio=false;
+    btn.setPointerCapture?.(e.pointerId);
+  });
+
+  btn.addEventListener('pointermove',e=>{
+    if(!arrastrando)return;
+
+    const dx=e.clientX-inicioX;
+    const dy=e.clientY-inicioY;
+
+    if(Math.abs(dx)>4||Math.abs(dy)>4)chatDragMovio=true;
+    if(!chatDragMovio)return;
+
+    const maxLeft=Math.max(8,window.innerWidth-btn.offsetWidth-8);
+    const maxTop=Math.max(8,window.innerHeight-btn.offsetHeight-8);
+
+    const left=Math.min(Math.max(8,left0+dx),maxLeft);
+    const top=Math.min(Math.max(8,top0+dy),maxTop);
+
+    btn.style.left=left+'px';
+    btn.style.top=top+'px';
+    btn.style.right='auto';
+    btn.style.bottom='auto';
+  });
+
+  const terminar=e=>{
+    if(!arrastrando)return;
+    arrastrando=false;
+    btn.releasePointerCapture?.(e.pointerId);
+
+    if(chatDragMovio){
+      guardarPosicionBotonChat();
+      setTimeout(()=>{chatDragMovio=false;},0);
+    }
+  };
+
+  btn.addEventListener('pointerup',terminar);
+  btn.addEventListener('pointercancel',terminar);
+
+  btn.addEventListener('click',()=>{
+    if(chatDragMovio)return;
+
+    const panel=document.getElementById('chatPanel');
+    if(panel?.classList.contains('hidden')){
+      abrirChatFlotante();
+    }else{
+      cerrarChatFlotante();
+    }
+  });
+
+  window.addEventListener('resize',aplicarPosicionGuardadaChat);
 }
 
 function renderNotificaciones(){
