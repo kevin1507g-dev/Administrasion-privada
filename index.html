@@ -202,6 +202,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <button class="adminOnly" onclick="show('deudas')">💰 Deuda total</button>
 <button class="controlAccessOnly" onclick="show('porton')">🚧 Controles de portón</button>
 <button class="controlAccessOnly" onclick="show('controlDigital')">📲 Control digital</button>
+<button class="adminOnly" type="button" onclick="show('biometrico')">🖐️ Registrar biométrico</button>
 <button onclick="show('cuotas')">🧾 Cuotas</button>
 <button onclick="show('pagos')">💳 Pagos</button>
 <button class="paymentMethodsOnly" onclick="show('metodosPago')">💵 Métodos de pago</button>
@@ -401,6 +402,29 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 
 
 
+
+<section id="biometrico" class="adminOnly">
+  <h2>🖐️ Registrar biométrico</h2>
+  <div class="card">
+    <p id="bioEstado" class="muted" role="status">Pendiente de conectar el lector de huellas. Todavía no se pueden capturar ni guardar huellas.</p>
+    <label for="bioResidente">Residente y casa</label>
+    <select id="bioResidente" onchange="actualizarSeleccionBiometrica()"></select>
+    <p id="bioSeleccion" class="muted" aria-live="polite"></p>
+    <div class="form">
+      <div class="card">
+        <h3>🚶 Puerta peatonal</h3>
+        <p>Índice de la mano izquierda</p>
+        <button type="button" disabled aria-describedby="bioEstado">Registrar índice izquierdo</button>
+      </div>
+      <div class="card">
+        <h3>🚗 Portón</h3>
+        <p>Pulgar de la mano derecha</p>
+        <button type="button" disabled aria-describedby="bioEstado">Registrar pulgar derecho</button>
+      </div>
+    </div>
+    <p class="fileHint">Cuando esté conectado el equipo, selecciona al residente y registra cada dedo en el lector físico. Seleccionar un residente aquí todavía no crea un registro biométrico.</p>
+  </div>
+</section>
 
 <section id="controlDigital" class="controlAccessOnly">
   <h2>📲 Control digital</h2>
@@ -1687,7 +1711,37 @@ function toggleMenu(){
  if(!menu) return;
  menu.classList.contains('open')?closeMenu():openMenu();
 }
+function renderRegistroBiometrico(){
+  const select=document.getElementById('bioResidente');
+  if(!select)return;
+  const previo=select.value;
+  select.replaceChildren(new Option('Selecciona un residente',''));
+  if(profile?.rol!=='admin'){
+    document.getElementById('bioSeleccion').textContent='';
+    return;
+  }
+  const lista=profiles.filter(p=>p.rol==='residente' && p.activo!==false &&
+    p.estado_registro==='aprobado' && p.casa_id && casaPorId(p.casa_id)?.activo!==false && casaPorId(p.casa_id));
+  lista.sort((a,b)=>String(casaNumero(a.casa_id)).localeCompare(String(casaNumero(b.casa_id)),'es',{numeric:true}) ||
+    String(a.nombre||'').localeCompare(String(b.nombre||''),'es'));
+  lista.forEach(p=>select.add(new Option('Casa '+casaNumero(p.casa_id)+' — '+(p.nombre||'Sin nombre'),String(p.id))));
+  if(lista.some(p=>String(p.id)===previo))select.value=previo;
+  actualizarSeleccionBiometrica();
+}
+function actualizarSeleccionBiometrica(){
+  const mensaje=document.getElementById('bioSeleccion');
+  if(profile?.rol!=='admin'){mensaje.textContent='';return;}
+  const residente=profiles.find(p=>String(p.id)===document.getElementById('bioResidente').value);
+  mensaje.textContent=residente
+    ? 'Seleccionado: '+(residente.nombre||'Residente')+' · Casa '+casaNumero(residente.casa_id)+'. Captura pendiente de conexión.'
+    : 'Selecciona un residente aprobado con casa activa para preparar su registro.';
+}
+
 function show(id){
+  if(id==='biometrico'){
+    if(profile?.rol!=='admin')return;
+    renderRegistroBiometrico();
+  }
   document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));
 
   const target=$(id);
@@ -3699,6 +3753,7 @@ function resumenDeudaResidente(residenteId){const p=profiles.find(x=>String(x.id
 
 
 function render(){
+ renderRegistroBiometrico();
  const isResident=profile?.rol==='residente';
  const debtBox=document.getElementById('residentDebtSummary');
  const balanceCard=document.getElementById('residentBalanceCard');
