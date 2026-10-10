@@ -423,12 +423,10 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       </select>
     </div>
 
-    <div class="card table" style="margin-top:14px">
-      <h3 style="padding:14px 14px 0">Controles registrados</h3>
-      <table>
-        <thead><tr><th>Residente(s)</th><th>Casa</th><th>Número</th><th>Estado</th><th>Acciones</th></tr></thead>
-        <tbody id="adminControlsRows"></tbody>
-      </table>
+    <div class="card" style="margin-top:14px">
+      <h3>Controles por casa</h3>
+      <p class="muted">Toca una casa para ver sus controles y administrarlos.</p>
+      <div id="adminControlsRows"></div>
     </div>
 
     <div class="card" style="margin-top:14px">
@@ -2101,18 +2099,33 @@ function renderControlesRegistrados(){
 
  if(profile?.rol==='admin'&&adminBody){
    const modo=document.getElementById('ordenControles')?.value||'asc';
-   const lista=[...controles].sort((a,b)=>{
-     const r=coll.compare(String(casaNumero(casaIdDeRegistro(a))),String(casaNumero(casaIdDeRegistro(b))));
+   const abiertas=new Set([...adminBody.querySelectorAll('details[open]')].map(d=>d.dataset.casa));
+   const grupos=new Map();
+   controles.forEach(c=>{
+     const casaId=casaIdDeRegistro(c);
+     const clave=casaId?String(casaId):'sin-casa:'+String(c.unidad||'');
+     if(!grupos.has(clave))grupos.set(clave,{clave,casaId,numero:casaNumero(casaId)||c.unidad||'',items:[]});
+     grupos.get(clave).items.push(c);
+   });
+   const lista=[...grupos.values()].sort((a,b)=>{
+     const r=coll.compare(String(a.numero),String(b.numero));
      return modo==='desc'?-r:r;
    });
-   adminBody.innerHTML=lista.map(c=>{
-     const casaId=casaIdDeRegistro(c);
-     const badge=c.estado==='suspendido'?'⛔ Suspendido temporalmente':'✅ Activo';
-     const estadoBtn=c.estado==='suspendido'
-       ? '<button onclick="setControlEstado('+c.id+',\'activo\')">Reactivar</button>'
-       : '<button class="danger" onclick="setControlEstado('+c.id+',\'suspendido\')">Suspender</button>';
-     return '<tr><td>'+esc(nombresCasa(casaId)||'Sin residente')+'</td><td><strong>'+esc(casaNumero(casaId)||c.unidad||'')+'</strong></td><td>'+esc(c.numero_control)+'</td><td>'+badge+'</td><td>'+estadoBtn+' <button class="danger" onclick="deleteControl('+c.id+')">Eliminar</button></td></tr>';
-   }).join('')||'<tr><td colspan="5" class="muted">No hay controles registrados.</td></tr>';
+   adminBody.innerHTML=lista.map(g=>{
+     const suspendidos=g.items.filter(c=>c.estado==='suspendido').length;
+     const resumen=g.items.length+' control'+(g.items.length===1?'':'es')+' · '+(g.items.length-suspendidos)+' activos · '+suspendidos+' suspendidos';
+     const filas=g.items.sort((a,b)=>coll.compare(String(a.numero_control),String(b.numero_control))).map(c=>{
+       const badge=c.estado==='suspendido'?'⛔ Suspendido temporalmente':'✅ Activo';
+       const estadoBtn=c.estado==='suspendido'
+         ? '<button onclick="setControlEstado('+c.id+',\'activo\')">Reactivar</button>'
+         : '<button class="danger" onclick="setControlEstado('+c.id+',\'suspendido\')">Suspender</button>';
+       return '<tr><td><strong>'+esc(c.numero_control)+'</strong></td><td>'+badge+'</td><td><div class="actions">'+estadoBtn+' <button class="danger" onclick="deleteControl('+c.id+')">Eliminar</button></div></td></tr>';
+     }).join('');
+     return '<details data-casa="'+esc(g.clave)+'"'+(abiertas.has(g.clave)?' open':'')+' style="border:1px solid #334155;border-radius:12px;margin-top:10px;padding:14px">'+
+       '<summary style="cursor:pointer"><strong>'+(g.numero?'Casa '+esc(g.numero):'Sin casa asignada')+'</strong> <span class="muted">— '+resumen+'</span></summary>'+
+       '<p class="muted">'+esc(nombresCasa(g.casaId)||'Sin residente')+'</p>'+
+       '<div class="table"><table><thead><tr><th>Número de control</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>'+filas+'</tbody></table></div></details>';
+   }).join('')||'<p class="muted">No hay controles registrados.</p>';
  }
 }
 function renderPorton(){
