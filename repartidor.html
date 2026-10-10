@@ -29,18 +29,19 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
     <label>Número de casa</label>
     <input id="casa" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Ej. 35" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
 
-    <label>Tipo de entrega</label>
+    <label>Tipo de solicitud</label>
     <select id="tipo">
       <option value="comida">🍔 Comida</option>
       <option value="paqueteria">📦 Paquetería</option>
       <option value="farmacia">💊 Farmacia</option>
+      <option value="visita">🚶 Visita</option>
       <option value="otro">🛵 Otra entrega</option>
     </select>
 
     <label>Empresa / plataforma (opcional)</label>
     <input id="empresa" maxlength="80" placeholder="Ej. Uber Eats, Amazon, DHL">
 
-    <label>Nombre del repartidor (opcional)</label>
+    <label>Nombre del repartidor o visitante (opcional)</label>
     <input id="repartidor" maxlength="80" placeholder="Tu nombre">
 
     <label>Mensaje (opcional)</label>
@@ -54,7 +55,7 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
     <div id="waitTitle" class="status"><span class="loader"></span>Esperando respuesta del residente…</div>
     <div id="waitText" class="muted" style="margin-top:10px">La solicitud estará activa durante unos minutos.</div>
     <div id="answer" class="answer"></div>
-    <button id="newBtn" class="hidden" style="margin-top:18px" onclick="nuevaSolicitud()">Nueva entrega</button>
+    <button id="newBtn" class="hidden" style="margin-top:18px" onclick="nuevaSolicitud()">Nueva solicitud</button>
   </div>
 
   <div class="footer">🔒 Los datos del residente permanecen privados.</div>
@@ -70,10 +71,12 @@ let pollTimer=null;
 let expiresAt=null;
 
 const respuestas={
-  voy_por_el_pedido:'🚶 El residente va por el pedido.',
+  voy_por_el_pedido:'🚶 El residente va a recibirte.',
   dejar_en_caseta:'📦 Déjalo en caseta.',
   permitir_acceso:'🚪 El residente autorizó el acceso.',
-  no_lo_espero:'❌ El residente indica que no está esperando este pedido.'
+  acceso_peatonal:'🚶 El residente autorizó el acceso peatonal. Espera a que te abran; la apertura automática aún no está conectada.',
+  acceso_porton:'🚗 El residente autorizó el acceso al portón. Espera a que te abran; la apertura automática aún no está conectada.',
+  no_lo_espero:'❌ El residente indica que no está esperando esta solicitud.'
 };
 
 async function enviarSolicitud(){
