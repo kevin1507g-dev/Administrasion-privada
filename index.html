@@ -435,7 +435,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   <div class="adminOnly">
     <div class="card">
       <h3>Agregar control a una casa</h3>
-      <p class="muted">Máximo 3 controles por casa. El número de control no puede repetirse.</p>
+      <p class="muted">Puedes agregar controles sin límite por casa. El número de control no puede repetirse.</p>
       <div class="form">
         <div>
           <label>Casa</label>
@@ -2092,7 +2092,6 @@ async function addControl(){
  if(!numero)return alert('Escribe el número del control.');
  const casa=casaPorId(casaId);
  if(!casa)return alert('No se encontró la casa seleccionada.');
- if(controlesDeCasa(casaId).length>=3)return alert('Esta casa ya tiene el máximo de 3 controles.');
  if(controles.some(c=>String(c.numero_control).toLowerCase()===numero.toLowerCase()))return alert('Ese número de control ya está registrado.');
  const representante=residentesDeCasa(casaId).find(p=>p.activo!==false&&p.estado_registro!=='rechazado')||residentesDeCasa(casaId)[0]||null;
  const {error}=await sb.from('controles_residenciales').insert({
@@ -2134,7 +2133,7 @@ function renderControlesRegistrados(){
  if(profile?.rol==='admin'&&select){
    const prev=select.value;
    const lista=[...casas].filter(c=>c.activo!==false).sort((a,b)=>coll.compare(String(a.numero||''),String(b.numero||'')));
-   select.innerHTML=lista.map(c=>'<option value="'+c.id+'">Casa '+esc(c.numero||'')+' — '+controlesDeCasa(c.id).length+'/3 controles</option>').join('');
+   select.innerHTML=lista.map(c=>'<option value="'+c.id+'">Casa '+esc(c.numero||'')+' — '+controlesDeCasa(c.id).length+' controles</option>').join('');
    if(prev&&[...select.options].some(o=>o.value===prev))select.value=prev;
  }
 
