@@ -765,7 +765,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <section id="visitas"><h2>Visitas</h2><div class="card"><div class="form">
 <div><label>Visitante</label><input id="vNombre"></div><div><label>Casa</label><select id="vUnidad"></select></div><div><label>Placas</label><input id="vPlacas"></div><div><label>Motivo</label><input id="vMotivo"></div>
 <div><label>Fecha</label><input id="vFecha" type="date"></div><div><label>Hora</label><input id="vHora" type="time"></div></div>
-<button id="visitCreate" class="primary" style="margin-top:12px" onclick="addVisita()">Registrar visita</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Visitante</th><th>Unidad</th><th>Placas</th><th>Estado</th></tr></thead><tbody id="visitasRows"></tbody></table></div></section>
+<button id="visitCreate" class="primary" style="margin-top:12px" onclick="addVisita()">Registrar visita</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Visitante</th><th>Unidad</th><th>Placas</th><th>Estado</th><th class="adminOnly">Acciones</th></tr></thead><tbody id="visitasRows"></tbody></table></div></section>
 
 
 <section id="eventos"><h2>Eventos</h2>
@@ -3701,7 +3701,7 @@ function render(){
   cuotasRows.innerHTML=cuotas.map(x=>'<tr><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td>'+esc(x.concepto)+'</td><td>'+money(x.monto)+'</td><td>'+esc(x.vencimiento)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td><td class="adminOnly">'+(profile?.rol==='admin'?'<button onclick="editarVencimientoCuota('+x.id+', \''+esc(x.vencimiento||'')+'\')">Editar vencimiento</button> <button class="danger" onclick="eliminarCuota('+x.id+')">🗑️ Eliminar</button>':'')+'</td></tr>').join('');
   pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>'<option value="'+x.id+'">Casa '+esc(casaNumero(casaIdDeRegistro(x)))+' — '+esc(x.concepto)+' — '+money(x.monto)+'</option>').join('');
   pagosRows.innerHTML=pagos.map(x=>'<tr><td>'+esc(x.fecha)+'</td><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td><strong>'+money(x.monto)+'</strong></td><td>'+esc(x.metodo)+'</td><td>'+esc(x.referencia)+'</td><td class="adminOnly">'+(profile?.rol==='admin'?'<button onclick="editarPago('+x.id+')">✏️ Editar total pagado</button> <button class="danger" onclick="eliminarPago('+x.id+')">🗑️ Eliminar pago</button>':'')+'</td></tr>').join('');
-  visitasRows.innerHTML=visitas.map(x=>'<tr><td>'+esc(x.fecha)+' '+esc(x.hora)+'</td><td>'+esc(x.visitante)+'</td><td>'+esc(casaNumero(casaIdDeRegistro(x))||x.unidad||'')+'</td><td>'+esc(x.placas)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td></tr>').join('');
+  visitasRows.innerHTML=visitas.map(x=>'<tr><td>'+esc(x.fecha)+' '+esc(x.hora)+'</td><td>'+esc(x.visitante)+'</td><td>'+esc(casaNumero(casaIdDeRegistro(x))||x.unidad||'')+'</td><td>'+esc(x.placas)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td><td class="adminOnly">'+(profile?.rol==='admin'?'<button type="button" class="danger mini" data-visita-id="'+esc(String(x.id))+'" onclick="eliminarVisita(this.dataset.visitaId,this)">🗑️ Eliminar</button>':'')+'</td></tr>').join('')||'<tr><td colspan="'+(profile?.rol==='admin'?6:5)+'" class="muted">No hay visitas registradas.</td></tr>';
   accesosRows.innerHTML=accesos.map(x=>'<tr><td>'+new Date(x.created_at).toLocaleString('es-MX')+'</td><td>'+esc(x.persona)+'</td><td>'+esc(x.tipo)+'</td><td>'+esc(x.movimiento)+'</td><td>'+esc(casaNumero(x.casa_id)||x.unidad||'')+'</td></tr>').join('');
   ['repResidente','resResidente','histResidente','vUnidad','paqUnidad','aUnidad'].forEach(id=>{const el=document.getElementById(id);if(!el)return;const prev=el.value;el.innerHTML=houseOptions;if(profile?.rol==='residente'&&profile.casa_id&&[...el.options].some(o=>o.value===String(profile.casa_id)))el.value=String(profile.casa_id);else if(prev&&[...el.options].some(o=>o.value===prev))el.value=prev;});
   if(document.getElementById('kAvisos')) kAvisos.textContent=avisos.length;
@@ -4561,6 +4561,24 @@ async function editarPago(id){
  await loadAll();
  alert('Total pagado actualizado correctamente.');
 }
+async function eliminarVisita(id,boton){
+  if(profile?.rol!=='admin')return;
+  const visita=visitas.find(v=>String(v.id)===String(id));
+  if(!visita)return alert('La visita ya no está disponible. Actualiza la página.');
+  if(!confirm('¿Eliminar la visita de '+(visita.visitante||'este visitante')+' del '+(visita.fecha||'día indicado')+'?\n\nEsta acción no se puede deshacer.'))return;
+  if(boton){boton.disabled=true;boton.textContent='Eliminando…';}
+  try{
+    const {data,error}=await sb.from('visitas').delete().eq('id',visita.id).select('id');
+    if(error)throw error;
+    if(!data?.length)return alert('No se eliminó la visita. Puede que ya no exista o que no tengas permiso.');
+    await loadAll();
+  }catch(error){
+    alert('No se pudo completar la operación: '+(error?.message||String(error)));
+  }finally{
+    if(boton){boton.disabled=false;boton.textContent='🗑️ Eliminar';}
+  }
+}
+
 async function addVisita(){
   const rid=profile.rol==='residente'?user.id:null;
   const casaId=profile.rol==='residente'?profile.casa_id:vUnidad.value;
