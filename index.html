@@ -4563,7 +4563,12 @@ async function addCuota(){
   });
 
   if(error) return alert(error.message);
+  cConcepto.value='';
+  cMonto.value='';
+  cFecha.value='';
   await loadAll();
+  cRes.value='';
+  cRes.focus();
 }
 
 async function addPago(){
