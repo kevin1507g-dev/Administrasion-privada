@@ -975,20 +975,22 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div class="card table" style="margin-top:14px"><table><thead><tr><th>Recibido</th><th>Casa</th><th>Destinatario</th><th>Paquetería</th><th>Descripción</th><th>Estado</th><th class="staffOnly">Acciones</th></tr></thead><tbody id="paquetesRows"></tbody></table></div>
 </section>
 
-<section id="reservaciones" class="residentAdminOnly"><h2>🏡 Reservaciones de áreas comunes</h2>
+<section id="reservaciones" class="residentAdminOnly"><h2>🚧 Reservación de portón para eventos</h2>
 <div class="card">
-  <h3>Nueva reservación</h3>
+  <h3>Solicitar portón abierto durante un evento</h3>
+  <p class="muted">Registra la fecha y el horario para solicitar que el portón permanezca abierto durante tu evento. La administración revisará la solicitud.</p>
+  <p class="muted"><strong>Preparación para uso futuro:</strong> registrar o aprobar esta reservación no abre ni mantiene abierto el portón. La función automática estará disponible cuando se conecte y configure el equipo.</p>
   <div class="form">
     <div class="adminOnly"><label>Casa</label><select id="resResidente"></select></div>
-    <div><label>Área</label><select id="resArea"><option>Salón de usos múltiples</option><option>Terraza</option><option>Área común</option><option>Otro</option></select></div>
+    <div><label>Acceso</label><select id="resArea"><option value="Portón">Portón</option></select></div>
     <div><label>Fecha</label><input id="resFecha" type="date"></div>
     <div><label>Hora inicio</label><input id="resInicio" type="time"></div>
-    <div><label>Hora fin</label><input id="resFin" type="time"></div>
-    <div class="full"><label>Notas</label><input id="resNotas" placeholder="Motivo o información adicional"></div>
+    <div><label>Hora fin</label><input id="resFin" type="time"><div class="fileHint">El horario debe terminar el mismo día. Para continuar después de medianoche, registra otro horario al día siguiente.</div></div>
+    <div class="full"><label>Evento / notas</label><input id="resNotas" placeholder="Ej. Reunión familiar o cumpleaños"></div>
   </div>
   <button class="primary" style="margin-top:12px" onclick="addReserva()">📅 Solicitar reservación</button>
 </div>
-<div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Horario</th><th>Área</th><th>Casa</th><th>Estado</th><th>Notas</th><th class="adminOnly">Acciones</th></tr></thead><tbody id="reservasRows"></tbody></table></div>
+<div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Horario</th><th>Acceso</th><th>Casa</th><th>Estado</th><th>Notas</th><th class="adminOnly">Acciones</th></tr></thead><tbody id="reservasRows"></tbody></table></div>
 </section>
 
 <section id="documentos"><h2>📄 Documentos del condominio</h2>
@@ -3586,7 +3588,7 @@ async function addReserva(){
     casa_id:casaId,
     residente_id:rid,
     unidad:casa.numero,
-    area:resArea.value,
+    area:'Portón',
     fecha:resFecha.value,
     hora_inicio:resInicio.value,
     hora_fin:resFin.value,
