@@ -134,6 +134,20 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 .digitalAccessButton span:first-child{font-size:42px}
 .digitalAccessButton:disabled{cursor:not-allowed}
 @media(max-width:360px){.digitalAccessButtons{grid-template-columns:1fr}}
+
+.campoCalendario{display:flex;gap:8px;align-items:center}
+.campoCalendario input{min-width:0;flex:1;color-scheme:dark}
+.campoCalendario button{flex:0 0 48px;padding:10px;font-size:22px}
+#calendarioDialog{width:min(390px,calc(100vw - 24px));padding:20px;border:1px solid #475569;border-radius:18px;background:#111827;color:#f8fafc}
+#calendarioDialog::backdrop{background:rgba(0,0,0,.7)}
+.calendarioCabecera{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:16px}
+#calendarioMes{text-transform:capitalize;text-align:center}
+.calendarioSemana,#calendarioDias{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.calendarioSemana{text-align:center;font-size:13px;color:#94a3b8;margin-bottom:8px}
+#calendarioDias button{padding:10px 0;min-height:40px}
+#calendarioDias button.seleccionado{background:#22c55e;color:#052e16}
+#calendarioDias button[aria-current="date"]{outline:2px solid #38bdf8;outline-offset:-2px}
+#calendarioDias button:disabled{opacity:.3;cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -1063,6 +1077,19 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </button>
 
 </div>
+
+
+<dialog id="calendarioDialog" aria-labelledby="calendarioTitulo">
+  <h3 id="calendarioTitulo">Selecciona una fecha</h3>
+  <div class="calendarioCabecera">
+    <button type="button" onclick="cambiarMesCalendario(-1)" aria-label="Mes anterior">‹</button>
+    <strong id="calendarioMes" aria-live="polite"></strong>
+    <button type="button" onclick="cambiarMesCalendario(1)" aria-label="Mes siguiente">›</button>
+  </div>
+  <div class="calendarioSemana" aria-hidden="true"><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span></div>
+  <div id="calendarioDias"></div>
+  <button type="button" style="width:100%;margin-top:14px" onclick="document.getElementById('calendarioDialog').close()">Cancelar</button>
+</dialog>
 
 <script>
 
@@ -2218,9 +2245,16 @@ function renderEventos(){
 
 async function editarVencimientoCuota(id, fechaActual){
  if(profile?.rol!=='admin') return;
- const nueva=prompt('Nueva fecha de vencimiento (AAAA-MM-DD):', fechaActual||'');
- if(nueva===null) return;
- const fecha=nueva.trim();
+ const fecha=await new Promise(resolve=>{
+   const dialog=document.getElementById('calendarioDialog');
+   const cancelado=()=>resolve(null);
+   dialog.addEventListener('close',cancelado,{once:true});
+   abrirCalendario(fechaActual||'',valor=>{
+     dialog.removeEventListener('close',cancelado);
+     resolve(valor);
+   });
+ });
+ if(fecha===null)return;
  if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha)){
    return alert('Usa el formato AAAA-MM-DD. Ejemplo: 2026-09-30');
  }
@@ -4650,6 +4684,61 @@ async function addAcceso(){
   if(error) return alert(error.message);
   await loadAll();
 }
+
+
+let calendarioVista=new Date(), calendarioSeleccion='', calendarioDestino=null, calendarioMin='', calendarioMax='';
+function fechaCalendario(d){
+ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function abrirCalendario(valor,alElegir,min='',max=''){
+ calendarioSeleccion=valor||'';calendarioDestino=alElegir;calendarioMin=min;calendarioMax=max;
+ const d=/^\d{4}-\d{2}-\d{2}$/.test(valor||'')?new Date(valor+'T12:00:00'):new Date();
+ calendarioVista=new Date(d.getFullYear(),d.getMonth(),1);
+ renderCalendario();
+ const dialog=document.getElementById('calendarioDialog');
+ if(!dialog.open)dialog.showModal();
+}
+function cambiarMesCalendario(paso){
+ calendarioVista=new Date(calendarioVista.getFullYear(),calendarioVista.getMonth()+paso,1);renderCalendario();
+}
+function renderCalendario(){
+ const titulo=document.getElementById('calendarioMes');
+ titulo.textContent=calendarioVista.toLocaleDateString('es-MX',{month:'long',year:'numeric'});
+ const grid=document.getElementById('calendarioDias');grid.replaceChildren();
+ const y=calendarioVista.getFullYear(),m=calendarioVista.getMonth(),hoy=fechaCalendario(new Date());
+ const inicio=(new Date(y,m,1).getDay()+6)%7;
+ for(let n=0;n<inicio;n++){const hueco=document.createElement('span');grid.appendChild(hueco);}
+ for(let dia=1;dia<=new Date(y,m+1,0).getDate();dia++){
+   const fecha=fechaCalendario(new Date(y,m,dia));
+   const boton=document.createElement('button');boton.type='button';boton.textContent=String(dia);
+   boton.setAttribute('aria-label',new Date(y,m,dia).toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'}));
+   if(fecha===calendarioSeleccion){boton.classList.add('seleccionado');boton.setAttribute('aria-pressed','true');}
+   if(fecha===hoy)boton.setAttribute('aria-current','date');
+   boton.disabled=Boolean((calendarioMin&&fecha<calendarioMin)||(calendarioMax&&fecha>calendarioMax));
+   boton.addEventListener('click',()=>{
+     const destino=calendarioDestino;calendarioDestino=null;
+     document.getElementById('calendarioDialog').close();
+     if(destino)destino(fecha);
+   });
+   grid.appendChild(boton);
+ }
+}
+function prepararCalendarios(){
+ document.querySelectorAll('input[type="date"]').forEach(input=>{
+   if(input.dataset.calendarioListo)return;
+   input.dataset.calendarioListo='true';
+   const wrapper=document.createElement('div');wrapper.className='campoCalendario';
+   input.parentNode.insertBefore(wrapper,input);wrapper.appendChild(input);
+   const boton=document.createElement('button');boton.type='button';boton.textContent='📅';
+   boton.title='Elegir fecha';boton.setAttribute('aria-label','Elegir fecha');boton.setAttribute('aria-haspopup','dialog');
+   boton.disabled=input.disabled||input.readOnly;
+   boton.addEventListener('click',()=>abrirCalendario(input.value,fecha=>{
+     input.value=fecha;input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));boton.focus();
+   },input.min,input.max));
+   wrapper.appendChild(boton);
+ });
+}
+prepararCalendarios();
 
 document.getElementById('loginBtn').addEventListener('click', signIn);
 document.getElementById('password').addEventListener('keydown', e => {
