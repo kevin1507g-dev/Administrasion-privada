@@ -196,7 +196,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <button onclick="show('avisos')">📢 Avisos</button>
 <button class="residentAdminOnly" onclick="show('mantenimiento')">🛠️ Mantenimiento</button>
 <button class="residentAdminOnly" onclick="show('incidentes')">⚠️ Reportar incidente</button>
-<button class="residentAdminOnly" onclick="show('entregas')">🛵 Repartidores</button>
+<button class="residentAdminOnly" onclick="show('entregas')">🛵 Repartidores y visitas</button>
 <button onclick="show('paqueteria')">📦 Paquetería</button>
 <button class="residentAdminOnly" onclick="show('reservaciones')">🏡 Reservaciones</button>
 <button onclick="show('documentos')">📄 Documentos</button>
@@ -915,12 +915,12 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </section>
 
 <section id="entregas" class="residentAdminOnly">
-  <h2>🛵 Repartidores y entregas</h2>
+  <h2>🛵 Repartidores y visitas</h2>
 
   <div class="card adminOnly">
-    <h3>QR para repartidores</h3>
+    <h3>QR para repartidores y visitas</h3>
     <p class="muted">
-      Coloca este QR en la entrada. El repartidor lo escanea, escribe el número de casa y el residente recibe una notificación sin compartir su teléfono.
+      Coloca este QR en la entrada. El repartidor o visitante lo escanea, escribe el número de casa y el residente recibe una notificación sin compartir su teléfono.
     </p>
     <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
       <div id="deliveryQr" style="background:white;padding:12px;border-radius:14px"></div>
@@ -2564,6 +2564,7 @@ function textoTipoEntrega(tipo){
     comida:'🍔 Comida',
     paqueteria:'📦 Paquetería',
     farmacia:'💊 Farmacia',
+    visita:'🚶 Visita',
     otro:'🛵 Otra entrega'
   }[tipo]||tipo||'Entrega';
 }
@@ -2573,6 +2574,8 @@ function textoRespuestaEntrega(respuesta){
     voy_por_el_pedido:'🚶 Voy por el pedido',
     dejar_en_caseta:'📦 Déjalo en caseta',
     permitir_acceso:'🚪 Permitir acceso',
+    acceso_peatonal:'🚶 Acceso peatonal autorizado',
+    acceso_porton:'🚗 Acceso al portón autorizado',
     no_lo_espero:'❌ No estoy esperando este pedido'
   }[respuesta]||'—';
 }
@@ -2589,7 +2592,7 @@ async function responderEntrega(id,respuesta){
     return alert('Esta solicitud ya no está activa.');
   }
 
-  const {error}=await sb.from('entregas_contacto')
+  const {data,error}=await sb.from('entregas_contacto')
     .update({
       respuesta,
       estado:'respondido',
@@ -2597,12 +2600,15 @@ async function responderEntrega(id,respuesta){
       respondido_at:new Date().toISOString()
     })
     .eq('id',id)
-    .eq('estado','esperando');
+    .eq('estado','esperando')
+    .gt('expires_at',new Date().toISOString())
+    .select('id');
 
   if(error)return alert('No se pudo enviar la respuesta: '+error.message);
+  if(!data?.length){await loadAll();return alert('La solicitud ya fue respondida o expiró.');}
 
   await loadAll();
-  alert('Respuesta enviada al repartidor.');
+  alert(['acceso_peatonal','acceso_porton'].includes(respuesta)?'Autorización enviada. La apertura física aún no está conectada.':'Respuesta enviada.');
 }
 
 function renderPortalRepartidor(){
@@ -2673,14 +2679,15 @@ function renderEntregas(){
         '</div>'+
         '<div style="margin-top:8px"><strong>'+esc(quien)+'</strong></div>'+
         (e.mensaje?'<div class="muted" style="margin-top:6px">'+esc(e.mensaje)+'</div>':'')+
+        '<p class="muted">Autorizar registra tu respuesta. La apertura física aún no está conectada.</p>'+
         '<div class="actions" style="margin-top:12px">'+
-          '<button class="primary" onclick="responderEntrega(\''+e.id+'\',\'voy_por_el_pedido\')">🚶 Voy por el pedido</button>'+
-          '<button onclick="responderEntrega(\''+e.id+'\',\'dejar_en_caseta\')">📦 Déjalo en caseta</button>'+
-          '<button onclick="responderEntrega(\''+e.id+'\',\'permitir_acceso\')">🚪 Permitir acceso</button>'+
+          '<button class="primary" onclick="responderEntrega(\''+e.id+'\',\'voy_por_el_pedido\')">🚶 '+(e.tipo==='visita'?'Voy a recibirte':'Voy por el pedido')+'</button>'+
+          '<button onclick="responderEntrega(\''+e.id+'\',\'acceso_peatonal\')">🚶 Dar acceso peatonal</button>'+
+          '<button onclick="responderEntrega(\''+e.id+'\',\'acceso_porton\')">🚗 Dar acceso al portón</button>'+
           '<button class="danger" onclick="responderEntrega(\''+e.id+'\',\'no_lo_espero\')">❌ No lo espero</button>'+
         '</div>'+
       '</div>';
-    }).join('')||'<div class="muted">No hay repartidores esperando respuesta en este momento.</div>';
+    }).join('')||'<div class="muted">No hay repartidores ni visitas esperando respuesta en este momento.</div>';
   }
 
   if(body){
