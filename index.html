@@ -432,13 +432,24 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     <h3>Accesos de la privada</h3>
     <p class="muted" id="digitalControlStatus" role="status">Pendiente de conexión. Los botones estarán disponibles cuando la administración conecte el equipo de apertura.</p>
     <div class="digitalAccessButtons">
-      <button id="digitalPeatonalBtn" class="digitalAccessButton" type="button" disabled aria-describedby="digitalControlStatus">
+      <button id="digitalPeatonalBtn" onclick="requestDigitalAccess('peatonal')" class="digitalAccessButton" type="button" disabled aria-describedby="digitalControlStatus">
         <span aria-hidden="true">🚶</span><span>Peatonal</span>
       </button>
-      <button id="digitalPortonBtn" class="digitalAccessButton" type="button" disabled aria-describedby="digitalControlStatus">
+      <button id="digitalPortonBtn" onclick="requestDigitalAccess('porton')" class="digitalAccessButton" type="button" disabled aria-describedby="digitalControlStatus">
         <span aria-hidden="true">🚗</span><span>Portón</span>
       </button>
     </div>
+  </div>
+  <p class="muted">El acceso digital se suspende cuando una cuota de tu casa conserva saldo pendiente al cumplir 10 días de vencida. Se restablece al liquidar el saldo que causa el bloqueo.</p>
+  <p id="digitalCommandStatus" role="status" aria-live="polite"></p>
+  <div class="adminOnly card">
+    <h3>Equipo de acceso</h3>
+    <p id="digitalAdminStatus" class="muted">Pendiente de conexión.</p>
+    <p>Primero vincula el ESP32 y prueba ambos relevadores. Después podrás habilitar el control para los residentes.</p>
+    <button id="digitalPairBtn" type="button" onclick="pairDigitalESP32()">Vincular ESP32</button>
+    <button id="digitalPauseBtn" type="button" disabled onclick="configureDigitalAccess('pause')">Pausar control digital</button>
+    <button id="digitalResidentsBtn" type="button" disabled onclick="configureDigitalAccess('residents')">Habilitar para residentes</button>
+    <p class="muted">Vincula desde tu computadora. Se descargará un programa para Arduino IDE con una clave privada del equipo. Solo tendrás que escribir el nombre y la contraseña del WiFi. Mantén los tornillos de los relevadores desconectados durante las pruebas.</p>
   </div>
 </section>
 
@@ -1748,6 +1759,11 @@ function show(id){
 
   if(target){
     target.classList.add('active');
+  }
+
+  if(id==='controlDigital'){
+    digitalButtonsDisabled(true);
+    refreshDigitalAccess();
   }
 
   if(id==='camaras'){
@@ -4820,5 +4836,112 @@ window.addEventListener('error', e => {
     document.getElementById('loginMsg').textContent='Error al iniciar la aplicación: '+(err?.message||String(err));
   }
 })();
+let digitalBusy=false;
+let digitalRefreshBusy=false;
+let digitalLastStatus=null;
+
+function digitalButtonsDisabled(value){
+  for(const id of ['digitalPeatonalBtn','digitalPortonBtn']){
+    const el=document.getElementById(id);if(el)el.disabled=value;
+  }
+}
+
+async function refreshDigitalAccess(){
+  if(digitalRefreshBusy || !profile || !document.getElementById('controlDigital')?.classList.contains('active'))return;
+  digitalRefreshBusy=true;
+  const userId=profile.id;
+  try{
+    const {data,error}=await sb.rpc('digital_access_status');
+    if(profile?.id!==userId)return;
+    if(error)throw error;
+    digitalLastStatus=data;
+    document.getElementById('digitalControlStatus').textContent=data.reason;
+    digitalButtonsDisabled(digitalBusy || !data.allowed);
+    document.getElementById('digitalPairBtn').textContent=data.registered?'Volver a vincular ESP32':'Vincular ESP32';
+    const pause=document.getElementById('digitalPauseBtn');
+    pause.disabled=!data.registered;
+    pause.textContent=data.enabled?'Pausar control digital':'Reanudar control digital';
+    const residents=document.getElementById('digitalResidentsBtn');
+    residents.disabled=!data.registered || (!data.residents_enabled && !data.online);
+    residents.textContent=data.residents_enabled?'Deshabilitar para residentes':'Habilitar para residentes';
+    document.getElementById('digitalAdminStatus').textContent=data.residents_enabled?'Disponible para residentes autorizados.':'Modo de prueba: solo administradores.';
+  }catch(e){
+    digitalLastStatus=null;
+    digitalButtonsDisabled(true);
+    document.getElementById('digitalControlStatus').textContent='No se pudo consultar el equipo: '+(e.message||'intenta de nuevo');
+  }finally{digitalRefreshBusy=false;}
+}
+
+async function pairDigitalESP32(){
+  if(profile?.rol!=='admin' || digitalBusy)return;
+  if(!confirm('Se descargará el programa del ESP32 con una nueva clave privada. Si ya había un equipo vinculado, su clave anterior dejará de funcionar y los residentes quedarán deshabilitados hasta terminar las pruebas. ¿Continuar?'))return;
+  digitalBusy=true;digitalButtonsDisabled(true);
+  const btn=document.getElementById('digitalPairBtn');btn.disabled=true;
+  const msg=document.getElementById('digitalCommandStatus');
+  try{
+    const response=await fetch('./firmware/ESP32_Residencial.ino.txt',{cache:'no-store'});
+    if(!response.ok)throw new Error('No se pudo descargar el programa.');
+    let firmware=await response.text();
+    if(!firmware.includes('__DEVICE_TOKEN__') || !firmware.includes('__PUBLISHABLE_KEY__') || !firmware.includes('__PROJECT_URL__'))throw new Error('Plantilla de programa inválida.');
+    const {data,error}=await sb.rpc('digital_access_manage',{p_action:'pair'});
+    if(error)throw error;
+    firmware=firmware.replace('__PROJECT_URL__',JSON.stringify(SB_URL))
+      .replace('__PUBLISHABLE_KEY__',JSON.stringify(SB_KEY))
+      .replace('__DEVICE_TOKEN__',JSON.stringify(data.token));
+    const url=URL.createObjectURL(new Blob([firmware],{type:'text/plain;charset=utf-8'}));
+    const a=document.createElement('a');a.href=url;a.download='ESP32_Residencial.ino';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    msg.textContent='Programa descargado. Ábrelo en Arduino IDE, escribe tu WiFi en las dos primeras constantes y súbelo al ESP32. Conserva el archivo privado: contiene la clave del equipo.';
+  }catch(e){msg.textContent=e.message||'No se pudo vincular.';}
+  finally{digitalBusy=false;btn.disabled=false;await refreshDigitalAccess();}
+}
+
+async function configureDigitalAccess(kind){
+  if(profile?.rol!=='admin' || digitalBusy || !digitalLastStatus)return;
+  const action=kind==='pause'?(digitalLastStatus.enabled?'pause':'resume'):(digitalLastStatus.residents_enabled?'residents_off':'residents_on');
+  if(action==='residents_on' && !confirm('¿Ya verificaste ambos relevadores y quieres habilitar el control digital para residentes? Se bloqueará a las casas con saldo pendiente de 10 días o más de atraso.'))return;
+  digitalBusy=true;digitalButtonsDisabled(true);
+  try{
+    const {error}=await sb.rpc('digital_access_manage',{p_action:action});if(error)throw error;
+    document.getElementById('digitalCommandStatus').textContent='Configuración actualizada.';
+  }catch(e){document.getElementById('digitalCommandStatus').textContent=e.message;}
+  finally{digitalBusy=false;await refreshDigitalAccess();}
+}
+
+async function requestDigitalAccess(target){
+  if(digitalBusy || !digitalLastStatus?.allowed)return;
+  digitalBusy=true;digitalButtonsDisabled(true);
+  const msg=document.getElementById('digitalCommandStatus');
+  try{
+    msg.textContent='Enviando solicitud...';
+    const {data:id,error}=await sb.rpc('digital_access_request',{p_target:target});
+    if(error)throw error;
+    msg.textContent='Solicitud enviada. Esperando confirmación del ESP32...';
+    let finished=false;
+    for(let i=0;i<20;i++){
+      await new Promise(resolve=>setTimeout(resolve,1500));
+      const {data,error:statusError}=await sb.rpc('digital_access_status',{p_command:id});
+      if(statusError)throw statusError;
+      const state=data.command_state;
+      if(state==='pulse_confirmed'){
+        msg.textContent='El ESP32 confirmó el pulso de '+(target==='peatonal'?'peatonal':'portón')+'. Esto no confirma la posición de la puerta.';
+        finished=true;break;
+      }
+      if(['expired','cancelled','unconfirmed'].includes(state)){
+        msg.textContent=state==='expired'?'La solicitud venció sin entregarse al equipo.':state==='cancelled'?'Solicitud cancelada. Revisa el estado de tu cuenta y del equipo.':'Sin confirmación del pulso. Comprueba el equipo antes de volver a solicitar.';
+        finished=true;break;
+      }
+    }
+    if(!finished)msg.textContent='No llegó confirmación. Comprueba el equipo antes de volver a solicitar.';
+  }catch(e){msg.textContent=e.message||'No se pudo confirmar la solicitud.';}
+  finally{digitalBusy=false;await refreshDigitalAccess();}
+}
+
+setInterval(()=>{
+  if(!document.hidden && !digitalBusy)refreshDigitalAccess();
+},5000);
+
 </script>
 </body></html>
+

@@ -1,0 +1,172 @@
+// ESP32 Dev Module. Requires esp32 by Espressif Systems 3.3.12.
+// Bench test only: relay screw terminals disconnected.
+// Uses built-in cJSON and certificate bundle; no extra Arduino libraries.
+#include <WiFi.h>
+#include <NetworkClientSecure.h>
+#include <HTTPClient.h>
+#include <Preferences.h>
+#include <esp_timer.h>
+#include <driver/gpio.h>
+#include <cJSON.h>
+#include <time.h>
+#include <atomic>
+
+const char* WIFI_SSID = "CAMBIA_NOMBRE_WIFI";
+const char* WIFI_PASSWORD = "CAMBIA_CONTRASENA_WIFI";
+const char* PROJECT_URL = __PROJECT_URL__;
+const char* PUBLISHABLE_KEY = __PUBLISHABLE_KEY__;
+const char* DEVICE_TOKEN = __DEVICE_TOKEN__;
+
+const int PEATONAL = 25;
+const int PORTON = 26;
+Preferences prefs;
+esp_timer_handle_t pulseTimer = nullptr;
+std::atomic<bool> pulseFinished{false};
+bool pulsing = false;
+bool bootPending = true;
+bool ready = false;
+String pendingAck;
+String currentCommand;
+String lastCommand;
+unsigned long lastPoll = 0;
+unsigned long lastReconnect = 0;
+
+void finishPulse(void*) {
+  gpio_set_level(GPIO_NUM_25, 1);
+  gpio_set_level(GPIO_NUM_26, 1);
+  pulseFinished.store(true);
+}
+
+bool beginPulse(const String& id, const char* target) {
+  if (id.length()!=36 || id==lastCommand || pulsing) return false;
+  int pin;
+  if (strcmp(target,"peatonal")==0) pin=PEATONAL;
+  else if (strcmp(target,"porton")==0) pin=PORTON;
+  else return false;
+
+  // Persist the ID before energizing: never replay after reboot.
+  if (prefs.putString("last",id)==0) {
+    Serial.println("No se pudo guardar la orden; pulso cancelado.");
+    return false;
+  }
+  lastCommand=id;
+  currentCommand=id;
+  pulseFinished.store(false);
+  if (esp_timer_start_once(pulseTimer,1000000)!=ESP_OK) {
+    Serial.println("Fallo del temporizador; pulso cancelado.");
+    return false;
+  }
+  pulsing=true;
+  digitalWrite(pin,LOW);
+  Serial.println(pin==PEATONAL ? "Pulso peatonal" : "Pulso porton");
+  return true;
+}
+
+void exchangeWithServer() {
+  NetworkClientSecure tls;
+  tls.useBuiltinCACertBundle(); // Validates the server; never setInsecure().
+  tls.setHandshakeTimeout(8);
+  HTTPClient http;
+  http.setConnectTimeout(5000);
+  http.setTimeout(5000);
+  if (!http.begin(tls,String(PROJECT_URL)+"/rest/v1/rpc/digital_access_exchange")) return;
+  http.addHeader("apikey",PUBLISHABLE_KEY);
+  http.addHeader("Content-Type","application/json");
+
+  cJSON* request=cJSON_CreateObject();
+  if (!request) { http.end(); return; }
+  cJSON_AddStringToObject(request,"p_token",DEVICE_TOKEN);
+  cJSON_AddBoolToObject(request,"p_boot",bootPending);
+  if (pendingAck.length()) cJSON_AddStringToObject(request,"p_ack",pendingAck.c_str());
+  else cJSON_AddNullToObject(request,"p_ack");
+  char* encoded=cJSON_PrintUnformatted(request);
+  cJSON_Delete(request);
+  if (!encoded) { http.end(); return; }
+  int code=http.POST(String(encoded));
+  cJSON_free(encoded);
+
+  if (code!=200) {
+    Serial.printf("Sin intercambio confirmado. HTTP %d\n",code);
+    http.end();
+    return;
+  }
+  if (http.getSize()>4096) { http.end(); return; }
+  String response=http.getString();
+  http.end();
+  if (response.length()>4096) return;
+  cJSON* json=cJSON_Parse(response.c_str());
+  if (!json) return;
+  if (!cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(json,"ok"))) {
+    cJSON_Delete(json); return;
+  }
+  bool wasBoot=bootPending;
+  bootPending=false;
+  pendingAck="";
+  if (wasBoot) Serial.println("ESP32 vinculado. Listo para pruebas desde la plataforma.");
+
+  cJSON* command=cJSON_GetObjectItemCaseSensitive(json,"command");
+  if (!wasBoot && cJSON_IsObject(command)) {
+    const char* id=cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(command,"id"));
+    const char* target=cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(command,"target"));
+    cJSON* expires=cJSON_GetObjectItemCaseSensitive(command,"expires");
+    time_t now=time(nullptr);
+    if (id && target && cJSON_IsNumber(expires) &&
+        now>1700000000 && expires->valuedouble>double(now) &&
+        expires->valuedouble<=double(now)+20) {
+      beginPulse(String(id),target);
+    } else Serial.println("Orden invalida o vencida: no se activa.");
+  }
+  cJSON_Delete(json);
+}
+
+void setup() {
+  pinMode(PEATONAL,OUTPUT);
+  digitalWrite(PEATONAL,HIGH);
+  pinMode(PORTON,OUTPUT);
+  digitalWrite(PORTON,HIGH);
+  Serial.begin(115200);
+  if (!prefs.begin("res-access",false)) {
+    Serial.println("Error de memoria. Relevadores apagados."); return;
+  }
+  lastCommand=prefs.getString("last","");
+  esp_timer_create_args_t args={};
+  args.callback=&finishPulse;
+  args.name="relay-off";
+  if (esp_timer_create(&args,&pulseTimer)!=ESP_OK) {
+    Serial.println("Error de temporizador. Relevadores apagados."); return;
+  }
+  WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
+  WiFi.begin(WIFI_SSID,WIFI_PASSWORD);
+  configTime(0,0,"pool.ntp.org","time.google.com");
+  ready=true;
+  Serial.println("Conectando al WiFi y sincronizando hora...");
+}
+
+void loop() {
+  if (!ready) { delay(100); return; }
+  if (pulsing) {
+    if (pulseFinished.load()) {
+      pulsing=false;
+      pendingAck=currentCommand;
+      Serial.println("Relevador apagado. Confirmando pulso...");
+      lastPoll=millis()-3000;
+    } else { delay(5); return; }
+  }
+  if (WiFi.status()!=WL_CONNECTED) {
+    if (millis()-lastReconnect>=15000) {
+      lastReconnect=millis();
+      WiFi.reconnect();
+      Serial.println("Esperando WiFi. Relevadores apagados.");
+    }
+    delay(10); return;
+  }
+  if (millis()-lastPoll>=3000) {
+    lastPoll=millis();
+    if (time(nullptr)<=1700000000) Serial.println("Esperando hora de internet para HTTPS...");
+    else exchangeWithServer();
+    // Do not immediately retry slow failed requests.
+    lastPoll=millis();
+  }
+  delay(5);
+}
