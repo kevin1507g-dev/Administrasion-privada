@@ -493,6 +493,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       <div id="esp32TemperatureValue" class="esp32TemperatureValue" aria-live="polite">— °C</div>
       <span id="esp32TemperatureStatus" class="esp32TemperatureStatus" role="status">Pendiente de instalar</span>
     </div>
+    <p class="esp32TemperatureLabel">Humedad ambiental: <strong id="esp32HumidityValue">— %</strong></p>
     <p id="esp32TemperatureSensor" class="esp32TemperatureLabel">Sensor: sin configurar</p>
     <p id="esp32TemperatureTime" class="esp32TemperatureLabel">Última lectura: sin datos</p>
     <p class="esp32PanelNote">Este apartado mostrará lecturas reales cuando conectemos el sensor físico y actualicemos el firmware por OTA. No utiliza temperaturas simuladas.</p>
@@ -5048,12 +5049,15 @@ function esp32RenderTemperature(temperature,serverTime){
     && temperature.celsius>=-60 && temperature.celsius<=150;
   if(!valid){
     esp32PanelWrite('esp32TemperatureValue','— °C');
+    esp32PanelWrite('esp32HumidityValue','— %');
     esp32PanelWrite('esp32TemperatureStatus','Pendiente de instalar');
     esp32PanelWrite('esp32TemperatureSensor','Sensor: sin configurar');
     esp32PanelWrite('esp32TemperatureTime','Última lectura: sin datos');
     return;
   }
   const temp=Math.round(temperature.celsius*10)/10;
+  const hum=temperature.humidity_pct;
+  esp32PanelWrite('esp32HumidityValue',Number.isFinite(hum)?Math.round(hum).toLocaleString('es-MX')+' %':'— %');
   const stamp=Date.parse(temperature.read_at||'');
   const server=Date.parse(serverTime||'');
   const age=server-stamp;
@@ -5094,7 +5098,13 @@ async function refreshEsp32Panel(){
     const ota=data.ota_device||{};
     const cmds=Array.isArray(data.commands)?data.commands:[];
     const releases=Array.isArray(data.releases)?data.releases:[];
-    esp32RenderTemperature(data.temperature,data.server_time);
+    try {
+      const {data:temperature,error:temperatureError}=await sb.rpc('esp32_environment_status');
+      if(temperatureError)throw temperatureError;
+      esp32RenderTemperature(temperature,data.server_time);
+    }catch(tempError){
+      esp32PanelWrite('esp32TemperatureStatus','No se pudo consultar el sensor');
+    }
     const online=esp32PanelIsFresh(ctl.last_seen,data.server_time);
     esp32PanelWrite('esp32Connection',online?'En línea':'Sin señal');
     esp32PanelWrite('esp32ConnectionTime','Último contacto: '+esp32PanelDate(ctl.last_seen));
