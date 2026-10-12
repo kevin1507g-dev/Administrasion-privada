@@ -135,6 +135,16 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 .digitalAccessButton:disabled{cursor:not-allowed}
 @media(max-width:360px){.digitalAccessButtons{grid-template-columns:1fr}}
 
+
+/* Panel de monitoreo ESP32: solo visualizacion, ninguna orden de apertura */
+.esp32PanelIntro{margin:0 0 14px;color:var(--m)}
+.esp32PanelActions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0 18px}
+.esp32PanelMeta{font-size:14px;color:var(--m);margin-top:12px}
+.esp32PanelKpis .kpi{font-size:clamp(19px,3vw,27px);overflow-wrap:anywhere}
+.esp32PanelKpis .card{min-height:125px}
+.esp32PanelNote{font-size:.9rem;line-height:1.5;color:var(--m)}
+.esp32PanelTable{margin-top:14px}
+.esp32PanelState{font-weight:700}
 .campoCalendario{display:flex;gap:8px;align-items:center}
 .campoCalendario input{min-width:0;flex:1;color-scheme:dark}
 .campoCalendario button{flex:0 0 48px;padding:10px;font-size:22px}
@@ -202,6 +212,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <button class="adminOnly" onclick="show('deudas')">💰 Deuda total</button>
 <button class="controlAccessOnly" onclick="show('porton')">🚧 Controles de portón</button>
 <button class="controlAccessOnly" onclick="show('controlDigital')">📲 Control digital</button>
+<button class="adminOnly" type="button" onclick="show('esp32Panel')">🖥️ Panel ESP32</button>
 <button class="adminOnly" type="button" onclick="show('biometrico')">🖐️ Registrar biométrico</button>
 <button onclick="show('cuotas')">🧾 Cuotas</button>
 <button onclick="show('pagos')">💳 Pagos</button>
@@ -450,6 +461,37 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     <button id="digitalPauseBtn" type="button" disabled onclick="configureDigitalAccess('pause')">Pausar control digital</button>
     <button id="digitalResidentsBtn" type="button" disabled onclick="configureDigitalAccess('residents')">Habilitar para residentes</button>
     <p class="muted">Vincula desde tu computadora. Se descargará un programa para Arduino IDE con una clave privada del equipo. Solo tendrás que escribir el nombre y la contraseña del WiFi. Mantén los tornillos de los relevadores desconectados durante las pruebas.</p>
+  </div>
+</section>
+
+
+<section id="esp32Panel" class="adminOnly">
+  <h2>🖥️ Panel ESP32 · Residencial</h2>
+  <p class="esp32PanelIntro">Monitoreo de conexión, versión OTA, comandos y equipos. Solo para administradores.</p>
+  <div class="esp32PanelActions">
+    <button class="primary" type="button" onclick="refreshEsp32Panel()">↻ Actualizar datos</button>
+    <button type="button" onclick="show('controlDigital')">🚪 Ir al control digital</button>
+    <span id="esp32PanelStatus" role="status" aria-live="polite" class="muted">Esperando consulta...</span>
+  </div>
+  <div class="grid esp32PanelKpis">
+    <div class="card"><div class="muted">Conexión del control</div><div class="kpi" id="esp32Connection">—</div><div class="esp32PanelMeta" id="esp32ConnectionTime">Sin datos</div></div>
+    <div class="card"><div class="muted">Firmware instalado</div><div class="kpi" id="esp32Firmware">—</div><div class="esp32PanelMeta" id="esp32FirmwareSeen">Sin datos</div></div>
+    <div class="card"><div class="muted">Acceso digital</div><div class="kpi" id="esp32AccessState">—</div><div class="esp32PanelMeta" id="esp32ResidentsState">Sin datos</div></div>
+    <div class="card"><div class="muted">Actualizaciones OTA</div><div class="kpi" id="esp32OtaState">—</div><div class="esp32PanelMeta" id="esp32OtaLatest">Sin datos</div></div>
+  </div>
+  <div class="grid" style="margin-top:14px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">
+    <div class="card"><h3>🚶 Peatonal · GPIO 25</h3><div id="esp32PeatonalLast" class="esp32PanelNote">Esperando historial...</div></div>
+    <div class="card"><h3>🚗 Portón · GPIO 26</h3><div id="esp32PortonLast" class="esp32PanelNote">Esperando historial...</div></div>
+    <div class="card"><h3>🔊 Buzzer · GPIO 27</h3><div class="esp32PanelNote">Configurado en el firmware; no hay sensor ni confirmación remota de sonido.</div></div>
+  </div>
+  <div class="card esp32PanelTable">
+    <h3>Historial reciente de órdenes</h3>
+    <p class="esp32PanelNote">Las confirmaciones indican que el ESP32 ejecutó un pulso; no indican la posición física de la puerta o el portón.</p>
+    <div class="table">
+      <table><thead><tr><th>Hora</th><th>Acceso</th><th>Resultado</th><th>Confirmación</th></tr></thead>
+      <tbody id="esp32HistoryRows"><tr><td colspan="4">Cargando historial...</td></tr></tbody></table>
+    </div>
+    <p class="esp32PanelMeta">Datos obtenidos de Supabase; se actualizan cada 20 segundos mientras esta sección permanezca abierta.</p>
   </div>
 </section>
 
@@ -1765,6 +1807,10 @@ function show(id){
   if(id==='controlDigital'){
     digitalButtonsDisabled(true);
     refreshDigitalAccess();
+  }
+  if(id==='esp32Panel'){
+    if(profile?.rol!=='admin')return;
+    refreshEsp32Panel();
   }
 
   if(id==='camaras'){
@@ -4965,6 +5011,81 @@ async function requestDigitalAccess(target){
   }catch(e){msg.textContent=e.message||'No se pudo confirmar la solicitud.';}
   finally{digitalBusy=false;await refreshDigitalAccess();}
 }
+
+
+let esp32PanelBusy=false;
+function esp32PanelWrite(id,value){
+  const el=document.getElementById(id);
+  if(el)el.textContent=String(value??'—');
+}
+function esp32PanelDate(raw){
+  if(!raw)return 'Sin registro';
+  const d=new Date(raw);
+  return Number.isFinite(d.getTime())
+    ? d.toLocaleString('es-MX',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
+    : 'Fecha no disponible';
+}
+function esp32PanelIsFresh(raw,serverTime){
+  const seen=Date.parse(raw||'');
+  const now=Date.parse(serverTime||'');
+  return Number.isFinite(seen)&&Number.isFinite(now)&&(now-seen)>=0&&(now-seen)<90000;
+}
+async function refreshEsp32Panel(){
+  const sec=document.getElementById('esp32Panel');
+  if(esp32PanelBusy || profile?.rol!=='admin' || !sec?.classList.contains('active'))return;
+  esp32PanelBusy=true;
+  const currentId=profile.id;
+  esp32PanelWrite('esp32PanelStatus','Consultando Supabase...');
+  try{
+    const {data,error}=await sb.rpc('esp32_admin_dashboard');
+    if(profile?.id!==currentId || !sec.classList.contains('active'))return;
+    if(error)throw error;
+    if(!data || typeof data!=='object')throw new Error('Respuesta de monitoreo no valida.');
+    const ctl=data.controller||{};
+    const ota=data.ota_device||{};
+    const cmds=Array.isArray(data.commands)?data.commands:[];
+    const releases=Array.isArray(data.releases)?data.releases:[];
+    const online=esp32PanelIsFresh(ctl.last_seen,data.server_time);
+    esp32PanelWrite('esp32Connection',online?'En línea':'Sin señal');
+    esp32PanelWrite('esp32ConnectionTime','Último contacto: '+esp32PanelDate(ctl.last_seen));
+    esp32PanelWrite('esp32Firmware',Number.isInteger(ota.version_code)?'V'+ota.version_code:'Sin reporte');
+    esp32PanelWrite('esp32FirmwareSeen','Informe OTA: '+esp32PanelDate(ota.last_seen_at));
+    esp32PanelWrite('esp32AccessState',ctl.enabled===true?'Habilitado':'Pausado');
+    esp32PanelWrite('esp32ResidentsState','Residentes: '+(ctl.residents_enabled===true?'habilitados':'deshabilitados'));
+    const currentCode=Number.isInteger(ota.version_code)?ota.version_code:0;
+    const candidate=releases.find(r=>r.enabled===true&&r.version_code>currentCode);
+    const latest=releases[0];
+    esp32PanelWrite('esp32OtaState',candidate?'V'+candidate.version_code+' disponible':'Sin pendiente');
+    esp32PanelWrite('esp32OtaLatest',latest?'Última versión registrada: V'+latest.version_code+(latest.enabled?' · publicada':' · en pausa'):'Sin versiones registradas');
+    const stateLabels={pending:'Pendiente',dispatched:'Enviada',pulse_confirmed:'Pulso confirmado',expired:'Vencida',cancelled:'Cancelada',unconfirmed:'Sin confirmación'};
+    const targetLabels={peatonal:'Peatonal',porton:'Portón'};
+    for(const target of ['peatonal','porton']){
+      const recent=cmds.find(c=>c.target===target&&c.state==='pulse_confirmed');
+      esp32PanelWrite(target==='peatonal'?'esp32PeatonalLast':'esp32PortonLast',
+        recent?'Último pulso confirmado: '+esp32PanelDate(recent.confirmed_at||recent.created_at):'No hay pulsos confirmados en el historial reciente.');
+    }
+    const rows=document.getElementById('esp32HistoryRows');
+    rows.replaceChildren();
+    if(!cmds.length){
+      const row=rows.insertRow();const cell=row.insertCell();cell.colSpan=4;cell.textContent='Todavía no hay órdenes registradas.';
+    }
+    for(const cmd of cmds){
+      const row=rows.insertRow();
+      for(const value of [
+        esp32PanelDate(cmd.created_at),
+        targetLabels[cmd.target]||'Desconocido',
+        stateLabels[cmd.state]||'Estado desconocido',
+        cmd.confirmed_at?esp32PanelDate(cmd.confirmed_at):'—'
+      ])row.insertCell().textContent=value;
+    }
+    esp32PanelWrite('esp32PanelStatus','Actualizado: '+esp32PanelDate(data.server_time));
+  }catch(error){
+    esp32PanelWrite('esp32PanelStatus','Error al consultar: '+(error?.message||'vuelve a intentar'));
+  }finally{
+    esp32PanelBusy=false;
+  }
+}
+setInterval(()=>{if(!document.hidden)refreshEsp32Panel();},20000);
 
 setInterval(()=>{
   if(!document.hidden && !digitalBusy)refreshDigitalAccess();
