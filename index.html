@@ -144,6 +144,12 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 .esp32PanelKpis .card{min-height:125px}
 .esp32PanelNote{font-size:.9rem;line-height:1.5;color:var(--m)}
 .esp32PanelTable{margin-top:14px}
+.esp32TemperaturePanel{margin-top:14px}
+.esp32TemperatureBody{display:flex;align-items:center;gap:15px;flex-wrap:wrap}
+.esp32TemperatureValue{font-size:clamp(34px,6vw,54px);font-weight:900;line-height:1.15;font-variant-numeric:tabular-nums}
+.esp32TemperatureLabel{font-size:14px;color:var(--m);margin:8px 0}
+.esp32TemperatureStatus{margin:0;padding:5px 11px;border-radius:999px;background:#334155;font-weight:700;font-size:13px}
+
 .esp32PanelState{font-weight:700}
 .campoCalendario{display:flex;gap:8px;align-items:center}
 .campoCalendario input{min-width:0;flex:1;color-scheme:dark}
@@ -478,6 +484,18 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     <div class="card"><div class="muted">Firmware instalado</div><div class="kpi" id="esp32Firmware">—</div><div class="esp32PanelMeta" id="esp32FirmwareSeen">Sin datos</div></div>
     <div class="card"><div class="muted">Acceso digital</div><div class="kpi" id="esp32AccessState">—</div><div class="esp32PanelMeta" id="esp32ResidentsState">Sin datos</div></div>
     <div class="card"><div class="muted">Actualizaciones OTA</div><div class="kpi" id="esp32OtaState">—</div><div class="esp32PanelMeta" id="esp32OtaLatest">Sin datos</div></div>
+  </div>
+
+  <div class="card esp32TemperaturePanel">
+    <h3>🌡️ Sensor de temperatura</h3>
+    <p class="esp32TemperatureLabel">Temperatura en el lugar donde se instalará el sensor junto al ESP32.</p>
+    <div class="esp32TemperatureBody">
+      <div id="esp32TemperatureValue" class="esp32TemperatureValue" aria-live="polite">— °C</div>
+      <span id="esp32TemperatureStatus" class="esp32TemperatureStatus" role="status">Pendiente de instalar</span>
+    </div>
+    <p id="esp32TemperatureSensor" class="esp32TemperatureLabel">Sensor: sin configurar</p>
+    <p id="esp32TemperatureTime" class="esp32TemperatureLabel">Última lectura: sin datos</p>
+    <p class="esp32PanelNote">Este apartado mostrará lecturas reales cuando conectemos el sensor físico y actualicemos el firmware por OTA. No utiliza temperaturas simuladas.</p>
   </div>
   <div class="grid" style="margin-top:14px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">
     <div class="card"><h3>🚶 Peatonal · GPIO 25</h3><div id="esp32PeatonalLast" class="esp32PanelNote">Esperando historial...</div></div>
@@ -5025,6 +5043,27 @@ function esp32PanelDate(raw){
     ? d.toLocaleString('es-MX',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
     : 'Fecha no disponible';
 }
+function esp32RenderTemperature(temperature,serverTime){
+  const valid=temperature && Number.isFinite(temperature.celsius)
+    && temperature.celsius>=-60 && temperature.celsius<=150;
+  if(!valid){
+    esp32PanelWrite('esp32TemperatureValue','— °C');
+    esp32PanelWrite('esp32TemperatureStatus','Pendiente de instalar');
+    esp32PanelWrite('esp32TemperatureSensor','Sensor: sin configurar');
+    esp32PanelWrite('esp32TemperatureTime','Última lectura: sin datos');
+    return;
+  }
+  const temp=Math.round(temperature.celsius*10)/10;
+  const stamp=Date.parse(temperature.read_at||'');
+  const server=Date.parse(serverTime||'');
+  const age=server-stamp;
+  const fresh=Number.isFinite(age)&&age>=0&&age<300000;
+  esp32PanelWrite('esp32TemperatureValue',temp.toLocaleString('es-MX',{maximumFractionDigits:1})+' °C');
+  esp32PanelWrite('esp32TemperatureStatus',fresh?'Lectura reciente':'Lectura desactualizada');
+  esp32PanelWrite('esp32TemperatureSensor',
+    'Sensor: '+(typeof temperature.model==='string'&&temperature.model.trim()?temperature.model.trim():'Sin modelo reportado'));
+  esp32PanelWrite('esp32TemperatureTime','Última lectura: '+esp32PanelDate(temperature.read_at));
+}
 function esp32PanelActor(cmd){
   if(typeof cmd?.actor_name!=='string'||!cmd.actor_name.trim())return 'Identidad no disponible';
   const role=cmd.actor_role==='residente'?'Residente':cmd.actor_role==='admin'?'Administrador':cmd.actor_role==='guardia'?'Guardia':'Cuenta';
@@ -5055,6 +5094,7 @@ async function refreshEsp32Panel(){
     const ota=data.ota_device||{};
     const cmds=Array.isArray(data.commands)?data.commands:[];
     const releases=Array.isArray(data.releases)?data.releases:[];
+    esp32RenderTemperature(data.temperature,data.server_time);
     const online=esp32PanelIsFresh(ctl.last_seen,data.server_time);
     esp32PanelWrite('esp32Connection',online?'En línea':'Sin señal');
     esp32PanelWrite('esp32ConnectionTime','Último contacto: '+esp32PanelDate(ctl.last_seen));
