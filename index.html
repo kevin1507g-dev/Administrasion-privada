@@ -486,10 +486,10 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   </div>
   <div class="card esp32PanelTable">
     <h3>Historial reciente de órdenes</h3>
-    <p class="esp32PanelNote">Las confirmaciones indican que el ESP32 ejecutó un pulso; no indican la posición física de la puerta o el portón.</p>
+    <p class="esp32PanelNote">Identificación por cuenta: muestra quién solicitó cada apertura y su casa registrada. Un pulso confirmado no indica la posición física de la puerta o del portón.</p>
     <div class="table">
-      <table><thead><tr><th>Hora</th><th>Acceso</th><th>Resultado</th><th>Confirmación</th></tr></thead>
-      <tbody id="esp32HistoryRows"><tr><td colspan="4">Cargando historial...</td></tr></tbody></table>
+      <table><thead><tr><th>Hora</th><th>Solicitó</th><th>Casa</th><th>Acceso</th><th>Resultado</th><th>Confirmación</th></tr></thead>
+      <tbody id="esp32HistoryRows"><tr><td colspan="6">Cargando historial...</td></tr></tbody></table>
     </div>
     <p class="esp32PanelMeta">Datos obtenidos de Supabase; se actualizan cada 20 segundos mientras esta sección permanezca abierta.</p>
   </div>
@@ -5025,6 +5025,16 @@ function esp32PanelDate(raw){
     ? d.toLocaleString('es-MX',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
     : 'Fecha no disponible';
 }
+function esp32PanelActor(cmd){
+  if(typeof cmd?.actor_name!=='string'||!cmd.actor_name.trim())return 'Identidad no disponible';
+  const role=cmd.actor_role==='residente'?'Residente':cmd.actor_role==='admin'?'Administrador':cmd.actor_role==='guardia'?'Guardia':'Cuenta';
+  return cmd.actor_name.trim()+' · '+role;
+}
+function esp32PanelHouse(cmd){
+  return typeof cmd?.actor_house==='string'&&cmd.actor_house.trim()
+    ? 'Casa '+cmd.actor_house.trim()
+    : '—';
+}
 function esp32PanelIsFresh(raw,serverTime){
   const seen=Date.parse(raw||'');
   const now=Date.parse(serverTime||'');
@@ -5062,17 +5072,19 @@ async function refreshEsp32Panel(){
     for(const target of ['peatonal','porton']){
       const recent=cmds.find(c=>c.target===target&&c.state==='pulse_confirmed');
       esp32PanelWrite(target==='peatonal'?'esp32PeatonalLast':'esp32PortonLast',
-        recent?'Último pulso confirmado: '+esp32PanelDate(recent.confirmed_at||recent.created_at):'No hay pulsos confirmados en el historial reciente.');
+        recent?'Último pulso confirmado: '+esp32PanelDate(recent.confirmed_at||recent.created_at)+' · '+esp32PanelActor(recent)+' · '+esp32PanelHouse(recent):'No hay pulsos confirmados en el historial reciente.');
     }
     const rows=document.getElementById('esp32HistoryRows');
     rows.replaceChildren();
     if(!cmds.length){
-      const row=rows.insertRow();const cell=row.insertCell();cell.colSpan=4;cell.textContent='Todavía no hay órdenes registradas.';
+      const row=rows.insertRow();const cell=row.insertCell();cell.colSpan=6;cell.textContent='Todavía no hay órdenes registradas.';
     }
     for(const cmd of cmds){
       const row=rows.insertRow();
       for(const value of [
         esp32PanelDate(cmd.created_at),
+        esp32PanelActor(cmd),
+        esp32PanelHouse(cmd),
         targetLabels[cmd.target]||'Desconocido',
         stateLabels[cmd.state]||'Estado desconocido',
         cmd.confirmed_at?esp32PanelDate(cmd.confirmed_at):'—'
