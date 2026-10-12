@@ -987,6 +987,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     <div class="card">
       <h3>Solicitudes en la entrada</h3>
       <p class="muted">Responde rápidamente sin mostrar tu número telefónico ni tus datos personales al repartidor.</p>
+      <p id="deliveryAccessStatus" role="status" aria-live="polite"></p>
       <div id="entregasPendientes"></div>
     </div>
   </div>
@@ -2688,31 +2689,58 @@ function entregaEstaActiva(e){
   return e.estado==='esperando' && new Date(e.expires_at).getTime()>Date.now();
 }
 
+let deliveryResponseBusy=false;
+
 async function responderEntrega(id,respuesta){
-  if(profile?.rol!=='residente')return;
-
+  if(profile?.rol!=='residente' || deliveryResponseBusy || digitalBusy)return;
   const entrega=entregas.find(x=>String(x.id)===String(id));
-  if(!entrega||!entregaEstaActiva(entrega)){
-    return alert('Esta solicitud ya no está activa.');
+  if(!entrega||!entregaEstaActiva(entrega))return alert('Esta solicitud ya no está activa.');
+  const target={acceso_peatonal:'peatonal',acceso_porton:'porton'}[respuesta];
+  if(!target && !['voy_por_el_pedido','no_lo_espero'].includes(respuesta))return;
+  const msg=document.getElementById('deliveryAccessStatus');
+  deliveryResponseBusy=true;
+  if(target){digitalBusy=true;digitalButtonsDisabled(true);}
+  document.querySelectorAll('#entregasPendientes button').forEach(b=>b.disabled=true);
+  let submitted=false;
+  try{
+    msg.textContent=target?'Solicitando acceso al equipo...':'Enviando respuesta...';
+    if(target){
+      const {data:command,error}=await sb.rpc('digital_access_delivery_request',{p_delivery:id,p_target:target});
+      if(error)throw error;
+      submitted=true;
+      msg.textContent='Orden enviada. Esperando confirmación del ESP32...';
+      let finished=false;
+      for(let i=0;i<20;i++){
+        await new Promise(resolve=>setTimeout(resolve,1500));
+        const {data,error}=await sb.rpc('digital_access_status',{p_command:command});
+        if(error)throw error;
+        if(data?.command_state==='pulse_confirmed'){
+          msg.textContent='El ESP32 confirmó el pulso de '+(target==='peatonal'?'acceso peatonal':'portón')+'. Comprueba que la entrada abrió; no hay sensor de posición.';
+          finished=true;break;
+        }
+        if(['expired','cancelled','unconfirmed'].includes(data?.command_state)){
+          msg.textContent=data.command_state==='expired'?'La orden venció sin entregarse al ESP32. No se enviará al reconectarse.':data.command_state==='cancelled'?'La orden fue cancelada. Revisa los permisos y el estado del equipo.':'No llegó confirmación del pulso. Comprueba la entrada antes de solicitar otra apertura.';
+          finished=true;break;
+        }
+      }
+      if(!finished)msg.textContent='No llegó confirmación. Comprueba la entrada antes de solicitar otra apertura.';
+    }else{
+      const {data,error}=await sb.from('entregas_contacto')
+        .update({respuesta,estado:'respondido',respondido_por:user.id,respondido_at:new Date().toISOString()})
+        .eq('id',id).eq('estado','esperando').gt('expires_at',new Date().toISOString()).select('id');
+      if(error)throw error;
+      if(!data?.length)throw new Error('La solicitud ya fue respondida o expiró.');
+      msg.textContent='Respuesta enviada.';
+    }
+  }catch(e){
+    msg.textContent=(submitted?'La orden fue enviada, pero no pudimos consultar su resultado. Comprueba la entrada. Detalle: ':'No se pudo completar la solicitud: ')+(e.message||'Error de conexión. No repitas la apertura sin comprobar el equipo.');
+  }finally{
+    deliveryResponseBusy=false;
+    if(target)digitalBusy=false;
+    try{await loadAll();}catch(_){}
+    if(target)await refreshDigitalAccess();
+    document.querySelectorAll('#entregasPendientes button').forEach(b=>b.disabled=false);
   }
-
-  const {data,error}=await sb.from('entregas_contacto')
-    .update({
-      respuesta,
-      estado:'respondido',
-      respondido_por:user.id,
-      respondido_at:new Date().toISOString()
-    })
-    .eq('id',id)
-    .eq('estado','esperando')
-    .gt('expires_at',new Date().toISOString())
-    .select('id');
-
-  if(error)return alert('No se pudo enviar la respuesta: '+error.message);
-  if(!data?.length){await loadAll();return alert('La solicitud ya fue respondida o expiró.');}
-
-  await loadAll();
-  alert(['acceso_peatonal','acceso_porton'].includes(respuesta)?'Autorización enviada. La apertura física aún no está conectada.':'Respuesta enviada.');
 }
 
 function renderPortalRepartidor(){
@@ -2783,7 +2811,7 @@ function renderEntregas(){
         '</div>'+
         '<div style="margin-top:8px"><strong>'+esc(quien)+'</strong></div>'+
         (e.mensaje?'<div class="muted" style="margin-top:6px">'+esc(e.mensaje)+'</div>':'')+
-        '<p class="muted">Autorizar registra tu respuesta. La apertura física aún no está conectada.</p>'+
+        '<p class="muted">Dar acceso solicita un pulso al ESP32. Requiere equipo conectado, acceso habilitado para residentes y no tener cuotas con 10 días o más de atraso.</p>'+
         '<div class="actions" style="margin-top:12px">'+
           '<button class="primary" onclick="responderEntrega(\''+e.id+'\',\'voy_por_el_pedido\')">🚶 '+(e.tipo==='visita'?'Voy a recibirte':'Voy por el pedido')+'</button>'+
           '<button onclick="responderEntrega(\''+e.id+'\',\'acceso_peatonal\')">🚶 Dar acceso peatonal</button>'+
