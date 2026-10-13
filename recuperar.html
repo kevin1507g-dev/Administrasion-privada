@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>Recuperar contraseña · Administración Residencial</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0f172a;color:#f8fafc;padding:20px;font-family:system-ui,-apple-system,sans-serif}
+.card{width:min(440px,100%);background:#111827;border:1px solid #334155;border-radius:18px;padding:22px}
+h1{margin:0 0 12px;font-size:25px}
+p{line-height:1.55;color:#cbd5e1}
+label{display:block;margin:18px 0 7px;color:#cbd5e1}
+input{display:block;width:100%;padding:13px;border:1px solid #475569;border-radius:10px;background:#020617;color:white;font:inherit}
+button,.back{width:100%;display:block;margin-top:14px;padding:12px;border:0;border-radius:10px;cursor:pointer;font:inherit;font-weight:700;text-align:center;text-decoration:none;background:#334155;color:white}
+button.primary{background:#22c55e;color:#052e16}
+button:disabled{opacity:.65;cursor:wait}
+.hidden{display:none!important}
+.msg{min-height:18px;line-height:1.5;margin:16px 0 0;color:#fecaca}
+.msg.ok{color:#bbf7d0}
+</style>
+</head>
+<body>
+<main class="card">
+<section id="ask">
+  <h1>🔑 Recuperar contraseña</h1>
+  <p>Escribe el correo de tu cuenta. Recibirás un enlace para establecer una contraseña nueva.</p>
+  <label for="correo">Correo electrónico</label>
+  <input id="correo" type="email" autocomplete="email" maxlength="254" placeholder="correo@ejemplo.com" required>
+  <button id="enviar" class="primary" type="button">Enviar enlace de recuperación</button>
+  <p class="msg" id="aviso" role="status" aria-live="polite"></p>
+  <a class="back" href="./">Volver a iniciar sesión</a>
+</section>
+<section id="change" class="hidden">
+  <h1>🔒 Nueva contraseña</h1>
+  <p>El enlace de recuperación se ha verificado. Ingresa la nueva contraseña.</p>
+  <label for="clave1">Nueva contraseña</label>
+  <input id="clave1" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+  <label for="clave2">Confirmar nueva contraseña</label>
+  <input id="clave2" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+  <button id="guardar" class="primary" type="button">Guardar nueva contraseña</button>
+  <p class="msg" id="resultado" role="status" aria-live="polite"></p>
+  <a class="back" href="./">Volver al inicio</a>
+</section>
+<section id="complete" class="hidden">
+  <h1>✅ Contraseña actualizada</h1>
+  <p>Ya puedes iniciar sesión con tu correo y tu nueva contraseña. Tu casa y los permisos de tu cuenta no han cambiado.</p>
+  <a class="back" href="./">Ir a Administración Residencial</a>
+</section>
+</main>
+<script>
+'use strict';
+const APP_URL='https://nndlfkuelwpwklldvtfo.supabase.co';
+const PUBLIC_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
+const isRecoveryLink=new URLSearchParams(location.hash.slice(1)).get('type')==='recovery';
+const $=id=>document.getElementById(id);
+const show=id=>{for(const s of ['ask','change','complete'])$(s).classList.toggle('hidden',s!==id)};
+const info=(id,text,ok=false)=>{const e=$(id);e.textContent=text;e.classList.toggle('ok',ok)};
+const client=window.supabase?.createClient(APP_URL,PUBLIC_KEY);
+if(!client)info('aviso','No se pudo cargar la conexión. Revisa tu Internet y recarga.');
+else {
+  client.auth.onAuthStateChange((event)=>{
+    if(event==='PASSWORD_RECOVERY')show('change');
+  });
+  (async()=>{
+    if(!isRecoveryLink)return;
+    const {data,error}=await client.auth.getSession();
+    if(!error && data?.session){
+      show('change');
+    }else{
+      show('ask');
+      info('aviso','El enlace no es válido o ya venció. Solicita otro correo.');
+    }
+  })().catch(()=>{show('ask');info('aviso','No se pudo verificar el enlace. Solicita otro correo.')});
+}
+$('enviar').addEventListener('click',async()=>{
+  if(!client)return;
+  const email=$('correo').value.trim().toLowerCase();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){info('aviso','Escribe un correo válido.');return}
+  const btn=$('enviar');btn.disabled=true;btn.textContent='Enviando...';
+  try{
+    const redirectTo=new URL('./recuperar.html',location.href).href;
+    const {error}=await client.auth.resetPasswordForEmail(email,{redirectTo});
+    if(error){
+      info('aviso',error.status===429?'Demasiadas solicitudes. Espera unos minutos.':'No se pudo enviar el correo. Intenta más tarde o consulta a la administración.');
+    }else{
+      info('aviso','Si la cuenta está registrada, te llegará un enlace para cambiar la contraseña. Revisa también correo no deseado.',true);
+    }
+  }catch(_){info('aviso','No se pudo conectar. Revisa tu Internet.')}
+  finally{btn.disabled=false;btn.textContent='Enviar enlace de recuperación'}
+});
+$('guardar').addEventListener('click',async()=>{
+  if(!client)return;
+  const pass=$('clave1').value,repeat=$('clave2').value;
+  if(pass.length<8||pass.length>128){info('resultado','Usa una contraseña de al menos 8 caracteres.');return}
+  if(pass!==repeat){info('resultado','Las contraseñas no coinciden.');return}
+  const btn=$('guardar');btn.disabled=true;btn.textContent='Guardando...';
+  try{
+    const {data,error:sessionError}=await client.auth.getSession();
+    if(sessionError||!data?.session){info('resultado','La sesión de recuperación venció. Solicita otro enlace.');return}
+    const {error}=await client.auth.updateUser({password:pass});
+    if(error){info('resultado','No se pudo actualizar: '+(error.message||'Intenta de nuevo.'));return}
+    $('clave1').value='';$('clave2').value='';
+    await client.auth.signOut();
+    history.replaceState(null,'',location.pathname);
+    show('complete');
+  }catch(_){info('resultado','Ocurrió un error. Intenta nuevamente.')}
+  finally{btn.disabled=false;btn.textContent='Guardar nueva contraseña'}
+});
+</script>
+</body>
+</html>
