@@ -2141,6 +2141,7 @@ async function enter(){
  await loadAll();
  await cargarChatDatos();
  iniciarChatPolling();
+ iniciarNotificacionesEnVivo();
  prepararBotonChatMovible();
  // Los residentes ven el control virtual al entrar. Una ruta de notificacion
  // puede abrir otra seccion despues, conservando el acceso directo.
@@ -3641,6 +3642,80 @@ function prepararBotonChatMovible(){
 
   window.addEventListener('resize',aplicarPosicionGuardadaChat);
 }
+
+
+let notificacionesRealtimeCanal=null;
+let notificacionesRefreshBusy=false;
+let notificacionesRefreshQueued=false;
+let notificacionesRefreshTimer=null;
+
+async function actualizarNotificacionesEnVivo(){
+ if(!user||!['admin','residente'].includes(profile?.rol))return;
+ if(notificacionesRefreshBusy){notificacionesRefreshQueued=true;return;}
+ notificacionesRefreshBusy=true;
+ const currentId=user.id;
+ try{
+  const [nt,nl]=await Promise.all([
+   sb.from('notificaciones_push').select('*')
+     .or('user_id.eq.'+currentId+',user_id.is.null')
+     .order('created_at',{ascending:false}).limit(100),
+   sb.from('notificacion_lecturas').select('*').eq('user_id',currentId)
+  ]);
+  if(user?.id!==currentId)return;
+  if(nt.error||nl.error)throw nt.error||nl.error;
+  notificaciones=nt.data||[];
+  notificacionLecturas=nl.data||[];
+  renderNotificaciones();
+ }catch(e){console.warn('No se pudo actualizar notificaciones:',e);}
+ finally{
+  notificacionesRefreshBusy=false;
+  if(notificacionesRefreshQueued){
+   notificacionesRefreshQueued=false;
+   actualizarNotificacionesEnVivo();
+  }
+ }
+}
+function solicitarNotificacionesActualizadas(){
+ if(!user||!profile)return;
+ if(notificacionesRefreshTimer)clearTimeout(notificacionesRefreshTimer);
+ notificacionesRefreshTimer=setTimeout(()=>{
+  notificacionesRefreshTimer=null;
+  actualizarNotificacionesEnVivo();
+ },150);
+}
+function iniciarNotificacionesEnVivo(){
+ if(!user||!['admin','residente'].includes(profile?.rol))return;
+ if(notificacionesRealtimeCanal){
+  sb.removeChannel(notificacionesRealtimeCanal).catch(()=>{});
+  notificacionesRealtimeCanal=null;
+ }
+ const currentId=user.id;
+ notificacionesRealtimeCanal=sb.channel('notificaciones-rapidas-'+currentId)
+  .on('postgres_changes',{event:'INSERT',schema:'public',table:'notificaciones_push'},({new:nueva})=>{
+   if(user?.id!==currentId)return;
+   if(nueva?.user_id!=null&&nueva.user_id!==currentId)return;
+   solicitarNotificacionesActualizadas();
+   if(nueva?.tipo==='entrega_entrada'&&profile?.rol==='residente'){
+    sb.from('entregas_contacto')
+     .select('id,casa_id,tipo,empresa,repartidor,mensaje,estado,respuesta,respondido_por,respondido_at,created_at,expires_at')
+     .order('created_at',{ascending:false}).limit(100)
+     .then(({data,error})=>{
+      if(error||user?.id!==currentId)return;
+      entregas=data||[];
+      renderEntregas();
+     });
+   }
+  })
+  .subscribe(status=>{
+   if(status==='SUBSCRIBED')solicitarNotificacionesActualizadas();
+  });
+}
+document.addEventListener('visibilitychange',()=>{
+ if(!document.hidden)solicitarNotificacionesActualizadas();
+});
+setInterval(()=>{
+ if(!document.hidden&&user&&profile)solicitarNotificacionesActualizadas();
+},30000);
 
 function renderNotificaciones(){
   if(!['admin','residente'].includes(profile?.rol))return;
