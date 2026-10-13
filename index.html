@@ -2133,6 +2133,9 @@ async function enter(){
  await cargarChatDatos();
  iniciarChatPolling();
  prepararBotonChatMovible();
+ // Los residentes ven el control virtual al entrar. Una ruta de notificacion
+ // puede abrir otra seccion despues, conservando el acceso directo.
+ if(profile.rol==='residente') show('controlDigital');
  await abrirRutaNotificacion();
 }
 async function loadAll(){
