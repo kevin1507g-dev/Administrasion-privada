@@ -557,7 +557,8 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 
     <div class="card" style="margin-top:14px">
       <h3>Controles por casa</h3>
-      <p class="muted">Toca una casa para ver sus controles y administrarlos.</p>
+      <p class="muted">Toca una casa para ver sus controles y administrarlos. Al bloquear temporalmente uno de sus controles, se bloquearán también los botones digitales de portón y acceso peatonal para todos los residentes de esa casa.</p>
+       <p class="muted">⚠️ Los controles físicos de radiofrecuencia solo cambian de estado en el registro: para desactivarlos realmente en el receptor se necesita un equipo compatible. Mantén siempre disponible una salida segura de emergencia.</p>
       <div id="adminControlsRows"></div>
     </div>
 
@@ -2256,12 +2257,23 @@ async function addControl(){
 }
 async function setControlEstado(id,estado){
  if(profile?.rol!=='admin')return;
- const texto=estado==='suspendido'?'suspender temporalmente':'reactivar';
- if(!confirm('¿Confirmar '+texto+' este control?'))return;
- const {error}=await sb.from('controles_residenciales')
+ if(!['suspendido','activo'].includes(estado))return;
+ const control=controles.find(c=>String(c.id)===String(id));
+ if(!control)return alert('No se encontró el control. Actualiza la lista e inténtalo de nuevo.');
+ const casaId=casaIdDeRegistro(control);
+ const casa=casaNumero(casaId)||control.unidad||'sin asignar';
+ const otrosSuspendidos=controles.filter(c=>String(c.id)!==String(id)&&String(casaIdDeRegistro(c))===String(casaId)&&c.estado==='suspendido').length;
+ const mensaje=estado==='suspendido'
+   ? '¿Bloquear temporalmente el control '+control.numero_control+' de la casa '+casa+'?\n\nEsto bloqueará AMBOS botones digitales (portón y peatonal) para todos los residentes de esta casa.\n\nEl control físico de radiofrecuencia quedará marcado como suspendido en el sistema, pero no se desprograma del receptor automáticamente.'
+   : '¿Reactivar el control '+control.numero_control+' de la casa '+casa+'?\n\n'+(otrosSuspendidos
+     ? 'Aún hay otros controles suspendidos en esta casa, por lo que el Control Digital seguirá bloqueado.'
+     : 'El Control Digital volverá a estar disponible si no existen otras restricciones, como cuotas vencidas.');
+ if(!confirm(mensaje))return;
+ const {data,error}=await sb.from('controles_residenciales')
    .update({estado,actualizado_por:user.id,actualizado_en:new Date().toISOString()})
-   .eq('id',id);
+   .eq('id',id).select('id');
  if(error)return alert('No se pudo actualizar el control: '+error.message);
+ if(!data?.length)return alert('No se confirmó el cambio. Actualiza la página e inténtalo nuevamente.');
  await loadAll();
 }
 async function deleteControl(id){
@@ -2309,12 +2321,12 @@ function renderControlesRegistrados(){
    });
    adminBody.innerHTML=lista.map(g=>{
      const suspendidos=g.items.filter(c=>c.estado==='suspendido').length;
-     const resumen=g.items.length+' control'+(g.items.length===1?'':'es')+' · '+(g.items.length-suspendidos)+' activos · '+suspendidos+' suspendidos';
+     const resumen=g.items.length+' control'+(g.items.length===1?'':'es')+' · '+(g.items.length-suspendidos)+' activos · '+suspendidos+' suspendidos'+(suspendidos?' · 📲 Digital bloqueado':'');
      const filas=g.items.sort((a,b)=>coll.compare(String(a.numero_control),String(b.numero_control))).map(c=>{
        const badge=c.estado==='suspendido'?'⛔ Suspendido temporalmente':'✅ Activo';
        const estadoBtn=c.estado==='suspendido'
          ? '<button onclick="setControlEstado('+c.id+',\'activo\')">Reactivar</button>'
-         : '<button class="danger" onclick="setControlEstado('+c.id+',\'suspendido\')">Suspender</button>';
+         : '<button class="danger" onclick="setControlEstado('+c.id+',\'suspendido\')">Bloquear temporalmente</button>';
        return '<tr><td><strong>'+esc(c.numero_control)+'</strong></td><td>'+badge+'</td><td><div class="actions">'+estadoBtn+' <button class="danger" onclick="deleteControl('+c.id+')">Eliminar</button></div></td></tr>';
      }).join('');
      return '<details data-casa="'+esc(g.clave)+'"'+(abiertas.has(g.clave)?' open':'')+' style="border:1px solid #334155;border-radius:12px;margin-top:10px;padding:14px">'+
@@ -5004,7 +5016,7 @@ async function pairDigitalESP32(){
 async function configureDigitalAccess(kind){
   if(profile?.rol!=='admin' || digitalBusy || !digitalLastStatus)return;
   const action=kind==='pause'?(digitalLastStatus.enabled?'pause':'resume'):(digitalLastStatus.residents_enabled?'residents_off':'residents_on');
-  if(action==='residents_on' && !confirm('¿Ya verificaste ambos relevadores y quieres habilitar el control digital para residentes? Se bloqueará a las casas con saldo pendiente de 10 días o más de atraso.'))return;
+  if(action==='residents_on' && !confirm('¿Ya verificaste ambos relevadores y quieres habilitar el control digital para residentes? Las casas con controles suspendidos temporalmente o saldo pendiente con 10 días o más de atraso seguirán bloqueadas.'))return;
   digitalBusy=true;digitalButtonsDisabled(true);
   try{
     const {error}=await sb.rpc('digital_access_manage',{p_action:action});if(error)throw error;
