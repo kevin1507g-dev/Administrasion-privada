@@ -1975,30 +1975,37 @@ async function registrarResidente(){
  const msg=document.getElementById('registerMsg');
  const btn=document.getElementById('registerBtn');
  msg.textContent='';
+ msg.style.color='';
  if(!nombre || !unidad || !email || !password) return msg.textContent='Completa todos los campos.';
  if(!/^[0-9]+$/.test(unidad)) return msg.textContent='El número de casa debe contener solo números.';
  if(Number(unidad)<=0) return msg.textContent='El número de casa debe ser mayor que 0.';
  if(password.length<6) return msg.textContent='La contraseña debe tener al menos 6 caracteres.';
  if(password!==password2) return msg.textContent='Las contraseñas no coinciden.';
- btn.disabled=true; btn.textContent='Creando cuenta...';
+ btn.disabled=true; btn.textContent='Enviando solicitud...';
  try{
-   const {data,error}=await sb.auth.signUp({
-     email,password,
-     options:{data:{nombre,unidad,rol:'residente'}}
+   // Solo crea una cuenta de residente pendiente de aprobación.
+   const {data,error}=await sb.functions.invoke('register-resident-no-email-confirm',{
+     body:{nombre,unidad,email,password}
    });
-   if(error){ msg.textContent='No se pudo crear la cuenta: '+(error.message||'Error desconocido'); return; }
-   if(data?.session) await sb.auth.signOut();
+   if(error || !data?.ok){
+     let detalle=data?.error || 'No se pudo enviar la solicitud.';
+     try{
+       const respuesta=await error?.context?.json?.();
+       if(respuesta?.error) detalle=respuesta.error;
+     }catch(_){}
+     msg.textContent=detalle;
+     return;
+   }
    document.getElementById('regPassword').value='';
    document.getElementById('regPassword2').value='';
    msg.style.color='#bbf7d0';
-   msg.textContent='Solicitud enviada. Si Supabase te pide confirmar el correo, revísalo. Después espera la aprobación de la administración.';
+   msg.textContent='Solicitud registrada. No necesitas confirmar el correo. La administración debe aprobar tu cuenta antes de iniciar sesión.';
  }catch(err){
-   msg.textContent='Error técnico: '+(err?.message||String(err));
+   msg.textContent='No se pudo conectar con el registro. Intenta de nuevo.';
  }finally{
    btn.disabled=false; btn.textContent='Enviar solicitud';
  }
 }
-
 async function signIn(){
   const msg=document.getElementById('loginMsg');
   const btn=document.getElementById('loginBtn');
