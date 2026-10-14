@@ -165,6 +165,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 #calendarioDias button[aria-current="date"]{outline:2px solid #38bdf8;outline-offset:-2px}
 #calendarioDias button:disabled{opacity:.3;cursor:not-allowed}
 </style>
+<link rel="stylesheet" href="./ui-modern.css?v=20261013" />
 </head>
 <body>
 <div id="login" class="login"><div class="card">
@@ -195,8 +196,9 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div id="app" class="app hidden">
 <button id="menuToggle" class="menuToggle" type="button" aria-label="Abrir menú" aria-controls="sideMenu" aria-expanded="false" onclick="toggleMenu()">☰</button>
 <div id="menuOverlay" class="menuOverlay" onclick="closeMenu()"></div>
-<aside id="sideMenu" aria-hidden="true"><div class="menuHeader"><h3>🏢 Condominio</h3><button class="menuClose" type="button" aria-label="Cerrar menú" onclick="closeMenu()">×</button></div><div id="who" class="muted"></div>
+<aside id="sideMenu" aria-hidden="true"><div class="menuHeader"><h3>🏡 Privada Beteles</h3><button class="menuClose" type="button" aria-label="Cerrar menú" onclick="closeMenu()">×</button></div><div id="who" class="muted"></div>
 <div class="nav">
+<div class="navSectionLabel">Herramientas</div>
 <button id="installAppMenuBtn" type="button" onclick="instalarAplicacion()">
   📲 Instalar aplicación
 </button>
@@ -209,10 +211,12 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <button class="adminOnly" onclick="enviarNotificacionGeneral()">
   📣 Enviar notificación
 </button>
+<div class="navSectionLabel">Panel general</div>
 <button onclick="show('inicio')">🏠 Inicio</button>
 <button class="residentOnly" onclick="show('miembrosCasa')">👨‍👩‍👧 Miembros de mi casa</button>
 <button class="residentOnly" onclick="show('comunicacion')">💬 Comunicación</button>
 <button class="cameraOnly" onclick="show('camaras')">📹 Cámaras</button>
+<div class="navSectionLabel">Gestión y accesos</div>
 <button class="adminOnly" onclick="show('residentes')">👥 Residentes</button>
 <button class="adminOnly" onclick="show('solicitudes')">📝 Solicitudes</button>
 <button class="adminOnly" onclick="show('casas')">🏠 Casas</button>
@@ -221,10 +225,12 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <button class="controlAccessOnly" onclick="show('controlDigital')">📲 Control digital</button>
 <button class="adminOnly" type="button" onclick="show('esp32Panel')">🖥️ Panel ESP32</button>
 <button class="adminOnly" type="button" onclick="show('biometrico')">🖐️ Registrar biométrico</button>
+<div class="navSectionLabel">Cobros y pagos</div>
 <button onclick="show('cuotas')">🧾 Cuotas</button>
 <button onclick="show('pagos')">💳 Pagos</button>
 <button class="paymentMethodsOnly" onclick="show('metodosPago')">💵 Métodos de pago</button>
 <button class="adminOnly" onclick="show('gastos')">🧾 Aclaración de gastos</button>
+<div class="navSectionLabel">Comunidad</div>
 <button onclick="show('eventos')">📅 Eventos</button>
 <button onclick="show('avisos')">📢 Avisos</button>
 <button class="residentAdminOnly" onclick="show('mantenimiento')">🛠️ Mantenimiento</button>
@@ -237,7 +243,25 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </div><button class="danger" style="width:100%;margin-top:15px" onclick="signOut()">Cerrar sesión</button></aside>
 
 <main>
-<section id="inicio" class="active"><h1>Panel principal</h1><div class="grid">
+<header class="appTopbar">
+  <span class="appBrandMark" aria-hidden="true">🏡</span>
+  <div class="appTopbarCopy"><strong id="topbarSectionTitle">Panel principal</strong><small>Privada Beteles · Administración Residencial</small></div>
+  <button type="button" class="appTopbarLink residentAdminOnly" onclick="show('notificaciones')">🔔 Notificaciones</button>
+  <button id="uiThemeButton" type="button" class="uiThemeButton" onclick="toggleUiTheme()" aria-label="Cambiar tema de colores" title="Cambiar tema visual">☀️</button>
+</header>
+<section id="inicio" class="active">
+<div class="dashboardHero">
+  <div>
+    <div class="dashboardEyebrow">✦ TU PANEL RESIDENCIAL</div>
+    <h1>Tu comunidad, al día.</h1>
+    <p>Una vista más clara de los pagos, accesos, visitas y novedades de la privada.</p>
+  </div>
+  <div class="heroActions">
+    <button class="primary controlAccessOnly" onclick="show('controlDigital')">🚪 Control digital</button>
+    <button class="residentAdminOnly" onclick="show('notificaciones')">🔔 Ver avisos</button>
+  </div>
+</div>
+<div class="grid">
 <div class="card"><div class="muted">Cuotas</div><div id="kCuotas" class="kpi">0</div></div>
 <div class="card"><div class="muted">Pagos</div><div id="kPagos" class="kpi">0</div></div>
 <div class="card"><div class="muted">Visitas</div><div id="kVisitas" class="kpi">0</div></div>
@@ -1762,6 +1786,29 @@ async function activarNotificaciones(){
 }
 const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const money=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(n||0));
+function cambiarTemaVisual(tema){
+ const actual=tema==='light'?'light':'dark';
+ document.documentElement.dataset.uiTheme=actual;
+ try{localStorage.setItem('residencial_ui_theme',actual)}catch(_){}
+ const btn=document.getElementById('uiThemeButton');
+ if(btn){
+   btn.textContent=actual==='dark'?'☀️':'🌙';
+   btn.setAttribute('aria-label',actual==='dark'?'Cambiar a modo claro':'Cambiar a modo oscuro');
+ }
+ document.querySelector('meta[name="theme-color"]')?.setAttribute('content',actual==='dark'?'#081523':'#f1f6fc');
+}
+function toggleUiTheme(){
+ cambiarTemaVisual(document.documentElement.dataset.uiTheme==='light'?'dark':'light');
+}
+try{cambiarTemaVisual(localStorage.getItem('residencial_ui_theme'))}
+catch(_){cambiarTemaVisual('dark')}
+function sincronizarAccesibilidadMenu(){
+ const menu=document.getElementById('sideMenu');
+ if(!menu)return;
+ const escritorio=window.matchMedia('(min-width:1050px)').matches;
+ menu.setAttribute('aria-hidden',escritorio||menu.classList.contains('open')?'false':'true');
+}
+window.addEventListener('resize',sincronizarAccesibilidadMenu);
 function openMenu(){
  const menu=$('sideMenu'), overlay=$('menuOverlay'), toggle=$('menuToggle');
  if(!menu||!overlay||!toggle) return;
@@ -1777,7 +1824,7 @@ function closeMenu(){
  if(!menu||!overlay||!toggle) return;
  menu.classList.remove('open');
  overlay.classList.remove('open');
- menu.setAttribute('aria-hidden','true');
+ menu.setAttribute('aria-hidden',window.matchMedia('(min-width:1050px)').matches?'false':'true');
  toggle.setAttribute('aria-expanded','false');
  document.body.style.overflow='';
 }
@@ -1824,6 +1871,17 @@ function show(id){
   if(target){
     target.classList.add('active');
   }
+  const pageTitle=document.getElementById('topbarSectionTitle');
+  if(pageTitle&&target){
+    pageTitle.textContent=id==='inicio'?'Panel principal':
+      (target.querySelector('h1,h2')?.textContent.trim()||'Administración Residencial');
+  }
+  document.querySelectorAll('#sideMenu .nav button[onclick]').forEach(btn=>{
+    const selected=btn.getAttribute('onclick')?.includes("show('"+id+"')")||false;
+    btn.classList.toggle('ui-active',selected);
+    if(selected)btn.setAttribute('aria-current','page');
+    else btn.removeAttribute('aria-current');
+  });
 
   if(id==='controlDigital'){
     digitalButtonsDisabled(true);
@@ -2141,6 +2199,7 @@ async function enter(){
  await loadAll();
  await cargarChatDatos();
  iniciarChatPolling();
+ sincronizarAccesibilidadMenu();
  iniciarNotificacionesEnVivo();
  prepararBotonChatMovible();
  // Los residentes ven el control virtual al entrar. Una ruta de notificacion
