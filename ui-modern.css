@@ -278,3 +278,12 @@ main>section{max-width:1450px;margin:0 auto}
  .loginBrand img{width:min(165px,64%);padding:10px 13px;margin-bottom:14px}
  .loginBrand{margin-bottom:16px}
 }
+
+/* El emblema también permanece visible en la barra del celular. */
+@media(max-width:1049px){
+ .appTopbar .appBrandMark{display:grid;flex:0 0 35px;width:35px;height:35px;border-radius:10px}
+}
+@media(max-width:560px){
+ .appTopbar{gap:7px}
+ .appTopbarCopy strong{font-size:.86rem}
+}
