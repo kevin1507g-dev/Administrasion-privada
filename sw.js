@@ -1,7 +1,8 @@
-const APP_CACHE = "my-condominio-v1";
+const APP_CACHE = "my-condominio-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
+  "./ui-modern.css",
   "./manifest.webmanifest",
   "./pwa-icon.svg"
 ];
