@@ -1,14 +1,14 @@
 {
-  "name": "My Condominio",
-  "short_name": "Condominio",
-  "description": "Administración residencial del condominio",
+  "name": "Privada Beteles · Administración Residencial",
+  "short_name": "Privada Beteles",
+  "description": "Administración y accesos de Privada Beteles",
   "lang": "es-MX",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#081523",
+  "theme_color": "#081523",
   "icons": [
     {
       "src": "./pwa-icon.svg",
