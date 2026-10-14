@@ -1,10 +1,11 @@
-const APP_CACHE = "my-condominio-v2";
+const APP_CACHE = "privada-beteles-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./ui-modern.css",
   "./manifest.webmanifest",
-  "./pwa-icon.svg"
+  "./pwa-icon.svg",
+  "./logo-beteles.svg"
 ];
 
 self.addEventListener("install", event => {
