@@ -2846,7 +2846,7 @@ async function responderEntrega(id,respuesta){
   if(profile?.rol!=='residente' || deliveryResponseBusy || digitalBusy)return;
   const entrega=entregas.find(x=>String(x.id)===String(id));
   if(!entrega||!entregaEstaActiva(entrega))return alert('Esta solicitud ya no está activa.');
-  const target={acceso_peatonal:'peatonal',acceso_porton:'porton'}[respuesta];
+  const target={acceso_porton:'porton'}[respuesta];
   if(!target && !['voy_por_el_pedido','no_lo_espero'].includes(respuesta))return;
   const msg=document.getElementById('deliveryAccessStatus');
   deliveryResponseBusy=true;
@@ -2965,7 +2965,6 @@ function renderEntregas(){
         '<p class="muted">Dar acceso solicita un pulso al ESP32. Requiere equipo conectado, acceso habilitado para residentes y no tener cuotas con 10 días o más de atraso.</p>'+
         '<div class="actions" style="margin-top:12px">'+
           '<button class="primary" onclick="responderEntrega(\''+e.id+'\',\'voy_por_el_pedido\')">🚶 '+(e.tipo==='visita'?'Voy a recibirte':'Voy por el pedido')+'</button>'+
-          '<button onclick="responderEntrega(\''+e.id+'\',\'acceso_peatonal\')">🚶 Dar acceso peatonal</button>'+
           '<button onclick="responderEntrega(\''+e.id+'\',\'acceso_porton\')">🚗 Dar acceso al portón</button>'+
           '<button class="danger" onclick="responderEntrega(\''+e.id+'\',\'no_lo_espero\')">❌ No lo espero</button>'+
         '</div>'+
