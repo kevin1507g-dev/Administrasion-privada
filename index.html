@@ -1116,7 +1116,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div class="card">
   <h3>Solicitar portón abierto durante un evento</h3>
   <p class="muted">Registra la fecha y el horario para solicitar que el portón permanezca abierto durante tu evento. La administración revisará la solicitud.</p>
-  <p class="muted"><strong>Preparación para uso futuro:</strong> registrar o aprobar esta reservación no abre ni mantiene abierto el portón. La función automática estará disponible cuando se conecte y configure el equipo.</p>
+  <p class="muted"><strong>Modo Evento vinculado:</strong> las reservaciones aprobadas definirán el horario del relevador peatonal del ESP32. Por seguridad, la salida automática permanece deshabilitada hasta verificar la compatibilidad con la tarjeta del portón y actualizar el firmware del ESP32.</p>
   <div class="form">
     <div class="adminOnly"><label>Casa</label><select id="resResidente"></select></div>
     <div><label>Acceso</label><select id="resArea"><option value="Portón">Portón</option></select></div>
@@ -1128,6 +1128,11 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   <button class="primary" style="margin-top:12px" onclick="addReserva()">📅 Solicitar reservación</button>
 </div>
 <div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Horario</th><th>Acceso</th><th>Casa</th><th>Estado</th><th>Notas</th><th class="adminOnly">Acciones</th></tr></thead><tbody id="reservasRows"></tbody></table></div>
+<div class="card adminOnly" style="margin-top:14px">
+  <h3>⚡ Vinculación ESP32 · Modo Evento</h3>
+  <p id="eventModeStatus" class="muted" role="status">Consultando vinculación...</p>
+  <p class="muted">Salida asignada: relevador peatonal (GPIO 25). El sistema requiere firmware actualizado y verificación del controlador del portón antes de habilitar la activación física.</p>
+</div>
 </section>
 
 <section id="documentos"><h2>📄 Documentos del condominio</h2>
@@ -3966,7 +3971,26 @@ async function eliminarReserva(id){
 }
 function renderReservas(){
  const body=document.getElementById('reservasRows');if(!body)return;
+ if(profile?.rol==='admin')refreshEventModeStatus();
  body.innerHTML=reservas.map(r=>`<tr><td>${esc(r.fecha||'')}</td><td>${esc(String(r.hora_inicio||'').slice(0,5))}–${esc(String(r.hora_fin||'').slice(0,5))}</td><td>${esc(r.area||'')}</td><td>${esc(r.unidad||'')}</td><td><span class="badge">${esc(r.estado||'')}</span></td><td>${esc(r.notas||'')}</td><td class="adminOnly">${profile?.rol==='admin'?`<div class="actions"><button class="primary mini" onclick="setReservaEstado('${r.id}','aprobada')">Aprobar</button><button class="mini" onclick="setReservaEstado('${r.id}','rechazada')">Rechazar</button><button class="danger mini" onclick="eliminarReserva('${r.id}')">Eliminar</button></div>`:''}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">No hay reservaciones.</td></tr>';
+}
+
+async function refreshEventModeStatus(){
+ const el=document.getElementById('eventModeStatus');
+ if(!el || profile?.rol!=='admin')return;
+ try{
+  const {data,error}=await sb.rpc('event_mode_status');
+  if(error)throw error;
+  const total=Number(data?.approved_count)||0;
+  if(!data?.enabled){
+   el.textContent='Vinculación preparada · salida física deshabilitada por seguridad. Reservaciones aprobadas próximas: '+total+'.';
+  }else if(data.active){
+   const end=new Date(Number(data.until)*1000);
+   el.textContent='Modo Evento activo hasta '+end.toLocaleString('es-MX',{timeZone:'America/Mexico_City',dateStyle:'short',timeStyle:'short'})+'.';
+  }else{
+   el.textContent='Modo Evento habilitado · esperando el horario de una reservación aprobada. Próximas: '+total+'.';
+  }
+ }catch(e){el.textContent='No se pudo consultar el Modo Evento: '+(e.message||'error');}
 }
 
 async function addDocumento(){
