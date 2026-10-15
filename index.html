@@ -1128,7 +1128,11 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div class="card adminOnly" style="margin-top:14px">
   <h3>⚡ Vinculación ESP32 · Modo Evento</h3>
   <p id="eventModeStatus" class="muted" role="status">Consultando vinculación...</p>
-  <button id="eventModeStopBtn" class="danger" type="button" onclick="stopEventMode()" disabled>⏹ Desactivar Evento ahora</button>
+  <div class="actions">
+    <button id="eventModeTestBtn" type="button" onclick="testEventMode()" disabled>🧪 Probar relevador Evento (12 segundos)</button>
+    <button id="eventModeStopBtn" class="danger" type="button" onclick="stopEventMode()" disabled>⏹ Desactivar Evento ahora</button>
+  </div>
+  <p class="muted">Prueba de banco: únicamente con los contactos de salida del relevador desconectados del portón y de cualquier carga. No activa reservaciones reales.</p>
   <p class="muted">Salida asignada: relevador Evento (GPIO 25), de señal mantenida durante una reservación aprobada. El portón normal conserva GPIO 26. El Modo Evento requiere firmware actualizado y verificación del controlador antes de habilitar la salida física.</p>
 </div>
 </section>
@@ -3972,9 +3976,27 @@ function renderReservas(){
  body.innerHTML=reservas.map(r=>`<tr><td>${esc(r.fecha||'')}</td><td>${esc(String(r.hora_inicio||'').slice(0,5))}–${esc(String(r.hora_fin||'').slice(0,5))}</td><td>${esc(r.area||'')}</td><td>${esc(r.unidad||'')}</td><td><span class="badge">${esc(r.estado||'')}</span></td><td>${esc(r.notas||'')}</td><td class="adminOnly">${profile?.rol==='admin'?`<div class="actions"><button class="primary mini" onclick="setReservaEstado('${r.id}','aprobada')">Aprobar</button><button class="mini" onclick="setReservaEstado('${r.id}','rechazada')">Rechazar</button><button class="danger mini" onclick="eliminarReserva('${r.id}')">Eliminar</button></div>`:''}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">No hay reservaciones.</td></tr>';
 }
 
+async function testEventMode(){
+ if(profile?.rol!=='admin')return;
+ if(!confirm('¿Confirmas que los contactos de salida del relevador Evento están SIN CONECTAR al portón ni a ninguna carga? La prueba encenderá el relevador durante 12 segundos.'))return;
+ const btn=document.getElementById('eventModeTestBtn');
+ const el=document.getElementById('eventModeStatus');
+ if(btn)btn.disabled=true;
+ try{
+  const {error}=await sb.rpc('event_mode_test_start');
+  if(error)throw error;
+  if(el)el.textContent='Prueba iniciada: observa el indicador del relevador Evento (GPIO 25). Debe apagarse solo en 12 segundos.';
+  setTimeout(refreshEventModeStatus,1500);
+  setTimeout(refreshEventModeStatus,14000);
+ }catch(e){
+  if(el)el.textContent='No se pudo iniciar la prueba: '+(e.message||'error');
+  setTimeout(refreshEventModeStatus,5000);
+ }
+}
+
 async function stopEventMode(){
  if(profile?.rol!=='admin')return;
- if(!confirm('¿Desactivar el relevador Evento antes de que termine la reservación? No se reactivará durante el horario actual.'))return;
+ if(!confirm('¿Desactivar el relevador Evento ahora? Esto detiene la prueba o la reservación activa.'))return;
  const btn=document.getElementById('eventModeStopBtn');
  if(btn)btn.disabled=true;
  const el=document.getElementById('eventModeStatus');
@@ -3994,8 +4016,12 @@ async function refreshEventModeStatus(){
   if(error)throw error;
   const total=Number(data?.approved_count)||0;
   const stopBtn=document.getElementById('eventModeStopBtn');
-  if(stopBtn)stopBtn.disabled=!(data?.enabled && data?.active);
-  if(!data?.enabled){
+  if(stopBtn)stopBtn.disabled=!data?.active;
+  const testBtn=document.getElementById('eventModeTestBtn');
+  if(testBtn)testBtn.disabled=!!data?.enabled || !!data?.active;
+  if(data?.active && data?.source==='test'){
+   el.textContent='🧪 Prueba de banco activa: el relevador Evento debe estar encendido. Se apagará automáticamente en unos segundos.';
+  }else if(!data?.enabled){
    el.textContent='Vinculación preparada · salida física deshabilitada por seguridad. Reservaciones aprobadas próximas: '+total+'.';
   }else if(data.active){
    const end=new Date(Number(data.until)*1000);
@@ -4003,7 +4029,7 @@ async function refreshEventModeStatus(){
   }else{
    el.textContent='Modo Evento habilitado · esperando el horario de una reservación aprobada. Próximas: '+total+'.';
   }
- }catch(e){const stopBtn=document.getElementById('eventModeStopBtn');if(stopBtn)stopBtn.disabled=true;el.textContent='No se pudo consultar el Modo Evento: '+(e.message||'error');}
+ }catch(e){const stopBtn=document.getElementById('eventModeStopBtn');if(stopBtn)stopBtn.disabled=true;const testBtn=document.getElementById('eventModeTestBtn');if(testBtn)testBtn.disabled=true;el.textContent='No se pudo consultar el Modo Evento: '+(e.message||'error');}
 }
 
 async function addDocumento(){
