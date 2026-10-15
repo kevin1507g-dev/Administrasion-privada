@@ -474,7 +474,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     <h3>Accesos de la privada</h3>
     <p class="muted" id="digitalControlStatus" role="status">Pendiente de conexión. Los botones estarán disponibles cuando la administración conecte el equipo de apertura.</p>
     <div class="digitalAccessButtons">
-      <button id="digitalPeatonalBtn" onclick="requestDigitalAccess('peatonal')" class="digitalAccessButton" type="button" disabled aria-describedby="digitalControlStatus">
+      <button id="digitalPeatonalBtn" onclick="requestDigitalAccess('peatonal')" class="digitalAccessButton adminOnly" type="button" disabled aria-describedby="digitalControlStatus">
         <span aria-hidden="true">🚶</span><span>Peatonal</span>
       </button>
       <button id="digitalPortonBtn" onclick="requestDigitalAccess('porton')" class="digitalAccessButton" type="button" disabled aria-describedby="digitalControlStatus">
@@ -5160,6 +5160,8 @@ async function configureDigitalAccess(kind){
 }
 
 async function requestDigitalAccess(target){
+  // Los residentes únicamente pueden usar el portón desde esta interfaz.
+  if(profile?.rol==='residente' && target==='peatonal')return;
   if(digitalBusy || !digitalLastStatus?.allowed)return;
   digitalBusy=true;digitalButtonsDisabled(true);
   const msg=document.getElementById('digitalCommandStatus');
