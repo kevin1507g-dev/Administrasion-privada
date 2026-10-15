@@ -1,4 +1,6 @@
 // ESP32 Dev Module. Requires esp32 by Espressif Systems 3.3.12.
+// Modo Evento GPIO 25 (salida mantenida) y porton GPIO 26 (pulso).
+// La salida Evento permanece INACTIVA hasta habilitacion segura en Supabase.
 // Bench test only: relay screw terminals disconnected.
 // Uses built-in cJSON and certificate bundle; no extra Arduino libraries.
 #include <WiFi.h>
@@ -17,7 +19,7 @@ const char* PROJECT_URL = __PROJECT_URL__;
 const char* PUBLISHABLE_KEY = __PUBLISHABLE_KEY__;
 const char* DEVICE_TOKEN = __DEVICE_TOKEN__;
 
-const int PEATONAL = 25;
+const int EVENTO = 25;
 const int PORTON = 26;
 Preferences prefs;
 esp_timer_handle_t pulseTimer = nullptr;
@@ -42,11 +44,9 @@ void finishPulse(void*) {
 
 bool beginPulse(const String& id, const char* target) {
   if (id.length()!=36 || id==lastCommand || pulsing) return false;
-  if (strcmp(target,"peatonal")==0 && eventHold.load()) return false;
-  int pin;
-  if (strcmp(target,"peatonal")==0) pin=PEATONAL;
-  else if (strcmp(target,"porton")==0) pin=PORTON;
-  else return false;
+  // GPIO 25 se reserva exclusivamente para el Modo Evento sostenido.
+  if (strcmp(target,"porton")!=0) return false;
+  int pin=PORTON;
 
   // Persist the ID before energizing: never replay after reboot.
   if (prefs.putString("last",id)==0) {
@@ -62,14 +62,14 @@ bool beginPulse(const String& id, const char* target) {
   }
   pulsing=true;
   digitalWrite(pin,LOW);
-  Serial.println(pin==PEATONAL ? "Pulso peatonal" : "Pulso porton");
+  Serial.println("Pulso porton");
   return true;
 }
 
 void stopEventHold() {
   eventHold.store(false);
   eventUntil=0;
-  digitalWrite(PEATONAL,HIGH); // Relay active LOW: fail-safe OFF.
+  digitalWrite(EVENTO,HIGH); // Relay active LOW: fail-safe OFF.
 }
 
 void updateEventHold(cJSON* event) {
@@ -87,7 +87,7 @@ void updateEventHold(cJSON* event) {
   eventUntil=(time_t)until->valuedouble;
   lastEventSync=millis();
   eventHold.store(true);
-  if (!pulsing) digitalWrite(PEATONAL,LOW);
+  if (!pulsing) digitalWrite(EVENTO,LOW);
 }
 
 void exchangeWithServer() {
@@ -150,8 +150,8 @@ void exchangeWithServer() {
 }
 
 void setup() {
-  pinMode(PEATONAL,OUTPUT);
-  digitalWrite(PEATONAL,HIGH);
+  pinMode(EVENTO,OUTPUT);
+  digitalWrite(EVENTO,HIGH);
   pinMode(PORTON,OUTPUT);
   digitalWrite(PORTON,HIGH);
   Serial.begin(115200);
@@ -180,7 +180,7 @@ void loop() {
       (WiFi.status()!=WL_CONNECTED || time(nullptr)>=eventUntil ||
        millis()-lastEventSync>15000)) {
     stopEventHold();
-    Serial.println("Modo Evento desactivado por seguridad.");
+    Serial.println("Relevador Evento apagado: fin de horario o perdida de comunicacion.");
   }
   if (pulsing) {
     if (pulseFinished.load()) {
