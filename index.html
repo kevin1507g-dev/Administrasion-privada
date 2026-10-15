@@ -474,9 +474,6 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     <h3>Accesos de la privada</h3>
     <p class="muted" id="digitalControlStatus" role="status">Pendiente de conexión. Los botones estarán disponibles cuando la administración conecte el equipo de apertura.</p>
     <div class="digitalAccessButtons">
-      <button id="digitalPeatonalBtn" onclick="requestDigitalAccess('peatonal')" class="digitalAccessButton adminOnly" type="button" disabled aria-describedby="digitalControlStatus">
-        <span aria-hidden="true">🚶</span><span>Peatonal</span>
-      </button>
       <button id="digitalPortonBtn" onclick="requestDigitalAccess('porton')" class="digitalAccessButton" type="button" disabled aria-describedby="digitalControlStatus">
         <span aria-hidden="true">🚗</span><span>Portón</span>
       </button>
@@ -487,7 +484,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   <div class="adminOnly card">
     <h3>Equipo de acceso</h3>
     <p id="digitalAdminStatus" class="muted">Pendiente de conexión.</p>
-    <p>Primero vincula el ESP32 y prueba ambos relevadores. Después podrás habilitar el control para los residentes.</p>
+    <p>El relevador del portón (GPIO 26) funciona por pulsos. El relevador Evento (GPIO 25) se gestiona desde Reservaciones y no está disponible como botón de apertura.</p>
     <button id="digitalPairBtn" type="button" onclick="pairDigitalESP32()">Vincular ESP32</button>
     <button id="digitalPauseBtn" type="button" disabled onclick="configureDigitalAccess('pause')">Pausar control digital</button>
     <button id="digitalResidentsBtn" type="button" disabled onclick="configureDigitalAccess('residents')">Habilitar para residentes</button>
@@ -524,7 +521,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     <p class="esp32PanelNote">Este apartado mostrará lecturas reales cuando conectemos el sensor físico y actualicemos el firmware por OTA. No utiliza temperaturas simuladas.</p>
   </div>
   <div class="grid" style="margin-top:14px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">
-    <div class="card"><h3>🚶 Peatonal · GPIO 25</h3><div id="esp32PeatonalLast" class="esp32PanelNote">Esperando historial...</div></div>
+    <div class="card"><h3>🎉 Evento · GPIO 25</h3><div id="esp32PeatonalLast" class="esp32PanelNote">Relevador reservado para eventos. Consulta Reservaciones para ver el horario.</div></div>
     <div class="card"><h3>🚗 Portón · GPIO 26</h3><div id="esp32PortonLast" class="esp32PanelNote">Esperando historial...</div></div>
     <div class="card"><h3>🔊 Buzzer · GPIO 27</h3><div class="esp32PanelNote">Configurado en el firmware; no hay sensor ni confirmación remota de sonido.</div></div>
   </div>
@@ -1131,7 +1128,8 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div class="card adminOnly" style="margin-top:14px">
   <h3>⚡ Vinculación ESP32 · Modo Evento</h3>
   <p id="eventModeStatus" class="muted" role="status">Consultando vinculación...</p>
-  <p class="muted">Salida asignada: relevador peatonal (GPIO 25). El sistema requiere firmware actualizado y verificación del controlador del portón antes de habilitar la activación física.</p>
+  <button id="eventModeStopBtn" class="danger" type="button" onclick="stopEventMode()" disabled>⏹ Desactivar Evento ahora</button>
+  <p class="muted">Salida asignada: relevador Evento (GPIO 25), de señal mantenida durante una reservación aprobada. El portón normal conserva GPIO 26. El Modo Evento requiere firmware actualizado y verificación del controlador antes de habilitar la salida física.</p>
 </div>
 </section>
 
@@ -3975,6 +3973,20 @@ function renderReservas(){
  body.innerHTML=reservas.map(r=>`<tr><td>${esc(r.fecha||'')}</td><td>${esc(String(r.hora_inicio||'').slice(0,5))}–${esc(String(r.hora_fin||'').slice(0,5))}</td><td>${esc(r.area||'')}</td><td>${esc(r.unidad||'')}</td><td><span class="badge">${esc(r.estado||'')}</span></td><td>${esc(r.notas||'')}</td><td class="adminOnly">${profile?.rol==='admin'?`<div class="actions"><button class="primary mini" onclick="setReservaEstado('${r.id}','aprobada')">Aprobar</button><button class="mini" onclick="setReservaEstado('${r.id}','rechazada')">Rechazar</button><button class="danger mini" onclick="eliminarReserva('${r.id}')">Eliminar</button></div>`:''}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">No hay reservaciones.</td></tr>';
 }
 
+async function stopEventMode(){
+ if(profile?.rol!=='admin')return;
+ if(!confirm('¿Desactivar el relevador Evento antes de que termine la reservación? No se reactivará durante el horario actual.'))return;
+ const btn=document.getElementById('eventModeStopBtn');
+ if(btn)btn.disabled=true;
+ const el=document.getElementById('eventModeStatus');
+ try{
+  const {error}=await sb.rpc('event_mode_stop');
+  if(error)throw error;
+  if(el)el.textContent='Se solicitó desactivar el Modo Evento. El ESP32 apagará la salida al recibir la actualización o antes por su temporizador de seguridad.';
+ }catch(e){if(el)el.textContent='No se pudo detener: '+(e.message||'error');}
+ await refreshEventModeStatus();
+}
+
 async function refreshEventModeStatus(){
  const el=document.getElementById('eventModeStatus');
  if(!el || profile?.rol!=='admin')return;
@@ -3982,6 +3994,8 @@ async function refreshEventModeStatus(){
   const {data,error}=await sb.rpc('event_mode_status');
   if(error)throw error;
   const total=Number(data?.approved_count)||0;
+  const stopBtn=document.getElementById('eventModeStopBtn');
+  if(stopBtn)stopBtn.disabled=!(data?.enabled && data?.active);
   if(!data?.enabled){
    el.textContent='Vinculación preparada · salida física deshabilitada por seguridad. Reservaciones aprobadas próximas: '+total+'.';
   }else if(data.active){
@@ -3990,7 +4004,7 @@ async function refreshEventModeStatus(){
   }else{
    el.textContent='Modo Evento habilitado · esperando el horario de una reservación aprobada. Próximas: '+total+'.';
   }
- }catch(e){el.textContent='No se pudo consultar el Modo Evento: '+(e.message||'error');}
+ }catch(e){const stopBtn=document.getElementById('eventModeStopBtn');if(stopBtn)stopBtn.disabled=true;el.textContent='No se pudo consultar el Modo Evento: '+(e.message||'error');}
 }
 
 async function addDocumento(){
@@ -5301,10 +5315,10 @@ async function refreshEsp32Panel(){
     esp32PanelWrite('esp32OtaState',candidate?'V'+candidate.version_code+' disponible':'Sin pendiente');
     esp32PanelWrite('esp32OtaLatest',latest?'Última versión registrada: V'+latest.version_code+(latest.enabled?' · publicada':' · en pausa'):'Sin versiones registradas');
     const stateLabels={pending:'Pendiente',dispatched:'Enviada',pulse_confirmed:'Pulso confirmado',expired:'Vencida',cancelled:'Cancelada',unconfirmed:'Sin confirmación'};
-    const targetLabels={peatonal:'Peatonal',porton:'Portón'};
+    const targetLabels={peatonal:'Peatonal (histórico)',porton:'Portón'};
     for(const target of ['peatonal','porton']){
       const recent=cmds.find(c=>c.target===target&&c.state==='pulse_confirmed');
-      esp32PanelWrite(target==='peatonal'?'esp32PeatonalLast':'esp32PortonLast',
+      if(target==='porton')esp32PanelWrite('esp32PortonLast',
         recent?'Último pulso confirmado: '+esp32PanelDate(recent.confirmed_at||recent.created_at)+' · '+esp32PanelActor(recent)+' · '+esp32PanelHouse(recent):'No hay pulsos confirmados en el historial reciente.');
     }
     const rows=document.getElementById('esp32HistoryRows');
