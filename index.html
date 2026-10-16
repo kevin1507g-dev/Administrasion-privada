@@ -4558,14 +4558,6 @@ th{background:#f2f2f2}
 <p style="margin-top:28px"><strong>Balance final: ${money(balance)}</strong></p>
 <button onclick="window.print()">Imprimir / Guardar como PDF</button>
 
-<button id="betyFab" class="hidden" type="button" onclick="betyToggle()" aria-label="Abrir Bety">🤖 Bety</button>
-<div id="betyPanel" role="dialog" aria-label="Asistente Bety">
- <header><strong>🤖 Bety · Asistente residencial</strong><button type="button" onclick="betyToggle()">✕</button></header>
- <div id="betyMessages" aria-live="polite"><div class="betyMsg">¡Hola! Soy Bety. Puedo ayudarte a consultar cuotas, pagos y eventos según tus permisos.</div></div>
- <label style="margin:0;padding:0 12px"><input type="checkbox" id="betySpeak" style="width:auto"> Leer respuestas en voz alta</label>
- <form id="betyForm" onsubmit="betySend(event)"><input id="betyInput" maxlength="500" placeholder="Pregúntale a Bety…" autocomplete="off" aria-label="Mensaje para Bety"><button type="button" id="betyMic" onclick="betyListen()" title="Hablar">🎤</button><button type="submit" class="primary" id="betySendBtn">Enviar</button></form>
-</div>
-
 </body>
 </html>`;
 
@@ -5404,5 +5396,12 @@ function betyListen(){const SpeechRecognition=window.SpeechRecognition||window.w
 setInterval(()=>{const fab=document.getElementById('betyFab');if(!fab)return;const logged=!!user&&!!profile&&!document.getElementById('app').classList.contains('hidden')&&['admin','residente'].includes(profile.rol);fab.classList.toggle('hidden',!logged);if(!logged)document.getElementById('betyPanel').classList.remove('open');},1200);
 
 </script>
+<button id="betyFab" class="hidden" type="button" onclick="betyToggle()" aria-label="Abrir Bety">🤖 Bety</button>
+<div id="betyPanel" role="dialog" aria-label="Asistente Bety">
+ <header><strong>🤖 Bety · Asistente residencial</strong><button type="button" onclick="betyToggle()">✕</button></header>
+ <div id="betyMessages" aria-live="polite"><div class="betyMsg">¡Hola! Soy Bety. Puedo ayudarte a consultar cuotas, pagos y eventos según tus permisos.</div></div>
+ <label style="margin:0;padding:0 12px"><input type="checkbox" id="betySpeak" style="width:auto"> Leer respuestas en voz alta</label>
+ <form id="betyForm" onsubmit="betySend(event)"><input id="betyInput" maxlength="500" placeholder="Pregúntale a Bety…" autocomplete="off" aria-label="Mensaje para Bety"><button type="button" id="betyMic" onclick="betyListen()" title="Hablar">🎤</button><button type="submit" class="primary" id="betySendBtn">Enviar</button></form>
+</div>
 </body></html>
 
