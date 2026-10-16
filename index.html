@@ -1941,7 +1941,6 @@ function show(id){
     digitalButtonsDisabled(true);
     refreshDigitalAccess();
     basuraActualizar();
-    if(!basuraTimer)basuraTimer=setInterval(basuraActualizar,15000);
   }
   if(id==='esp32Panel'){
     if(profile?.rol!=='admin')return;
@@ -5420,11 +5419,23 @@ async function refreshEsp32Panel(){
     esp32PanelBusy=false;
   }
 }
-setInterval(()=>{if(!document.hidden)refreshEsp32Panel();},20000);
-
-setInterval(()=>{
-  if(!document.hidden && !digitalBusy)refreshDigitalAccess();
-},5000);
+/* Sin recargar la página: sincronización ligera cada 3 segundos.
+   Solo consulta el módulo visible; evita perder formularios o desplazamiento. */
+let liveRefreshRunning=false;
+async function actualizarVistaActiva(){
+ if(liveRefreshRunning||document.hidden||!user||!profile||document.getElementById('app')?.classList.contains('hidden'))return;
+ liveRefreshRunning=true;
+ try{
+  if(document.getElementById('controlDigital')?.classList.contains('active')){
+   await Promise.all([refreshDigitalAccess(),basuraActualizar()]);
+  }else if(profile.rol==='admin'&&document.getElementById('esp32Panel')?.classList.contains('active')){
+   await refreshEsp32Panel();
+  }
+ }catch(error){console.warn('Actualización automática:',error);}
+ finally{liveRefreshRunning=false;}
+}
+setInterval(actualizarVistaActiva,3000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizarVistaActiva();});
 
 
 </script>
