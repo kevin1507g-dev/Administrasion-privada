@@ -535,15 +535,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     <div class="card"><h3>🚗 Portón · GPIO 26</h3><div id="esp32PortonLast" class="esp32PanelNote">Esperando historial...</div></div>
     <div class="card"><h3>🔊 Buzzer · GPIO 27</h3><div class="esp32PanelNote">Configurado en el firmware; no hay sensor ni confirmación remota de sonido.</div></div>
   </div>
-  <div class="card esp32PanelTable">
-    <h3>Historial reciente de órdenes</h3>
-    <p class="esp32PanelNote">Identificación por cuenta: muestra quién solicitó cada apertura y su casa registrada. Un pulso confirmado no indica la posición física de la puerta o del portón.</p>
-    <div class="table">
-      <table><thead><tr><th>Hora</th><th>Solicitó</th><th>Casa</th><th>Acceso</th><th>Resultado</th><th>Confirmación</th></tr></thead>
-      <tbody id="esp32HistoryRows"><tr><td colspan="6">Cargando historial...</td></tr></tbody></table>
-    </div>
-    <p class="esp32PanelMeta">Datos obtenidos de Supabase; se actualizan cada 20 segundos mientras esta sección permanezca abierta.</p>
-  </div>
+
 </section>
 
 <section id="porton" class="controlAccessOnly">
@@ -1184,7 +1176,18 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <section id="accesos"><h2>Accesos</h2><div class="card"><div class="form">
 <div><label>Persona</label><input id="aPersona"></div><div><label>Tipo</label><select id="aTipo"><option>Residente</option><option>Visita</option><option>Proveedor</option><option>Personal</option></select></div>
 <div><label>Movimiento</label><select id="aMov"><option>Entrada</option><option>Salida</option></select></div><div><label>Casa</label><select id="aUnidad"></select></div><div class="full"><label>Observaciones</label><input id="aObs"></div></div>
-<button class="primary" style="margin-top:12px" onclick="addAcceso()">Registrar acceso</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Persona</th><th>Tipo</th><th>Movimiento</th><th>Unidad</th></tr></thead><tbody id="accesosRows"></tbody></table></div></section>
+<button class="primary" style="margin-top:12px" onclick="addAcceso()">Registrar acceso</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Persona</th><th>Tipo</th><th>Movimiento</th><th>Unidad</th></tr></thead><tbody id="accesosRows"></tbody></table></div>
+  <div class="card esp32PanelTable adminOnly" style="margin-top:14px">
+    <h3>🖥️ Historial de accesos del ESP32</h3>
+    <div class="esp32PanelActions"><button type="button" onclick="refreshEsp32History()">↻ Actualizar historial</button><span id="esp32HistoryStatus" role="status" class="muted">Esperando consulta...</span></div>
+    <p class="esp32PanelNote">Identificación por cuenta: muestra quién solicitó cada apertura y su casa registrada. Un pulso confirmado no indica la posición física de la puerta o del portón.</p>
+    <div class="table">
+      <table><thead><tr><th>Hora</th><th>Solicitó</th><th>Casa</th><th>Acceso</th><th>Resultado</th><th>Confirmación</th></tr></thead>
+      <tbody id="esp32HistoryRows"><tr><td colspan="6">Cargando historial...</td></tr></tbody></table>
+    </div>
+    <p class="esp32PanelMeta">Datos obtenidos de Supabase; se actualizan automáticamente mientras Accesos esté abierto.</p>
+  </div>
+</section>
 </main>
 
 <div id="chatPanel" class="chatPanel hidden" aria-live="polite">
@@ -1946,6 +1949,7 @@ function show(id){
     if(profile?.rol!=='admin')return;
     refreshEsp32Panel();
   }
+  if(id==='accesos'&&profile?.rol==='admin')refreshEsp32History();
 
   if(id==='camaras'){
     cargarCamara();
@@ -5396,28 +5400,48 @@ async function refreshEsp32Panel(){
       if(target==='porton')esp32PanelWrite('esp32PortonLast',
         recent?'Último pulso confirmado: '+esp32PanelDate(recent.confirmed_at||recent.created_at)+' · '+esp32PanelActor(recent)+' · '+esp32PanelHouse(recent):'No hay pulsos confirmados en el historial reciente.');
     }
-    const rows=document.getElementById('esp32HistoryRows');
-    rows.replaceChildren();
-    if(!cmds.length){
-      const row=rows.insertRow();const cell=row.insertCell();cell.colSpan=6;cell.textContent='Todavía no hay órdenes registradas.';
-    }
-    for(const cmd of cmds){
-      const row=rows.insertRow();
-      for(const value of [
-        esp32PanelDate(cmd.created_at),
-        esp32PanelActor(cmd),
-        esp32PanelHouse(cmd),
-        targetLabels[cmd.target]||'Desconocido',
-        stateLabels[cmd.state]||'Estado desconocido',
-        cmd.confirmed_at?esp32PanelDate(cmd.confirmed_at):'—'
-      ])row.insertCell().textContent=value;
-    }
     esp32PanelWrite('esp32PanelStatus','Actualizado: '+esp32PanelDate(data.server_time));
   }catch(error){
     esp32PanelWrite('esp32PanelStatus','Error al consultar: '+(error?.message||'vuelve a intentar'));
   }finally{
     esp32PanelBusy=false;
   }
+}
+/* Historial ESP32 reubicado en Accesos; solo administradores. */
+let esp32HistoryBusy=false;
+async function refreshEsp32History(){
+ const section=document.getElementById('accesos');
+ const rows=document.getElementById('esp32HistoryRows');
+ const status=document.getElementById('esp32HistoryStatus');
+ if(esp32HistoryBusy||profile?.rol!=='admin'||!user||!section?.classList.contains('active')||!rows||!status)return;
+ esp32HistoryBusy=true;
+ const currentId=profile.id;
+ status.textContent='Consultando historial...';
+ try{
+  const {data,error}=await sb.rpc('esp32_admin_dashboard');
+  if(profile?.id!==currentId||!section.classList.contains('active'))return;
+  if(error)throw error;
+  const commands=Array.isArray(data?.commands)?data.commands:[];
+  const stateLabels={pending:'Pendiente',dispatched:'Enviada',pulse_confirmed:'Pulso confirmado',expired:'Vencida',cancelled:'Cancelada',unconfirmed:'Sin confirmación'};
+  const targetLabels={peatonal:'Peatonal (histórico)',porton:'Portón'};
+  rows.replaceChildren();
+  if(!commands.length){
+   const row=rows.insertRow();const cell=row.insertCell();cell.colSpan=6;cell.textContent='Todavía no hay órdenes registradas.';
+  }
+  for(const cmd of commands){
+   const row=rows.insertRow();
+   for(const value of [
+    esp32PanelDate(cmd.created_at),
+    esp32PanelActor(cmd),
+    esp32PanelHouse(cmd),
+    targetLabels[cmd.target]||'Desconocido',
+    stateLabels[cmd.state]||'Estado desconocido',
+    cmd.confirmed_at?esp32PanelDate(cmd.confirmed_at):'—'
+   ])row.insertCell().textContent=value;
+  }
+  status.textContent='Actualizado: '+esp32PanelDate(data.server_time);
+ }catch(error){status.textContent='No se pudo consultar el historial: '+(error?.message||'intenta de nuevo');}
+ finally{esp32HistoryBusy=false;}
 }
 /* Sin recargar la página: sincronización ligera cada 3 segundos.
    Solo consulta el módulo visible; evita perder formularios o desplazamiento. */
@@ -5435,6 +5459,7 @@ async function actualizarVistaActiva(){
  finally{liveRefreshRunning=false;}
 }
 setInterval(actualizarVistaActiva,3000);
+setInterval(()=>{if(!document.hidden)refreshEsp32History();},15000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizarVistaActiva();});
 
 
