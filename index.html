@@ -5411,16 +5411,16 @@ function betyAccionInteligente(message){
  const m=message.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
  const admin=profile?.rol==='admin';
  const dinero=n=>money(Number(n||0));
- const casaNum=m.match(/(?:casa|unidad)\\s*(?:numero|no\.?|#)?\\s*(\\d{1,4})/);
+ const casaNum=m.match(/(?:casa|unidad)\s*(?:numero|no\.?|#)?\s*(\d{1,4})/);
  const casa=casaNum?casas.find(c=>String(c.numero)===String(casaNum[1])):null;
- if(/(abre|abrir|muestra|mostrar|ve a|ir a|llevame|entra a|dirigeme)\\b/.test(m)){
-   const opciones=[[/\b(cuotas?|deudas?)\\b/,'cuotas'],[/\b(pagos?)\\b/,'pagos'],[/\b(eventos?|juntas?)\\b/,'eventos'],[/\b(visitas?|visitantes?)\\b/,'visitas'],[/\b(controles?|porton)\\b/,'porton'],[/\b(gastos?|egresos?)\\b/,'gastos'],[/\b(inicio|principal)\\b/,'inicio']];
+ if(/(abre|abrir|muestra|mostrar|ve a|ir a|llevame|entra a|dirigeme)\b/.test(m)){
+   const opciones=[[/\b(cuotas?|deudas?)\b/,'cuotas'],[/\b(pagos?)\b/,'pagos'],[/\b(eventos?|juntas?)\b/,'eventos'],[/\b(visitas?|visitantes?)\b/,'visitas'],[/\b(controles?|porton)\b/,'porton'],[/\b(gastos?|egresos?)\b/,'gastos'],[/\b(inicio|principal)\b/,'inicio']];
    const op=opciones.find(x=>x[0].test(m));
    if(op){if(op[1]==='gastos'&&!admin)return 'La sección de gastos está reservada para administradores.';const nav=[...document.querySelectorAll('#sideMenu button[onclick]')].find(b=>b.getAttribute('onclick')?.includes("show('"+op[1]+"')"));if(!nav||nav.classList.contains('hidden')||nav.closest('.hidden'))return 'Esa sección no está disponible para tu perfil.';show(op[1]);return 'Listo, abrí la sección '+op[1]+' para ti.';}
  }
  if(/(gastos?|egresos?|balance|ingresos? y gastos?)/.test(m)){
    if(!admin)return 'Los reportes generales de gastos están disponibles solo para administración.';
-   const mes=m.match(/\b(20\d{2})-(0[1-9]|1[0-2])\\b/);
+   const mes=m.match(/\b(20\d{2})-(0[1-9]|1[0-2])\b/);
    const registros=mes?gastos.filter(g=>String(g.fecha||'').startsWith(mes[0])):gastos;
    const total=registros.reduce((n,g)=>n+Number(g.monto||0),0);
    const pagosFiltrados=mes?pagos.filter(p=>String(p.fecha||'').startsWith(mes[0])):pagos;
