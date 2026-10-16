@@ -164,6 +164,16 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 #calendarioDias button.seleccionado{background:#22c55e;color:#052e16}
 #calendarioDias button[aria-current="date"]{outline:2px solid #38bdf8;outline-offset:-2px}
 #calendarioDias button:disabled{opacity:.3;cursor:not-allowed}
+
+/* Bety: asistente residencial */
+#betyFab{position:fixed;right:18px;bottom:22px;z-index:11000;border-radius:999px;background:#38bdf8;color:#082f49;box-shadow:0 8px 30px #0008;padding:14px 18px}
+#betyPanel{position:fixed;right:14px;bottom:80px;z-index:11001;width:min(390px,calc(100vw - 28px));height:min(540px,calc(100dvh - 105px));display:none;flex-direction:column;background:#0f172a;border:1px solid #475569;border-radius:18px;box-shadow:0 18px 55px #000b;overflow:hidden}
+#betyPanel.open{display:flex}#betyPanel header{padding:13px 15px;background:#1e293b;display:flex;justify-content:space-between;align-items:center}#betyPanel header button{padding:5px 10px}
+#betyMessages{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:9px}
+.betyMsg{padding:10px 12px;border-radius:12px;max-width:93%;white-space:pre-wrap;overflow-wrap:anywhere;background:#334155;font-size:14px}
+.betyMsg.mine{background:#075985;align-self:flex-end}
+#betyForm{display:flex;gap:6px;padding:10px;border-top:1px solid #334155}#betyInput{flex:1;min-width:0}#betyForm button{padding:10px}#betySpeak{font-size:12px;padding:5px 14px}
+
 </style>
 <link rel="stylesheet" href="./ui-modern.css?v=20261013" />
 </head>
@@ -4547,6 +4557,15 @@ th{background:#f2f2f2}
 
 <p style="margin-top:28px"><strong>Balance final: ${money(balance)}</strong></p>
 <button onclick="window.print()">Imprimir / Guardar como PDF</button>
+
+<button id="betyFab" class="hidden" type="button" onclick="betyToggle()" aria-label="Abrir Bety">🤖 Bety</button>
+<div id="betyPanel" role="dialog" aria-label="Asistente Bety">
+ <header><strong>🤖 Bety · Asistente residencial</strong><button type="button" onclick="betyToggle()">✕</button></header>
+ <div id="betyMessages" aria-live="polite"><div class="betyMsg">¡Hola! Soy Bety. Puedo ayudarte a consultar cuotas, pagos y eventos según tus permisos.</div></div>
+ <label style="margin:0;padding:0 12px"><input type="checkbox" id="betySpeak" style="width:auto"> Leer respuestas en voz alta</label>
+ <form id="betyForm" onsubmit="betySend(event)"><input id="betyInput" maxlength="500" placeholder="Pregúntale a Bety…" autocomplete="off" aria-label="Mensaje para Bety"><button type="button" id="betyMic" onclick="betyListen()" title="Hablar">🎤</button><button type="submit" class="primary" id="betySendBtn">Enviar</button></form>
+</div>
+
 </body>
 </html>`;
 
@@ -5375,6 +5394,14 @@ setInterval(()=>{if(!document.hidden)refreshEsp32Panel();},20000);
 setInterval(()=>{
   if(!document.hidden && !digitalBusy)refreshDigitalAccess();
 },5000);
+
+
+/* Bety: interfaz; las consultas y los permisos se verifican en Supabase */
+function betyToggle(){const panel=document.getElementById('betyPanel');panel.classList.toggle('open');if(panel.classList.contains('open'))document.getElementById('betyInput').focus();}
+function betyAdd(text,mine=false){const box=document.getElementById('betyMessages');const el=document.createElement('div');el.className='betyMsg'+(mine?' mine':'');el.textContent=text;box.appendChild(el);box.scrollTop=box.scrollHeight;return el;}
+async function betySend(e){e.preventDefault();const input=document.getElementById('betyInput'),message=input.value.trim();if(!message)return;if(!user||!profile){betyAdd('Inicia sesión para utilizar Bety.');return;}input.value='';betyAdd(message,true);const btn=document.getElementById('betySendBtn');btn.disabled=true;const wait=betyAdd('Consultando…');try{const {data,error}=await sb.functions.invoke('bety-asistente',{body:{message}});if(error)throw error;const answer=data?.answer||data?.error||'No se recibió respuesta.';wait.textContent=answer;if(document.getElementById('betySpeak').checked&&'speechSynthesis' in window){speechSynthesis.cancel();const utter=new SpeechSynthesisUtterance(answer);utter.lang='es-MX';utter.rate=1;speechSynthesis.speak(utter);}}catch(err){wait.textContent='No pude conectar con Bety. Verifica tu sesión e inténtalo nuevamente.';console.warn('Bety:',err);}finally{btn.disabled=false;}}
+function betyListen(){const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SpeechRecognition){betyAdd('El reconocimiento de voz no está disponible en este navegador. Puedes escribir tu mensaje.');return;}const mic=document.getElementById('betyMic');const rec=new SpeechRecognition();rec.lang='es-MX';rec.interimResults=false;rec.onresult=e=>{document.getElementById('betyInput').value=e.results[0][0].transcript;document.getElementById('betyInput').focus();};rec.onerror=()=>betyAdd('No pude reconocer la voz. Revisa el permiso del micrófono.');rec.onend=()=>{mic.disabled=false;};mic.disabled=true;try{rec.start();}catch(e){mic.disabled=false;}}
+setInterval(()=>{const fab=document.getElementById('betyFab');if(!fab)return;const logged=!!user&&!!profile&&!document.getElementById('app').classList.contains('hidden')&&['admin','residente'].includes(profile.rol);fab.classList.toggle('hidden',!logged);if(!logged)document.getElementById('betyPanel').classList.remove('open');},1200);
 
 </script>
 </body></html>
