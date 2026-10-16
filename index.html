@@ -165,25 +165,6 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 #calendarioDias button[aria-current="date"]{outline:2px solid #38bdf8;outline-offset:-2px}
 #calendarioDias button:disabled{opacity:.3;cursor:not-allowed}
 
-/* Bety: asistente residencial */
-#betyFab{top:14px;right:14px;bottom:auto;width:48px;height:48px;padding:0;border-radius:14px;background:#102d36;border:1px solid #1c555c;display:flex;align-items:center;justify-content:center}#betyFab.hidden{display:none!important}#betyFab svg{width:27px;height:27px;filter:drop-shadow(0 0 6px #10d6ad55)}#betyPanel{top:72px;right:14px;bottom:auto;height:min(540px,calc(100dvh - 88px))}@media(max-width:480px){#betyFab{top:14px;right:14px;width:46px;height:46px}}
-#betyFab{position:fixed;right:18px;bottom:22px;z-index:11000;border-radius:999px;background:#38bdf8;color:#082f49;box-shadow:0 8px 30px #0008;padding:14px 18px}
-#betyPanel{position:fixed;right:14px;bottom:80px;z-index:11001;width:min(390px,calc(100vw - 28px));height:min(540px,calc(100dvh - 105px));display:none;flex-direction:column;background:#0f172a;border:1px solid #475569;border-radius:18px;box-shadow:0 18px 55px #000b;overflow:hidden}
-#betyPanel.open{display:flex}#betyPanel header{padding:13px 15px;background:#1e293b;display:flex;justify-content:space-between;align-items:center}#betyPanel header button{padding:5px 10px}
-#betyMessages{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:9px}
-.betyMsg{padding:10px 12px;border-radius:12px;max-width:93%;white-space:pre-wrap;overflow-wrap:anywhere;background:#334155;font-size:14px}
-.betyMsg.mine{background:#075985;align-self:flex-end}
-#betyForm{display:flex;gap:6px;padding:10px;border-top:1px solid #334155}#betyInput{flex:1;min-width:0}#betyForm button{padding:10px}#betySpeak{font-size:12px;padding:5px 14px}
-
-
-/* Bety: botón verde con estrella protagonista */
-#betyFab{width:60px;height:60px;top:10px;right:12px;border-radius:50%;background:radial-gradient(circle at 32% 22%,#65ff8b 0%,#04d958 38%,#009743 75%,#006f39 100%);border:2px solid #5cff90;box-shadow:inset 0 2px 7px #ffffff88,inset 0 -6px 12px #004f2c88,0 0 13px #00e66c88,0 6px 18px #0008;display:flex;align-items:center;justify-content:center;padding:0}
-#betyFab svg{width:47px;height:47px;filter:drop-shadow(0 2px 4px #004f4a88)}
-#betyPanel{top:80px}
-@media(max-width:480px){#betyFab{top:9px;right:9px;width:56px;height:56px}#betyFab svg{width:44px;height:44px}#betyPanel{top:74px}}
-
-/* Bety: fondo gris confirmado */
-#betyFab{background:radial-gradient(circle at 32% 22%,#e2e5e9 0%,#9299a3 38%,#505966 76%,#343c47 100%);border:2px solid #d4d9e0;box-shadow:inset 0 2px 7px #ffffffaa,inset 0 -6px 12px #222a3588,0 0 12px #c5cbd466,0 6px 18px #0008}
 </style>
 <link rel="stylesheet" href="./ui-modern.css?v=20261013" />
 </head>
@@ -5398,106 +5379,6 @@ setInterval(()=>{
 },5000);
 
 
-/* Bety: interfaz; las consultas y los permisos se verifican en Supabase */
-function betyVoces(){if(!('speechSynthesis' in window))return [];return window.speechSynthesis.getVoices().filter(v=>/^es([-_]|$)/i.test(v.lang));}
-function betyPuntuarVoz(v){const n=v.name.toLowerCase();let p=0;if(/natural|neural|online|premium|enhanced/.test(n))p+=100;if(/paulina|dalia|sabina|paloma|helena|lucia|maria|monica|elvira|sofia|ximena|valeria|female|femenina/.test(n))p+=50;if(/^es[-_]mx$/i.test(v.lang))p+=20;if(v.localService===false)p+=8;return p;}
-function betyCargarVoces(){const el=document.getElementById('betyVoice');if(!el)return;const voces=betyVoces().sort((a,b)=>betyPuntuarVoz(a)-betyPuntuarVoz(b));const selected=el.value;el.replaceChildren();const automatico=document.createElement('option');automatico.value='';automatico.textContent='Voz femenina automática';el.appendChild(automatico);voces.forEach(v=>{const opt=document.createElement('option');opt.value=v.voiceURI;opt.textContent=v.name+' ('+v.lang+')';el.appendChild(opt);});if(voces.some(v=>v.voiceURI===selected))el.value=selected;}
-function betyHablar(t){if(!('speechSynthesis' in window))return;const z=window.speechSynthesis;z.cancel();const u=new SpeechSynthesisUtterance(String(t));u.lang='es-MX';u.rate=0.97;u.pitch=1.02;u.volume=1;const voces=betyVoces().sort((a,b)=>betyPuntuarVoz(b)-betyPuntuarVoz(a));const seleccion=document.getElementById('betyVoice')?.value;u.voice=voces.find(v=>v.voiceURI===seleccion)||voces[0]||null;z.speak(u);}
-if('speechSynthesis' in window){window.speechSynthesis.addEventListener?.('voiceschanged',betyCargarVoces);document.addEventListener('DOMContentLoaded',betyCargarVoces);}
-function betyToggle(){const panel=document.getElementById('betyPanel');panel.classList.toggle('open');if(panel.classList.contains('open'))document.getElementById('betyInput').focus();}
-function betyAdd(text,mine=false){const box=document.getElementById('betyMessages');const el=document.createElement('div');el.className='betyMsg'+(mine?' mine':'');el.textContent=text;box.appendChild(el);box.scrollTop=box.scrollHeight;return el;}
-function betyConsultaControles(message){const m=message.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');if(!/(controles?|mandos?|remotos?)/.test(m))return null;const house=m.match(/(?:casa|unidad)\s*(?:numero|no\.?|#)?\s*(\d{1,4})/);if(profile?.rol!=='admin'&&profile?.rol!=='residente')return 'No tienes permiso para consultar controles.';let casa=house?casas.find(c=>String(c.numero)===String(house[1])):casas.find(c=>String(c.id)===String(profile.casa_id));if(!casa)return house?'No encontré la casa '+house[1]+'.':'Indica el número de casa que quieres consultar.';if(profile.rol==='residente'&&String(profile.casa_id)!==String(casa.id))return 'Solo puedo mostrarte los controles de tu propia casa.';const lista=controles.filter(c=>String(casaIdDeRegistro(c))===String(casa.id));if(!lista.length)return 'La casa '+casa.numero+' no tiene controles registrados.';return 'Controles de la casa '+casa.numero+' ('+lista.length+'): '+lista.map(c=>'número '+c.numero_control+' — '+(c.estado==='suspendido'?'suspendido':'activo')).join('; ')+'.';}
-function betyAccionInteligente(message){
- const m=message.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
- const admin=profile?.rol==='admin';
- const dinero=n=>money(Number(n||0));
- const casaNum=m.match(/(?:casa|unidad)\s*(?:numero|no\.?|#)?\s*(\d{1,4})/);
- const casa=casaNum?casas.find(c=>String(c.numero)===String(casaNum[1])):null;
- if(/(abre|abrir|muestra|mostrar|ve a|ir a|llevame|entra a|dirigeme)\b/.test(m)){
-   const opciones=[[/\b(cuotas?|deudas?)\b/,'cuotas'],[/\b(pagos?)\b/,'pagos'],[/\b(eventos?|juntas?)\b/,'eventos'],[/\b(visitas?|visitantes?)\b/,'visitas'],[/\b(controles?|porton)\b/,'porton'],[/\b(gastos?|egresos?)\b/,'gastos'],[/\b(inicio|principal)\b/,'inicio']];
-   const op=opciones.find(x=>x[0].test(m));
-   if(op){if(op[1]==='gastos'&&!admin)return 'La sección de gastos está reservada para administradores.';const nav=[...document.querySelectorAll('#sideMenu button[onclick]')].find(b=>b.getAttribute('onclick')?.includes("show('"+op[1]+"')"));if(!nav||nav.classList.contains('hidden')||nav.closest('.hidden'))return 'Esa sección no está disponible para tu perfil.';show(op[1]);return 'Listo, abrí la sección '+op[1]+' para ti.';}
- }
- if(/(gastos?|egresos?|balance|ingresos? y gastos?)/.test(m)){
-   if(!admin)return 'Los reportes generales de gastos están disponibles solo para administración.';
-   const mes=m.match(/\b(20\d{2})-(0[1-9]|1[0-2])\b/);
-   const registros=mes?gastos.filter(g=>String(g.fecha||'').startsWith(mes[0])):gastos;
-   const total=registros.reduce((n,g)=>n+Number(g.monto||0),0);
-   const pagosFiltrados=mes?pagos.filter(p=>String(p.fecha||'').startsWith(mes[0])):pagos;
-   const ingreso=pagosFiltrados.reduce((n,p)=>n+Number(p.monto||0),0);
-   return 'Reporte '+(mes?'de '+mes[0]:'general')+': ingresos registrados '+dinero(ingreso)+', gastos registrados '+dinero(total)+', diferencia '+dinero(ingreso-total)+'. Gastos contabilizados: '+registros.length+'. Puedes pedirme un mes usando AAAA-MM.';
- }
- if(/(eventos?|juntas?|fiestas?|reuniones?)/.test(m)&&/(cuales|cuando|proxim|programad|hay|lista|consulta)/.test(m)){
-   const ahora=new Date().toLocaleDateString('en-CA',{timeZone:'America/Mexico_City'});
-   const lista=eventos.filter(e=>String(e.fecha||'')>=ahora).sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha))).slice(0,5);
-   return lista.length?'Próximos eventos: '+lista.map(e=>(e.titulo||'Evento')+' el '+e.fecha+(e.hora?' a las '+String(e.hora).slice(0,5):'')).join('; ')+'.':'No hay eventos próximos registrados en los datos cargados.';
- }
- if(/(visitas?|visitantes?)/.test(m)&&/(cuales|cuantas|lista|registrad|programad|hay)/.test(m)){
-   if(!admin&&!profile?.casa_id)return 'Tu cuenta no tiene una casa asignada.';
-   const datos=admin?(casaNum?visitas.filter(v=>casa&&String(casaIdDeRegistro(v))===String(casa.id)):visitas):visitas.filter(v=>String(casaIdDeRegistro(v))===String(profile.casa_id));
-   if(casaNum&&!casa)return 'No encontré la casa '+casaNum[1]+'.';
-   return 'Visitas registradas '+(casaNum?'para casa '+casaNum[1]:'en tu ámbito autorizado')+': '+datos.length+'. '+(datos.length?'Últimas: '+datos.slice(-3).map(v=>(v.visitante||'Visitante')+' ('+(v.fecha||'sin fecha')+')').join('; ')+'.':'');
- }
- if(/(agrega|crea|registra|elimina|borra|suspende|reactiva|activa|abre el porton|manda|envia|modifica|edita)/.test(m)){
-   return 'Puedo ayudarte con esa acción, pero todavía no ejecuto cambios de datos ni operaciones físicas desde el chat. Por seguridad, usa el módulo correspondiente mientras implementamos confirmación y registro de auditoría.';
- }
- return null;
-}
-function betyLocalConsulta(message){const m=message.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');if(!/(debe|deuda|cuota|saldo|adeuda|pendiente)/.test(m))return null;const house=m.match(/(?:casa|unidad)\s*(?:numero|número|no\.?|#)?\s*(\d{1,4})/);if(!house)return null;const numero=house[1];if(profile?.rol!=='admin'&&profile?.rol!=='residente')return 'No tienes permiso para consultar saldos.';const casa=casas.find(c=>String(c.numero)===String(numero));if(!casa)return 'No encontré la casa '+numero+'.';if(profile.rol==='residente'&&String(profile.casa_id)!==String(casa.id))return 'Solo puedo mostrarte los saldos de tu propia casa.';const result=resumenDeudaCasa(casa.id);return 'Casa '+numero+': deuda pendiente '+money(result.deuda)+'. Cuotas con saldo: '+result.pendientes+'. Cuotas vencidas: '+result.vencidas+'. Pagos aplicados: '+money(result.pagadoTotal)+'.';}
-/* Bety IA 2.0: resúmenes de solo lectura con permisos por perfil. */
-function betyResumenInteligente(message){
- const m=String(message||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
- if(!profile||!['admin','residente'].includes(profile.rol))return null;
- const resumen=/\b(resumen|reporte|panorama|estadistica|estadisticas|total|cuantas|cuantos|lista|listado)\b/.test(m);
- const deuda=/(deud|adeud|pendient|moros|cuota|saldo)/.test(m);
- const mandos=/(control|mando|remoto)/.test(m);
- if(!resumen||(!deuda&&!mandos))return null;
- const propias=profile.rol==='admin'?casas:casas.filter(c=>String(c.id)===String(profile.casa_id));
- if(deuda){
-  const filas=propias.map(c=>({numero:c.numero,...resumenDeudaCasa(c.id)}));
-  const pendientes=filas.filter(c=>Number(c.deuda)>0).sort((a,b)=>Number(b.deuda)-Number(a.deuda));
-  const total=pendientes.reduce((sum,c)=>sum+Number(c.deuda||0),0);
-  const detalle=profile.rol==='admin'?pendientes.slice(0,15).map(c=>'casa '+c.numero+': '+money(c.deuda)).join('; '):'';
-  return 'Resumen de cuotas: '+pendientes.length+' casa(s) con deuda, saldo total '+money(total)+'.'+(detalle?' Detalle (hasta 15 casas): '+detalle+'.':'')+' Información basada en los datos cargados; verifica los pagos recientes.';
- }
- const registros=controles.filter(c=>propias.some(casa=>String(casaIdDeRegistro(c))===String(casa.id)));
- const suspendidos=registros.filter(c=>c.estado==='suspendido');
- return 'Resumen de controles: '+registros.length+' registrados, '+suspendidos.length+' suspendidos y '+(registros.length-suspendidos.length)+' no suspendidos. Solo consulta; no se modificó ningún control.';
-}
-/* Bety IA 2.0: alta de cuotas con confirmación y permisos. */
-async function betyCrearCuotaConfirmada(message){
- const m=String(message||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
- if(!/\b(agrega|agregar|crea|crear|registra|registrar|anade|poner|pon)\b/.test(m)||!/\bcuota\b/.test(m))return null;
- if(profile?.rol!=='admin')return 'Solo los administradores pueden registrar cuotas.';
- const casaMatch=m.match(/\bcasa\s*(?:numero\s*|no\.?\s*|#\s*)?(\d{1,4})\b/);
- const montoMatch=m.match(/\b(?:cuota\s+de|monto\s+de)\s*\$?\s*(\d+(?:[.,]\d{1,2})?)\b/);
- if(!casaMatch||!montoMatch)return 'Indica la casa y el monto. Ejemplo: Agrega una cuota de 5 pesos a la casa 63.';
- const casa=casas.find(c=>String(c.numero)===casaMatch[1]);
- if(!casa)return 'No encontré la casa '+casaMatch[1]+'.';
- const monto=Number(montoMatch[1].replace(',','.'));
- if(!Number.isFinite(monto)||monto<=0||monto>100000)return 'El monto debe ser mayor que cero y no exceder 100,000 pesos.';
- const concepto='Cuota registrada mediante Bety';
- const vencimiento=new Date().toLocaleDateString('en-CA',{timeZone:'America/Mexico_City'});
- if(!window.confirm('Bety solicita autorización para crear una cuota de '+money(monto)+' para la casa '+casa.numero+'. Concepto: '+concepto+'. Vencimiento: '+vencimiento+'. ¿Confirmas?'))return 'Operación cancelada. No se registró ninguna cuota.';
- const {data:{user:actual},error:authError}=await sb.auth.getUser();
- if(authError||!actual||actual.id!==user?.id||profile?.rol!=='admin')return 'Sesión no autorizada. No se registró la cuota.';
- const {data,error}=await sb.from('cuotas').insert({casa_id:casa.id,residente_id:null,concepto,monto,vencimiento,estado:'pendiente'}).select('id').single();
- if(error)throw error;
- await loadAll();
- return 'Cuota registrada correctamente: '+money(monto)+' para casa '+casa.numero+'. Folio: '+data.id+'.';
-}
-async function betySend(e){e.preventDefault();const input=document.getElementById('betyInput'),message=input.value.trim();if(!message)return;if(!user||!profile){betyAdd('Inicia sesión para utilizar Bety.');return;}input.value='';betyAdd(message,true);const btn=document.getElementById('betySendBtn');btn.disabled=true;const wait=betyAdd('Consultando…');try{const cuota=await betyCrearCuotaConfirmada(message);const local=cuota??betyResumenInteligente(message)??betyAccionInteligente(message)??betyConsultaControles(message)??betyLocalConsulta(message);if(local!==null){wait.textContent=local;if(document.getElementById('betySpeak').checked&&'speechSynthesis' in window){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(local);u.lang='es-MX';betyHablar(local);}return;}const {data,error}=await sb.functions.invoke('bety-asistente',{body:{message}});if(error)throw error;const answer=data?.answer||data?.error||'No se recibió respuesta.';wait.textContent=answer;if(document.getElementById('betySpeak').checked&&'speechSynthesis' in window){speechSynthesis.cancel();const utter=new SpeechSynthesisUtterance(answer);utter.lang='es-MX';utter.rate=1;betyHablar(answer);}}catch(err){let detalle='No se pudo completar la conexión con Supabase.';try{const response=err?.context;if(response&&typeof response.json==='function'){const body=await response.json();detalle=body?.error||body?.message||detalle;}else if(err?.message){detalle=err.message;}}catch(_){detalle=err?.message||detalle;}wait.textContent='Bety: '+detalle+' Si continúa, avísame qué mensaje aparece.';console.warn('Bety:',err);}finally{btn.disabled=false;}}
-function betyListen(){const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SpeechRecognition){betyAdd('El reconocimiento de voz no está disponible en este navegador. Puedes escribir tu mensaje.');return;}const mic=document.getElementById('betyMic');const rec=new SpeechRecognition();rec.lang='es-MX';rec.interimResults=false;rec.onresult=e=>{document.getElementById('betyInput').value=e.results[0][0].transcript;document.getElementById('betyInput').focus();};rec.onerror=()=>betyAdd('No pude reconocer la voz. Revisa el permiso del micrófono.');rec.onend=()=>{mic.disabled=false;};mic.disabled=true;try{rec.start();}catch(e){mic.disabled=false;}}
-setInterval(()=>{const fab=document.getElementById('betyFab');if(!fab)return;const logged=!!user&&!!profile&&!document.getElementById('app').classList.contains('hidden')&&['admin','residente'].includes(profile.rol);fab.classList.toggle('hidden',!logged);if(!logged)document.getElementById('betyPanel').classList.remove('open');},1200);
-
 </script>
-<button id="betyFab" class="hidden" type="button" onclick="betyToggle()" aria-label="Abrir Bety" title="Bety · Asistente residencial"><img alt="" aria-hidden="true" width="50" height="50" style="width:50px;height:50px;object-fit:contain;display:block" src="data:image/webp;base64,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"></button>
-<div id="betyPanel" role="dialog" aria-label="Asistente Bety">
- <header><strong>🤖 Bety · Asistente residencial</strong><button type="button" onclick="betyToggle()">✕</button></header>
- <div id="betyMessages" aria-live="polite"><div class="betyMsg">¡Hola! Soy Bety. Puedo ayudarte a consultar cuotas, pagos y eventos según tus permisos.</div></div>
- <label style="margin:0;padding:0 12px"><input type="checkbox" id="betySpeak" style="width:auto"> Leer respuestas en voz alta</label>
- <div style="display:flex;align-items:center;gap:6px;padding:0 12px 8px;flex-wrap:wrap"><select id="betyVoice" aria-label="Elegir voz de Bety" style="flex:1;min-width:130px;font-size:12px" onclick="betyCargarVoces()"><option value="">Voz femenina automática</option></select><button type="button" onclick="betyHablar('Hola, soy Bety. Estoy lista para ayudarte en Administración Residencial.')" style="font-size:12px;padding:7px 9px">🔊 Probar voz</button></div>
- <form id="betyForm" onsubmit="betySend(event)"><input id="betyInput" maxlength="500" placeholder="Pregúntale a Bety…" autocomplete="off" aria-label="Mensaje para Bety"><button type="button" id="betyMic" onclick="betyListen()" title="Hablar">🎤</button><button type="submit" class="primary" id="betySendBtn">Enviar</button></form>
-</div>
 </body></html>
 
