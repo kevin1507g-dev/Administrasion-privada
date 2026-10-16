@@ -240,7 +240,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <button class="residentAdminOnly" onclick="show('reservaciones')">🏡 Reservaciones</button>
 <button onclick="show('documentos')">📄 Documentos</button>
 <button class="residentAdminOnly" onclick="show('historialCasa')">📚 Historial por casa</button>
-<button class="staffOnly" onclick="show('accesos')">🚪 Accesos</button>
+<button onclick="show('accesos')">📋 Historial de accesos</button>
 </div><button class="danger" style="width:100%;margin-top:15px" onclick="signOut()">Cerrar sesión</button></aside>
 
 <main>
@@ -921,7 +921,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <section id="visitas"><h2>Visitas</h2><div class="card"><div class="form">
 <div><label>Visitante</label><input id="vNombre"></div><div><label>Casa</label><select id="vUnidad"></select></div><div><label>Placas</label><input id="vPlacas"></div><div><label>Motivo</label><input id="vMotivo"></div>
 <div><label>Fecha</label><input id="vFecha" type="date"></div><div><label>Hora</label><input id="vHora" type="time"></div></div>
-<button id="visitCreate" class="primary" style="margin-top:12px" onclick="addVisita()">Registrar visita</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Visitante</th><th>Unidad</th><th>Placas</th><th>Estado</th><th class="adminOnly">Acciones</th></tr></thead><tbody id="visitasRows"></tbody></table></div></section>
+<button id="visitCreate" class="primary" style="margin-top:12px" onclick="addVisita()">Registrar visita</button></div></section>
 
 
 <section id="eventos"><h2>Eventos</h2>
@@ -1078,22 +1078,6 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     </div>
   </div>
 
-  <div class="card table" style="margin-top:14px">
-    <h3 style="padding:14px 14px 0">Historial de entregas</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Fecha</th>
-          <th class="adminOnly">Casa</th>
-          <th>Tipo</th>
-          <th>Empresa / repartidor</th>
-          <th>Estado</th>
-          <th>Respuesta</th>
-        </tr>
-      </thead>
-      <tbody id="entregasRows"></tbody>
-    </table>
-  </div>
 </section>
 
 <section id="paqueteria"><h2>📦 Paquetería</h2>
@@ -1173,11 +1157,30 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div class="card table" style="margin-top:14px"><h3 style="padding:14px 14px 0">Actividad reciente</h3><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th><th>Estado / Monto</th></tr></thead><tbody id="historialRows"></tbody></table></div>
 </section>
 
-<section id="accesos"><h2>Accesos</h2><div class="card"><div class="form">
+<section id="accesos"><h2>📋 Historial de accesos</h2><div class="card staffOnly"><div class="form">
 <div><label>Persona</label><input id="aPersona"></div><div><label>Tipo</label><select id="aTipo"><option>Residente</option><option>Visita</option><option>Proveedor</option><option>Personal</option></select></div>
 <div><label>Movimiento</label><select id="aMov"><option>Entrada</option><option>Salida</option></select></div><div><label>Casa</label><select id="aUnidad"></select></div><div class="full"><label>Observaciones</label><input id="aObs"></div></div>
-<button class="primary" style="margin-top:12px" onclick="addAcceso()">Registrar acceso</button></div><div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Persona</th><th>Tipo</th><th>Movimiento</th><th>Unidad</th></tr></thead><tbody id="accesosRows"></tbody></table></div>
-  <div class="card esp32PanelTable adminOnly" style="margin-top:14px">
+<button class="primary" style="margin-top:12px" onclick="addAcceso()">Registrar acceso</button></div><div class="card table staffOnly" style="margin-top:14px"><h3 style="padding:14px 14px 0">🚪 Historial de accesos manuales</h3><table><thead><tr><th>Fecha</th><th>Persona</th><th>Tipo</th><th>Movimiento</th><th>Unidad</th></tr></thead><tbody id="accesosRows"></tbody></table></div>
+  
+<div class="card table" style="margin-top:14px"><h3 style="padding:14px 14px 0">👥 Historial de visitas registradas</h3><table><thead><tr><th>Fecha</th><th>Visitante</th><th>Unidad</th><th>Placas</th><th>Estado</th><th class="adminOnly">Acciones</th></tr></thead><tbody id="visitasRows"></tbody></table></div>
+  <div class="card table residentAdminOnly" style="margin-top:14px">
+    <h3 style="padding:14px 14px 0">🛵 Historial de repartidores y visitas (QR)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th class="adminOnly">Casa</th>
+          <th>Tipo</th>
+          <th>Empresa / repartidor</th>
+          <th>Estado</th>
+          <th>Respuesta</th>
+        </tr>
+      </thead>
+      <tbody id="entregasRows"></tbody>
+    </table>
+  </div>
+
+<div class="card esp32PanelTable adminOnly" style="margin-top:14px">
     <h3>🖥️ Historial de accesos del ESP32</h3>
     <div class="esp32PanelActions"><button type="button" onclick="refreshEsp32History()">↻ Actualizar historial</button><span id="esp32HistoryStatus" role="status" class="muted">Esperando consulta...</span></div>
     <p class="esp32PanelNote">Identificación por cuenta: muestra quién solicitó cada apertura y su casa registrada. Un pulso confirmado no indica la posición física de la puerta o del portón.</p>
