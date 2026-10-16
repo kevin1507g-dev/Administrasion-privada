@@ -499,6 +499,15 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       </button>
     </div>
   </div>
+  <div class="card" style="margin-top:14px">
+    <h3>🚛 Apertura a camión de basura</h3>
+    <p class="muted">Ventana de 20 minutos. Disponible para administradores y residentes autorizados. Esta versión registra la solicitud en la plataforma; no acciona el portón hasta que se valide la integración segura con Modo Evento.</p>
+    <p id="basuraStatus" role="status" aria-live="polite">Consultando estado...</p>
+    <div class="actions">
+      <button id="basuraStartBtn" type="button" class="primary" onclick="basuraAccion('start')" disabled>🚛 Apertura a camión de basura · 20 min</button>
+      <button id="basuraStopBtn" type="button" class="danger" onclick="basuraAccion('stop')" disabled>⏹ Desactivar</button>
+    </div>
+  </div>
   <p class="muted">El acceso digital se suspende cuando una cuota de tu casa conserva saldo pendiente al cumplir 10 días de vencida. Se restablece al liquidar el saldo que causa el bloqueo.</p>
   <p id="digitalCommandStatus" role="status" aria-live="polite"></p>
   <div class="adminOnly card">
@@ -1886,6 +1895,43 @@ function actualizarSeleccionBiometrica(){
     : 'Selecciona un residente aprobado con casa activa para preparar su registro.';
 }
 
+
+/* Solicitud para recolección de basura, sin actuar sobre el ESP32. */
+let basuraBusy=false,basuraTimer=null;
+async function basuraActualizar(){
+ const status=document.getElementById('basuraStatus');
+ if(!status||!document.getElementById('controlDigital')?.classList.contains('active')||!user)return;
+ const start=document.getElementById('basuraStartBtn'),stop=document.getElementById('basuraStopBtn');
+ try{
+  const {data,error}=await sb.rpc('garbage_window_status');
+  if(error)throw error;
+  const active=!!data?.active,allowed=!!data?.allowed;
+  const until=Date.parse(data?.until||'');
+  const mins=Number.isFinite(until)?Math.max(0,Math.ceil((until-Date.now())/60000)):0;
+  status.textContent=active?'Solicitud de recolección activa: '+mins+' minuto(s) restantes. El portón NO se mantiene abierto automáticamente.':(data?.reason||'No hay solicitud activa.');
+  start.disabled=basuraBusy||!allowed||active;
+  stop.disabled=basuraBusy||!allowed||!active;
+ }catch(e){
+  status.textContent='Función pendiente de configurar en Supabase: '+(e.message||'sin conexión')+'. No se enviaron órdenes al portón.';
+  start.disabled=true;stop.disabled=true;
+ }
+}
+async function basuraAccion(action){
+ if(basuraBusy||!user||!['admin','residente'].includes(profile?.rol))return;
+ const texto=action==='start'?'¿Registrar una ventana de recolección de basura de 20 minutos? Esto NO abrirá el portón automáticamente.':'¿Cancelar la ventana de recolección de basura activa?';
+ if(!confirm(texto))return;
+ basuraBusy=true;
+ const status=document.getElementById('basuraStatus');
+ document.getElementById('basuraStartBtn').disabled=true;
+ document.getElementById('basuraStopBtn').disabled=true;
+ try{
+  const {data,error}=await sb.rpc('garbage_window_manage',{p_action:action});
+  if(error)throw error;
+  status.textContent=action==='start'?'Ventana de recolección registrada por 20 minutos. No se accionó el portón.':'Ventana de recolección cancelada. No se accionó el portón.';
+ }catch(e){status.textContent='No se pudo completar la solicitud: '+(e.message||'error');}
+ finally{basuraBusy=false;await basuraActualizar();}
+}
+
 function show(id){
   if(id==='biometrico'){
     if(profile?.rol!=='admin')return;
@@ -1913,6 +1959,8 @@ function show(id){
   if(id==='controlDigital'){
     digitalButtonsDisabled(true);
     refreshDigitalAccess();
+    basuraActualizar();
+    if(!basuraTimer)basuraTimer=setInterval(basuraActualizar,15000);
   }
   if(id==='esp32Panel'){
     if(profile?.rol!=='admin')return;
