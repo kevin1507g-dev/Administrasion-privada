@@ -1113,7 +1113,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div class="card">
   <h3>Solicitar portón abierto durante un evento</h3>
   <p class="muted">Registra la fecha y el horario para solicitar que el portón permanezca abierto durante tu evento. La administración revisará la solicitud.</p>
-  <p class="muted"><strong>Modo Evento vinculado:</strong> las reservaciones aprobadas definirán el horario del relevador peatonal del ESP32. Por seguridad, la salida automática permanece deshabilitada hasta verificar la compatibilidad con la tarjeta del portón y actualizar el firmware del ESP32.</p>
+  <p class="muted"><strong>Modo Evento · ESP32 V5:</strong> una reservación aprobada de Portón define el horario. Al comenzar, el ESP32 envía un pulso de 1 segundo por GPIO 26 y después mantiene GPIO 25 activo hasta finalizar. El buzzer permanece en silencio durante el Evento. La activación automática real permanece deshabilitada hasta confirmar la seguridad de ambas salidas y la compatibilidad con el controlador del portón.</p>
   <div class="form">
     <div class="adminOnly"><label>Casa</label><select id="resResidente"></select></div>
     <div><label>Acceso</label><select id="resArea"><option value="Portón">Portón</option></select></div>
@@ -1132,8 +1132,8 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     <button id="eventModeTestBtn" type="button" onclick="testEventMode()" disabled>🧪 Probar relevador Evento (12 segundos)</button>
     <button id="eventModeStopBtn" class="danger" type="button" onclick="stopEventMode()" disabled>⏹ Desactivar Evento ahora</button>
   </div>
-  <p class="muted">Prueba de banco: únicamente con los contactos de salida del relevador desconectados del portón y de cualquier carga. No activa reservaciones reales.</p>
-  <p class="muted">Salida asignada: relevador Evento (GPIO 25), de señal mantenida durante una reservación aprobada. El portón normal conserva GPIO 26. El Modo Evento requiere firmware actualizado y verificación del controlador antes de habilitar la salida física.</p>
+  <p class="muted">Prueba de banco V5: únicamente con AMBOS relevadores (GPIO 25 y GPIO 26) desconectados del portón y de cualquier carga. El GPIO 26 recibe un pulso de 1 segundo y después GPIO 25 permanece activo aproximadamente 12 segundos. No activa reservaciones reales.</p>
+  <p class="muted">Salidas ESP32 V5: GPIO 26 = pulso inicial; GPIO 25 = señal mantenida durante la reservación. El Modo Evento requiere verificación del controlador y sus protecciones por un instalador calificado antes de conectar o habilitar las salidas para uso real.</p>
 </div>
 </section>
 
@@ -3978,14 +3978,14 @@ function renderReservas(){
 
 async function testEventMode(){
  if(profile?.rol!=='admin')return;
- if(!confirm('¿Confirmas que los contactos de salida del relevador Evento están SIN CONECTAR al portón ni a ninguna carga? La prueba encenderá el relevador durante 12 segundos.'))return;
+ if(!confirm('¿Confirmas que AMBOS relevadores GPIO 25 y GPIO 26 están SIN CONECTAR al portón ni a ninguna carga? V5 dará un pulso de 1 segundo en GPIO 26 y después activará GPIO 25 durante la prueba de 12 segundos.'))return;
  const btn=document.getElementById('eventModeTestBtn');
  const el=document.getElementById('eventModeStatus');
  if(btn)btn.disabled=true;
  try{
   const {error}=await sb.rpc('event_mode_test_start');
   if(error)throw error;
-  if(el)el.textContent='Prueba iniciada: observa el indicador del relevador Evento (GPIO 25). Debe apagarse solo en 12 segundos.';
+  if(el)el.textContent='Prueba V5 iniciada: GPIO 26 pulsa 1 segundo; después GPIO 25 se activa y se apaga al terminar la prueba. El buzzer debe permanecer apagado durante el Evento.';
   setTimeout(refreshEventModeStatus,1500);
   setTimeout(refreshEventModeStatus,14000);
  }catch(e){
