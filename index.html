@@ -702,7 +702,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 
     <p class="muted" style="margin-top:12px">
       El nuevo monto se aplicará a las próximas cuotas automáticas.
-      Las cuotas que ya existen no se modificarán.
+      Las cuotas que ya existen no se modificarán. Cada cuota nueva, manual o automática, genera una notificación inmediata para los residentes activos de la casa. Para recibirla en el teléfono, deben tocar «🔔 Activar notificaciones» en el menú.
     </p>
   </div>
 
@@ -1464,7 +1464,7 @@ async function cambiarCobroAutomatico(){
 
   const mensaje =
     nuevoEstado
-    ? '¿Activar los cobros automáticos mensuales?'
+    ? '¿Activar los cobros automáticos mensuales? Cada cuota nueva también notificará automáticamente a los residentes de la casa.'
     : '¿Desactivar los cobros automáticos mensuales?';
 
 
@@ -4953,6 +4953,7 @@ async function addCuota(){
   await loadAll();
   cRes.value='';
   cRes.focus();
+  alert('Cuota registrada. El sistema generó una notificación para los residentes activos de esa casa. El aviso push llegará a quienes hayan activado las notificaciones en su dispositivo.');
 }
 
 async function addPago(){
