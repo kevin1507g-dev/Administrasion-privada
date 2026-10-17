@@ -236,7 +236,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <button onclick="show('avisos')">📢 Avisos</button>
 <button class="residentAdminOnly" onclick="show('mantenimiento')">🛠️ Mantenimiento</button>
 <button class="residentAdminOnly" onclick="show('incidentes')">⚠️ Reportar incidente</button>
-<button class="residentAdminOnly" onclick="show('entregas')">🛵 Repartidores y visitas</button>
+<button class="residentAdminOnly" onclick="show('entregas')">🛵 Repartidores y visitas · Responder</button>
 <button class="residentAdminOnly" onclick="show('reservaciones')">🏡 Reservaciones</button>
 <button onclick="show('documentos')">📄 Documentos</button>
 <button class="residentAdminOnly" onclick="show('historialCasa')">📚 Historial por casa</button>
@@ -259,6 +259,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   </div>
   <div class="heroActions">
     <button class="primary controlAccessOnly" onclick="show('controlDigital')">🚪 Control digital</button>
+    <button class="residentOnly" onclick="show('entregas')">🛵 Responder a repartidores y visitas</button>
     <button class="residentAdminOnly" onclick="show('notificaciones')">🔔 Ver avisos</button>
   </div>
 </div>
@@ -1074,7 +1075,8 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       <h3>Solicitudes en la entrada</h3>
       <p class="muted">Responde rápidamente sin mostrar tu número telefónico ni tus datos personales al repartidor.</p>
       <p id="deliveryAccessStatus" role="status" aria-live="polite"></p>
-      <div id="entregasPendientes"></div>
+      <div id="entregasPendientes"><p class="muted">Cargando solicitudes de repartidores y visitas...</p></div>
+      <button type="button" onclick="actualizarSolicitudesEntrega()" style="margin-top:12px">↻ Actualizar solicitudes</button>
     </div>
   </div>
 
@@ -1953,6 +1955,7 @@ function show(id){
     refreshEsp32Panel();
   }
   if(id==='accesos'&&profile?.rol==='admin')refreshEsp32History();
+  if(id==='entregas')actualizarSolicitudesEntrega();
 
   if(id==='camaras'){
     cargarCamara();
@@ -3001,6 +3004,24 @@ async function copiarPortalRepartidor(){
   }
 }
 
+let entregasRefreshBusy=false;
+async function actualizarSolicitudesEntrega(){
+ if(entregasRefreshBusy||!user||!['admin','residente'].includes(profile?.rol))return;
+ entregasRefreshBusy=true;
+ const box=document.getElementById('entregasPendientes');
+ try{
+  const currentUser=user.id;
+  const {data,error}=await sb.from('entregas_contacto')
+   .select('id,casa_id,tipo,empresa,repartidor,mensaje,estado,respuesta,respondido_por,respondido_at,created_at,expires_at')
+   .order('created_at',{ascending:false}).limit(100);
+  if(error)throw error;
+  if(user?.id!==currentUser)return;
+  entregas=data||[];
+  renderEntregas();
+ }catch(error){
+  if(box&&profile?.rol==='residente')box.textContent='No se pudieron cargar las solicitudes: '+(error.message||'intenta de nuevo');
+ }finally{entregasRefreshBusy=false;}
+}
 function renderEntregas(){
   if(!['admin','residente'].includes(profile?.rol))return;
 
