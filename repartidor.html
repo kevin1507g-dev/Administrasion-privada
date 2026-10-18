@@ -25,6 +25,22 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
     <p class="muted">Escribe el número de casa. El residente recibirá una notificación sin mostrarte su teléfono, correo ni datos personales.</p>
   </div>
 
+  <div class="card" id="visitorPassCard">
+    <h2>🔑 Tengo un código de visita</h2>
+    <p class="muted">Si un residente te compartió un código, escribe exactamente tu nombre, número de casa y código para solicitar la apertura del portón durante el horario autorizado.</p>
+    <form id="visitorPassForm" onsubmit="solicitarAccesoVisita(event)">
+      <label for="vpNombre">Tu nombre</label>
+      <input id="vpNombre" required maxlength="100" autocomplete="name" placeholder="Nombre registrado por el residente">
+      <label for="vpCasa">Número de casa</label>
+      <input id="vpCasa" required maxlength="20" autocomplete="off" placeholder="Ej. 35">
+      <label for="vpCodigo">Código temporal</label>
+      <input id="vpCodigo" required minlength="16" maxlength="16" pattern="[A-Fa-f0-9]{16}" autocapitalize="characters" autocomplete="off" placeholder="16 letras o números">
+      <button type="submit" class="primary" id="vpEnviar" style="margin-top:18px">🚪 Solicitar apertura del portón</button>
+    </form>
+    <p id="vpEstado" class="muted" role="status" aria-live="polite"></p>
+    <p class="muted">Cada código permite varias solicitudes dentro de su horario, con límites de seguridad. No pases hasta comprobar que el portón abrió y que el paso está libre.</p>
+  </div>
+
   <div id="formCard" class="card">
     <label>Número de casa</label>
     <input id="casa" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Ej. 35" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
@@ -62,6 +78,25 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
 </div>
 
 <script>
+let vpBusy=false;
+async function solicitarAccesoVisita(event){
+ event.preventDefault();
+ if(vpBusy)return;
+ const btn=document.getElementById('vpEnviar'),status=document.getElementById('vpEstado');
+ const nombre=document.getElementById('vpNombre').value.trim();
+ const casa=document.getElementById('vpCasa').value.trim();
+ const codigo=document.getElementById('vpCodigo').value.trim().toUpperCase();
+ if(nombre.length<2||!casa||!/^[A-F0-9]{16}$/.test(codigo)){status.textContent='Completa nombre, casa y código de 16 caracteres.';return;}
+ vpBusy=true;btn.disabled=true;status.textContent='Verificando autorización...';
+ try{
+  const {data,error}=await sb.rpc('visitor_pass_request',{p_name:nombre,p_house:casa,p_code:codigo});
+  if(error)throw error;
+  status.textContent=data?.message||'Solicitud enviada. Espera a que el portón abra.';
+  document.getElementById('vpCodigo').value='';
+ }catch(e){status.textContent=e.message||'No fue posible solicitar la apertura. Contacta al residente.';}
+ finally{vpBusy=false;btn.disabled=false;}
+}
+if(location.hash==='#visita')window.addEventListener('load',()=>document.getElementById('visitorPassCard')?.scrollIntoView({behavior:'smooth'}));
 const SB_URL='https://nndlfkuelwpwklldvtfo.supabase.co';
 const SB_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
 const sb=supabase.createClient(SB_URL,SB_KEY);
