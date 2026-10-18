@@ -922,7 +922,27 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <section id="visitas"><h2>Visitas</h2><div class="card"><div class="form">
 <div><label>Visitante</label><input id="vNombre"></div><div><label>Casa</label><select id="vUnidad"></select></div><div><label>Placas</label><input id="vPlacas"></div><div><label>Motivo</label><input id="vMotivo"></div>
 <div><label>Fecha</label><input id="vFecha" type="date"></div><div><label>Hora</label><input id="vHora" type="time"></div></div>
-<button id="visitCreate" class="primary" style="margin-top:12px" onclick="addVisita()">Registrar visita</button></div></section>
+<button id="visitCreate" class="primary" style="margin-top:12px" onclick="addVisita()">Registrar visita</button></div>
+<div class="card residentOnly" style="margin-top:14px">
+ <h3>🔐 Código de acceso temporal para visitas</h3>
+ <p class="muted">Autoriza a una visita a solicitar la apertura del portón varias veces durante un horario. Máximo 12 horas y 20 solicitudes; 45 segundos entre solicitudes. Solo funciona si el ESP32 y tu casa tienen acceso habilitado.</p>
+ <div class="form">
+  <div><label>Nombre completo de la visita</label><input id="vcNombre" maxlength="100" autocomplete="off" placeholder="Nombre que escribirá la visita"></div>
+  <div><label>Inicio autorizado</label><input id="vcInicio" type="datetime-local"></div>
+  <div><label>Fin autorizado</label><input id="vcFin" type="datetime-local"></div>
+ </div>
+ <button type="button" class="primary" style="margin-top:12px" id="vcCrearBtn" onclick="crearCodigoVisita()">🔑 Generar código temporal</button>
+ <p id="vcMensaje" class="muted" role="status"></p>
+ <div id="vcResultado" class="hidden" style="margin-top:12px">
+  <p>Comparte estos datos únicamente con tu visita:</p>
+  <div><strong id="vcDatos"></strong></div>
+  <button type="button" style="margin-top:10px" onclick="copiarCodigoVisita()">📋 Copiar instrucciones</button>
+ </div>
+ <p class="muted" style="margin-top:12px">Portal para la visita: <a id="vcPortalLink" href="./repartidor.html#visita" target="_blank" rel="noopener">Abrir portal de acceso</a></p>
+ <h4>Mis códigos vigentes y recientes</h4>
+ <div id="vcListado" class="muted">Cargando códigos...</div>
+ <button type="button" onclick="cargarCodigosVisita()" style="margin-top:10px">↻ Actualizar códigos</button>
+</div></section>
 
 
 <section id="eventos"><h2>Eventos</h2>
@@ -1182,6 +1202,11 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     </table>
   </div>
 
+<div class="card residentAdminOnly" style="margin-top:14px">
+<h3>🔑 Historial de accesos con código de visita</h3>
+<p class="muted">Cada solicitud de apertura queda registrada, incluso si el ESP32 no confirma el pulso.</p>
+<div class="table"><table><thead><tr><th>Fecha</th><th>Visita</th><th>Casa</th><th>Estado de orden</th><th>Confirmación</th></tr></thead><tbody id="vcHistorialRows"><tr><td colspan="5">Abre esta sección para cargar el historial.</td></tr></tbody></table></div>
+</div>
 <div class="card esp32PanelTable adminOnly" style="margin-top:14px">
     <h3>🖥️ Historial de accesos del ESP32</h3>
     <div class="esp32PanelActions"><button type="button" onclick="refreshEsp32History()">↻ Actualizar historial</button><span id="esp32HistoryStatus" role="status" class="muted">Esperando consulta...</span></div>
@@ -1955,6 +1980,8 @@ function show(id){
     refreshEsp32Panel();
   }
   if(id==='accesos'&&profile?.rol==='admin')refreshEsp32History();
+  if(id==='visitas'&&profile?.rol==='residente')cargarCodigosVisita();
+  if(id==='accesos'&&['admin','residente'].includes(profile?.rol))cargarHistorialCodigosVisita();
   if(id==='entregas')actualizarSolicitudesEntrega();
 
   if(id==='camaras'){
@@ -5107,6 +5134,81 @@ async function eliminarVisita(id,boton){
   }finally{
     if(boton){boton.disabled=false;boton.textContent='🗑️ Eliminar';}
   }
+}
+
+
+let vcCopyText='',vcLoading=false;
+function vcFechaLocal(d){
+ const p=n=>String(n).padStart(2,'0');
+ return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());
+}
+async function crearCodigoVisita(){
+ if(profile?.rol!=='residente'||vcLoading)return;
+ const nombre=document.getElementById('vcNombre').value.trim();
+ const inicio=document.getElementById('vcInicio').value;
+ const fin=document.getElementById('vcFin').value;
+ const msg=document.getElementById('vcMensaje'),btn=document.getElementById('vcCrearBtn');
+ if(nombre.length<2||!inicio||!fin||new Date(fin)<=new Date(inicio))return msg.textContent='Completa nombre, inicio y fin válidos.';
+ vcLoading=true;btn.disabled=true;msg.textContent='Generando código seguro...';
+ document.getElementById('vcResultado').classList.add('hidden');
+ try{
+  const {data,error}=await sb.rpc('visitor_pass_create',{p_name:nombre,p_start:inicio,p_end:fin});
+  if(error)throw error;
+  const portal=new URL('./repartidor.html#visita',location.href).href;
+  vcCopyText='Acceso de visita · Privada Beteles\nNombre: '+data.visitor+'\nCasa: '+data.house+'\nCódigo: '+data.code+'\nHorario: '+new Date(data.starts_at).toLocaleString('es-MX')+' a '+new Date(data.ends_at).toLocaleString('es-MX')+'\nPortal: '+portal;
+  document.getElementById('vcDatos').textContent='Casa '+data.house+' · '+data.visitor+' · Código '+data.code;
+  document.getElementById('vcResultado').classList.remove('hidden');
+  msg.textContent='Código creado. Se muestra solo ahora: cópialo antes de salir.';
+  await cargarCodigosVisita();
+ }catch(e){msg.textContent='No se pudo crear el código: '+(e.message||'error');}
+ finally{vcLoading=false;btn.disabled=false;}
+}
+async function copiarCodigoVisita(){
+ if(!vcCopyText)return;
+ try{await navigator.clipboard.writeText(vcCopyText);document.getElementById('vcMensaje').textContent='Instrucciones copiadas.';}
+ catch(e){document.getElementById('vcMensaje').textContent='No se pudo copiar; selecciona el código mostrado.';}
+}
+async function cargarCodigosVisita(){
+ if(profile?.rol!=='residente')return;
+ const box=document.getElementById('vcListado');if(!box)return;
+ try{
+  const {data,error}=await sb.rpc('visitor_pass_list');if(error)throw error;
+  box.replaceChildren();
+  if(!data?.length){box.textContent='No tienes códigos recientes.';return;}
+  for(const item of data){
+   const wrap=document.createElement('div');wrap.className='card';wrap.style.marginTop='8px';
+   const info=document.createElement('div');
+   const vigente=!item.revoked&&new Date(item.ends_at)>new Date();
+   info.textContent=item.visitor+' · Casa '+item.house+' · '+new Date(item.starts_at).toLocaleString('es-MX')+' – '+new Date(item.ends_at).toLocaleString('es-MX')+' · '+item.used_count+'/20 solicitudes · '+(item.revoked?'Revocado':vigente?'Vigente o programado':'Vencido');
+   wrap.appendChild(info);
+   if(vigente){
+    const btn=document.createElement('button');btn.textContent='Revocar código';btn.className='danger';btn.style.marginTop='8px';
+    btn.onclick=()=>revocarCodigoVisita(item.id);wrap.appendChild(btn);
+   }
+   box.appendChild(wrap);
+  }
+ }catch(e){box.textContent='No se pudieron consultar los códigos: '+(e.message||'error');}
+}
+async function revocarCodigoVisita(id){
+ if(!confirm('¿Revocar este código de visita? Dejará de autorizar nuevas aperturas.'))return;
+ const {error}=await sb.rpc('visitor_pass_revoke',{p_id:id});
+ if(error)return alert('No se pudo revocar: '+error.message);
+ await cargarCodigosVisita();
+}
+async function cargarHistorialCodigosVisita(){
+ if(!['admin','residente'].includes(profile?.rol))return;
+ const body=document.getElementById('vcHistorialRows');if(!body)return;
+ try{
+  const {data,error}=await sb.rpc('visitor_pass_history');if(error)throw error;
+  body.replaceChildren();
+  if(!data?.length){const r=body.insertRow();const c=r.insertCell();c.colSpan=5;c.textContent='Sin solicitudes con código.';return;}
+  const estados={pending:'Pendiente',dispatched:'Enviada',pulse_confirmed:'Pulso confirmado',expired:'Vencida',cancelled:'Cancelada',unconfirmed:'Sin confirmar'};
+  for(const v of data){
+   const row=body.insertRow();
+   for(const t of [new Date(v.date).toLocaleString('es-MX'),v.visitor,v.house,estados[v.state]||v.state||'—',v.confirmed_at?new Date(v.confirmed_at).toLocaleString('es-MX'):'—'])
+    row.insertCell().textContent=t;
+  }
+ }catch(e){body.textContent='No se pudo consultar el historial: '+(e.message||'error');}
 }
 
 async function addVisita(){
