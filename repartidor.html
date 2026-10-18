@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
-<title>Contactar residente · My Condominio</title>
+<title>Acceso de visitas y repartidores · Privada Beteles</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--bg:#0f172a;--card:#111827;--line:#334155;--text:#f8fafc;--muted:#94a3b8;--green:#22c55e;--blue:#38bdf8;--red:#ef4444}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;padding:20px}
 .wrap{width:min(560px,100%);margin:0 auto}.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px;margin-top:16px}
-h1,h2{margin-top:0}.muted{color:var(--muted)}label{display:block;color:#cbd5e1;margin:14px 0 6px}
+h1,h2{margin-top:0}.choice{padding:20px;text-align:left;margin-top:12px;border:1px solid #475569;background:#1e293b;color:#fff}.choice strong{display:block;font-size:1.1rem}.choice span{display:block;font-weight:400;color:#cbd5e1;margin-top:7px;line-height:1.4}.choice:focus-visible{outline:3px solid #38bdf8}.back{background:transparent;border:1px solid #475569;margin-top:16px}.muted{color:var(--muted)}label{display:block;color:#cbd5e1;margin:14px 0 6px}
 input,select,textarea,button{font:inherit}input,select,textarea{width:100%;padding:13px;border:1px solid var(--line);border-radius:11px;background:#020617;color:white}
 textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radius:12px;padding:13px 16px;font-weight:800;cursor:pointer;background:#334155;color:white}.primary{background:var(--green);color:#052e16}.hidden{display:none!important}
 .status{font-size:20px;font-weight:800}.answer{font-size:25px;font-weight:900;margin-top:10px}.pill{display:inline-block;padding:5px 9px;border-radius:99px;background:#1e293b;color:#cbd5e1}
@@ -20,12 +20,24 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
 <body>
 <div class="wrap">
   <div class="card">
-    <div class="pill">🏢 My Condominio</div>
-    <h1 style="margin-top:14px">🛵 Contactar residente</h1>
-    <p class="muted">Escribe el número de casa. El residente recibirá una notificación sin mostrarte su teléfono, correo ni datos personales.</p>
+    <div class="pill">🏢 Privada Beteles</div>
+    <h1 style="margin-top:14px">🚪 Acceso de visitantes</h1>
+    <p class="muted">Selecciona el motivo de tu visita para continuar.</p>
   </div>
 
-  <div class="card" id="visitorPassCard">
+  <div id="accessChoice" class="card">
+    <h2>¿Cómo deseas ingresar?</h2>
+    <button type="button" class="choice" onclick="seleccionarEntrada('codigo')">
+      <strong>🔑 Soy visita con código</strong>
+      <span>Un residente ya me registró y tengo un código temporal de acceso.</span>
+    </button>
+    <button type="button" class="choice" onclick="seleccionarEntrada('contacto')">
+      <strong>🛵 Soy repartidor, proveedor o visita sin código</strong>
+      <span>Quiero contactar al residente para que responda y autorice mi entrada.</span>
+    </button>
+  </div>
+
+  <div class="card hidden" id="visitorPassCard">
     <h2>🔑 Tengo un código de visita</h2>
     <p class="muted">Si un residente te compartió un código, escribe exactamente tu nombre, número de casa y código para solicitar la apertura del portón durante el horario autorizado.</p>
     <form id="visitorPassForm" onsubmit="solicitarAccesoVisita(event)">
@@ -39,9 +51,10 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
     </form>
     <p id="vpEstado" class="muted" role="status" aria-live="polite"></p>
     <p class="muted">Cada código permite varias solicitudes dentro de su horario, con límites de seguridad. No pases hasta comprobar que el portón abrió y que el paso está libre.</p>
+    <button type="button" class="back" onclick="volverASeleccion()">← Cambiar tipo de acceso</button>
   </div>
 
-  <div id="formCard" class="card">
+  <div id="formCard" class="card hidden">
     <label>Número de casa</label>
     <input id="casa" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Ej. 35" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
 
@@ -65,6 +78,7 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
 
     <button id="sendBtn" class="primary" style="margin-top:18px" onclick="enviarSolicitud()">🔔 Contactar residente</button>
     <div id="error" style="margin-top:12px;color:#fecaca"></div>
+    <button type="button" class="back" onclick="volverASeleccion()">← Cambiar tipo de acceso</button>
   </div>
 
   <div id="waitCard" class="card hidden">
@@ -72,12 +86,32 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
     <div id="waitText" class="muted" style="margin-top:10px">La solicitud estará activa durante unos minutos.</div>
     <div id="answer" class="answer"></div>
     <button id="newBtn" class="hidden" style="margin-top:18px" onclick="nuevaSolicitud()">Nueva solicitud</button>
+    <button type="button" class="back" onclick="volverASeleccion()">← Volver al menú principal</button>
   </div>
 
   <div class="footer">🔒 Los datos del residente permanecen privados.</div>
 </div>
 
 <script>
+function seleccionarEntrada(tipo){
+ document.getElementById('accessChoice').classList.add('hidden');
+ document.getElementById('visitorPassCard').classList.toggle('hidden',tipo!=='codigo');
+ document.getElementById('formCard').classList.toggle('hidden',tipo!=='contacto');
+ document.getElementById('waitCard').classList.add('hidden');
+ if(tipo==='codigo')document.getElementById('vpNombre').focus();
+ else document.getElementById('casa').focus();
+}
+function volverASeleccion(){
+ detenerConsulta();
+ token=null;expiresAt=null;
+ document.getElementById('visitorPassCard').classList.add('hidden');
+ document.getElementById('formCard').classList.add('hidden');
+ document.getElementById('waitCard').classList.add('hidden');
+ document.getElementById('accessChoice').classList.remove('hidden');
+ document.getElementById('vpEstado').textContent='';
+ document.getElementById('error').textContent='';
+ document.getElementById('accessChoice').scrollIntoView({behavior:'smooth',block:'start'});
+}
 let vpBusy=false;
 async function solicitarAccesoVisita(event){
  event.preventDefault();
@@ -96,7 +130,7 @@ async function solicitarAccesoVisita(event){
  }catch(e){status.textContent=e.message||'No fue posible solicitar la apertura. Contacta al residente.';}
  finally{vpBusy=false;btn.disabled=false;}
 }
-if(location.hash==='#visita')window.addEventListener('load',()=>document.getElementById('visitorPassCard')?.scrollIntoView({behavior:'smooth'}));
+
 const SB_URL='https://nndlfkuelwpwklldvtfo.supabase.co';
 const SB_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
 const sb=supabase.createClient(SB_URL,SB_KEY);
