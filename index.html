@@ -921,10 +921,8 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </div>
 </section>
 
-<section id="visitas"><h2>Visitas</h2><div class="card"><div class="form">
-<div><label>Visitante</label><input id="vNombre"></div><div><label>Casa</label><select id="vUnidad"></select></div><div><label>Placas</label><input id="vPlacas"></div><div><label>Motivo</label><input id="vMotivo"></div>
-<div><label>Fecha</label><input id="vFecha" type="date"></div><div><label>Hora</label><input id="vHora" type="time"></div></div>
-<button id="visitCreate" class="primary" style="margin-top:12px" onclick="addVisita()">Registrar visita</button></div>
+<section id="visitas"><h2>Visitas</h2>
+<div class="card adminOnly"><p class="muted">Los residentes generan y administran sus códigos temporales desde este apartado. Las solicitudes de apertura se consultan en Historial de accesos.</p></div>
 <div class="card residentOnly" style="margin-top:14px">
  <h3>🔐 Código de acceso temporal para visitas</h3>
  <p class="muted">Autoriza a una visita a solicitar la apertura del portón varias veces durante un horario. Máximo 12 horas y 20 solicitudes; 45 segundos entre solicitudes. Solo funciona si el ESP32 y tu casa tienen acceso habilitado.</p>
@@ -2288,8 +2286,7 @@ async function enter(){
  document.querySelectorAll('.paymentMethodsOnly').forEach(x=>x.classList.toggle('hidden',!['admin','residente'].includes(profile.rol)));
  document.querySelectorAll('.cameraOnly').forEach(x=>x.classList.toggle('hidden',!['admin','residente'].includes(profile.rol)));
  document.querySelectorAll('.residentAdminOnly').forEach(x=>x.classList.toggle('hidden',!['admin','residente'].includes(profile.rol)));
- if(profile.rol==='guardia') visitCreate.classList.add('hidden');
- vFecha.value=new Date().toISOString().slice(0,10); cFecha.value=new Date().toISOString().slice(0,10); if(document.getElementById('resFecha')) resFecha.value=new Date().toISOString().slice(0,10);
+ cFecha.value=new Date().toISOString().slice(0,10); if(document.getElementById('resFecha')) resFecha.value=new Date().toISOString().slice(0,10);
  await loadAll();
  await cargarChatDatos();
  iniciarChatPolling();
@@ -5211,29 +5208,6 @@ async function cargarHistorialCodigosVisita(){
     row.insertCell().textContent=t;
   }
  }catch(e){body.textContent='No se pudo consultar el historial: '+(e.message||'error');}
-}
-
-async function addVisita(){
-  const rid=profile.rol==='residente'?user.id:null;
-  const casaId=profile.rol==='residente'?profile.casa_id:vUnidad.value;
-  const casa=casaPorId(casaId);
-
-  if(!casa) return alert('Selecciona una casa.');
-
-  const {error}=await sb.from('visitas').insert({
-    casa_id:casaId,
-    residente_id:rid,
-    visitante:vNombre.value,
-    unidad:casa.numero,
-    placas:vPlacas.value,
-    motivo:vMotivo.value,
-    fecha:vFecha.value,
-    hora:vHora.value,
-    estado:'esperada'
-  });
-
-  if(error) return alert(error.message);
-  await loadAll();
 }
 
 async function addAcceso(){
