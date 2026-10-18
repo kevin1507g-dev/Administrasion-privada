@@ -1,4 +1,4 @@
-const APP_CACHE = "privada-beteles-v3";
+const APP_CACHE = "privada-beteles-v4-visitas";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -36,8 +36,11 @@ self.addEventListener("fetch", event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  // Siempre consultar la red para HTML: evita que la PWA de iPhone conserve menús antiguos.
+  const isDocument = request.mode === "navigate" || url.pathname.endsWith("/index.html") || url.pathname.endsWith("/repartidor.html");
+  const networkRequest = isDocument ? new Request(request, {cache:"no-store"}) : request;
   event.respondWith(
-    fetch(request)
+    fetch(networkRequest)
       .then(response => {
         const copy = response.clone();
         caches.open(APP_CACHE).then(cache => cache.put(request, copy));
