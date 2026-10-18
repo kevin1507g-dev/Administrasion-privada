@@ -942,7 +942,30 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
  <h4>Mis códigos vigentes y recientes</h4>
  <div id="vcListado" class="muted">Cargando códigos...</div>
  <button type="button" onclick="cargarCodigosVisita()" style="margin-top:10px">↻ Actualizar códigos</button>
-</div></section>
+</div>
+<div class="card residentOnly" style="margin-top:14px">
+ <h3>♾️ Solicitar código permanente</h3>
+ <p class="muted">Para visitas frecuentes. No vence por horario, pero <strong>solo funciona después de la aprobación de un administrador</strong>. Si modificas el nombre o regeneras el código, se suspende hasta una nueva autorización.</p>
+ <label for="vpPermanentName">Nombre completo de la visita frecuente</label>
+ <input id="vpPermanentName" maxlength="100" placeholder="Nombre que escribirá la visita">
+ <button type="button" class="primary" style="margin-top:12px" id="vpPermanentCreate" onclick="solicitarCodigoPermanente()">🔐 Solicitar código permanente</button>
+ <p id="vpPermanentMessage" role="status" class="muted"></p>
+ <div id="vpPermanentResult" class="hidden">
+  <strong id="vpPermanentCode"></strong>
+  <p class="muted">Este código se muestra solo ahora. No funcionará hasta que lo apruebe un administrador.</p>
+  <button type="button" onclick="copiarCodigoPermanente()">📋 Copiar datos para la visita</button>
+ </div>
+ <h4>Mis solicitudes permanentes</h4>
+ <div id="vpPermanentList" class="muted">Abre esta sección para consultar las solicitudes.</div>
+ <button type="button" style="margin-top:10px" onclick="cargarCodigosPermanentes()">↻ Actualizar solicitudes</button>
+</div>
+<div class="card adminOnly" style="margin-top:14px">
+ <h3>🛡️ Autorizar códigos permanentes</h3>
+ <p class="muted">Revisa la casa y el nombre de cada visita. Solo un administrador puede aprobar, rechazar o revocar. Los cambios realizados por residentes requieren una nueva aprobación.</p>
+ <div id="vpPermanentAdminList" class="muted">Abre esta sección para consultar las solicitudes.</div>
+ <button type="button" style="margin-top:10px" onclick="cargarCodigosPermanentes()">↻ Actualizar autorizaciones</button>
+</div>
+</section>
 
 
 <section id="eventos"><h2>Eventos</h2>
@@ -1981,6 +2004,7 @@ function show(id){
   }
   if(id==='accesos'&&profile?.rol==='admin')refreshEsp32History();
   if(id==='visitas'&&profile?.rol==='residente')cargarCodigosVisita();
+  if(id==='visitas'&&['residente','admin'].includes(profile?.rol))cargarCodigosPermanentes();
   if(id==='accesos'&&['admin','residente'].includes(profile?.rol))cargarHistorialCodigosVisita();
   if(id==='entregas')actualizarSolicitudesEntrega();
 
@@ -5135,6 +5159,109 @@ async function eliminarVisita(id,boton){
   }
 }
 
+
+
+let vpPermanentCopy='',vpPermanentBusy=false;
+const vpPermanentStatus={
+ pending:'⏳ Pendiente de autorización',
+ approved:'✅ Autorizado por administración',
+ rejected:'❌ Rechazado (puedes modificar y volver a solicitar)',
+ revoked:'🚫 Revocado'
+};
+function mostrarCodigoPermanente(data){
+ const portal=new URL('./repartidor.html',location.href).href;
+ vpPermanentCopy='Visita frecuente · Privada Beteles\nNombre: '+data.visitor+'\nCasa: '+data.house+'\nCódigo: '+data.code+'\nPortal: '+portal+'\nIMPORTANTE: requiere aprobación de administración.';
+ document.getElementById('vpPermanentCode').textContent='Casa '+data.house+' · '+data.visitor+' · Código '+data.code;
+ document.getElementById('vpPermanentResult').classList.remove('hidden');
+}
+async function copiarCodigoPermanente(){
+ if(!vpPermanentCopy)return;
+ try{await navigator.clipboard.writeText(vpPermanentCopy);document.getElementById('vpPermanentMessage').textContent='Datos copiados.';}
+ catch(e){document.getElementById('vpPermanentMessage').textContent='No se pudo copiar. Selecciona el código mostrado.';}
+}
+async function solicitarCodigoPermanente(){
+ if(profile?.rol!=='residente'||vpPermanentBusy)return;
+ const nombre=document.getElementById('vpPermanentName').value.trim();
+ const msg=document.getElementById('vpPermanentMessage');
+ if(nombre.length<2)return msg.textContent='Escribe el nombre completo de la visita.';
+ vpPermanentBusy=true;
+ const btn=document.getElementById('vpPermanentCreate');btn.disabled=true;
+ document.getElementById('vpPermanentResult').classList.add('hidden');
+ try{
+  const {data,error}=await sb.rpc('permanent_pass_create',{p_name:nombre});
+  if(error)throw error;
+  mostrarCodigoPermanente(data);
+  msg.textContent='Solicitud enviada. El código NO está activo hasta que un administrador lo apruebe.';
+  document.getElementById('vpPermanentName').value='';
+  await cargarCodigosPermanentes();
+ }catch(e){msg.textContent='No se pudo solicitar: '+(e.message||'error');}
+ finally{vpPermanentBusy=false;btn.disabled=false;}
+}
+async function modificarCodigoPermanente(item){
+ if(profile?.rol!=='residente'||vpPermanentBusy)return;
+ const nombre=prompt('Nombre completo de la visita. Se generará un NUEVO código y deberá aprobarlo administración:',item.visitor);
+ if(nombre===null)return;
+ if(nombre.trim().length<2)return alert('Escribe un nombre válido.');
+ if(!confirm('Se invalidará el código anterior y la autorización quedará pendiente hasta nueva aprobación. ¿Continuar?'))return;
+ vpPermanentBusy=true;
+ try{
+  const {data,error}=await sb.rpc('permanent_pass_edit',{p_id:item.id,p_name:nombre.trim(),p_rotate:true});
+  if(error)throw error;
+  mostrarCodigoPermanente(data);
+  document.getElementById('vpPermanentMessage').textContent='Código modificado. Nueva autorización pendiente.';
+  await cargarCodigosPermanentes();
+ }catch(e){alert('No se pudo modificar: '+(e.message||'error'));}
+ finally{vpPermanentBusy=false;}
+}
+async function revocarCodigoPermanente(item){
+ if(!confirm('¿Revocar permanentemente el código de '+item.visitor+'? No podrá utilizarse otra vez.'))return;
+ const {error}=await sb.rpc('permanent_pass_revoke',{p_id:item.id});
+ if(error)return alert('No se pudo revocar: '+error.message);
+ await cargarCodigosPermanentes();
+}
+async function revisarCodigoPermanente(item,accion){
+ if(profile?.rol!=='admin')return;
+ const labels={approve:'APROBAR',reject:'RECHAZAR',revoke:'REVOCAR'};
+ if(!confirm('¿'+labels[accion]+' el código permanente de '+item.visitor+' para la Casa '+item.house+'?'))return;
+ const {error}=await sb.rpc('permanent_pass_review',{p_id:item.id,p_action:accion});
+ if(error)return alert('No se pudo resolver la solicitud: '+error.message);
+ await cargarCodigosPermanentes();
+}
+async function cargarCodigosPermanentes(){
+ if(!['admin','residente'].includes(profile?.rol))return;
+ const isAdmin=profile.rol==='admin';
+ const box=document.getElementById(isAdmin?'vpPermanentAdminList':'vpPermanentList');
+ if(!box)return;
+ try{
+  const {data,error}=await sb.rpc('permanent_pass_list');if(error)throw error;
+  box.replaceChildren();
+  if(!data?.length){box.textContent='No hay códigos permanentes registrados.';return;}
+  for(const item of data){
+   const wrap=document.createElement('div');wrap.className='card';wrap.style.marginTop='8px';
+   const detail=document.createElement('div');
+   detail.textContent=item.visitor+' · Casa '+item.house+(isAdmin?' · Residente: '+item.sponsor:'')+' · '+(vpPermanentStatus[item.status]||item.status)+' · '+item.used_count+' solicitudes de apertura';
+   wrap.appendChild(detail);
+   const actions=document.createElement('div');actions.style.marginTop='10px';actions.style.display='flex';actions.style.gap='8px';actions.style.flexWrap='wrap';
+   function action(label,fn,danger=false){
+    const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=fn;
+    if(danger)b.className='danger';actions.appendChild(b);
+   }
+   if(!item.revoked){
+    if(isAdmin){
+     if(item.status==='pending'){
+      action('✓ Aprobar',()=>revisarCodigoPermanente(item,'approve'));
+      action('✕ Rechazar',()=>revisarCodigoPermanente(item,'reject'),true);
+     }
+     if(item.status==='approved')action('Revocar',()=>revisarCodigoPermanente(item,'revoke'),true);
+    }else{
+     action('✏️ Modificar / generar nuevo código',()=>modificarCodigoPermanente(item));
+     action('Revocar',()=>revocarCodigoPermanente(item),true);
+    }
+   }
+   wrap.appendChild(actions);box.appendChild(wrap);
+  }
+ }catch(e){box.textContent='No se pudieron cargar los códigos: '+(e.message||'error');}
+}
 
 let vcCopyText='',vcLoading=false;
 function vcFechaLocal(d){
