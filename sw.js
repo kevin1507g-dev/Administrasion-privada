@@ -1,4 +1,4 @@
-const APP_CACHE = "privada-beteles-v14-owner-total";
+const APP_CACHE = "privada-beteles-v15-owner-finance-delete";
 const APP_SHELL = [
   "./",
   "./index.html",
