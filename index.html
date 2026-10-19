@@ -219,6 +219,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <button class="cameraOnly" onclick="show('camaras')">📹 Cámaras</button>
 <div class="navSectionLabel">Gestión y accesos</div>
 <button class="adminOnly" onclick="show('residentes')">👥 Residentes</button>
+<button class="ownerOnly hidden" onclick="show('ownerPanel')">👑 Panel Owner</button>
 <button class="adminOnly" onclick="show('solicitudes')">📝 Solicitudes</button>
 <button class="adminOnly" onclick="show('casas')">🏠 Casas</button>
 <button class="adminOnly" onclick="show('deudas')">💰 Deuda total</button>
@@ -626,6 +627,31 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   </div>
 </section>
 
+<section id="ownerPanel" class="ownerOnly hidden">
+  <h2>👑 Panel Owner</h2>
+  <div class="card">
+    <h3>Propietario de la plataforma</h3>
+    <p class="muted">El rol Owner tiene los permisos de administrador y puede administrar los roles superiores. Los administradores no pueden cambiar ni eliminar cuentas Owner.</p>
+    <h3>Administrar roles</h3>
+    <div class="form">
+      <div><label for="ownerRoleUser">Usuario</label><select id="ownerRoleUser" onchange="mostrarRolActualOwner()"><option value="">Seleccionar usuario</option></select></div>
+      <div><label for="ownerNewRole">Asignar rol</label>
+      <select id="ownerNewRole">
+        <option value="admin">Administrador</option>
+        <option value="owner">Owner (propietario)</option>
+        <option value="guardia">Guardia</option>
+      </select></div>
+    </div>
+    <p class="muted" id="ownerCurrentRole"></p>
+    <button type="button" class="primary" onclick="guardarRolOwner()">👑 Guardar cambio de rol</button>
+    <p id="ownerRoleMessage" class="muted" role="status"></p>
+    <div class="table"><table>
+      <thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th></tr></thead>
+      <tbody id="ownerRolesRows"></tbody>
+    </table></div>
+  </div>
+</section>
+
 <section id="residentes">
   <h2>Residentes</h2>
 
@@ -642,6 +668,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
           <option value="guardia">Guardia</option>
           <option value="admin">Administrador</option>
         </select>
+        <small class="muted">El rol Owner solo puede asignarse desde el panel del propietario.</small>
       </div>
     </div>
     <button class="primary" style="margin-top:12px" onclick="addProfile()">Guardar perfil</button>
@@ -1326,6 +1353,54 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 
 <script>
 
+function renderOwnerPanel(){
+ if(profile?.rol!=='owner')return;
+ const sel=document.getElementById('ownerRoleUser');
+ const tbody=document.getElementById('ownerRolesRows');
+ if(!sel||!tbody)return;
+ const current=sel.value;
+ sel.replaceChildren(new Option('Seleccionar usuario',''));
+ const list=profiles.filter(p=>p.id!==user?.id && ['admin','owner','guardia','residente'].includes(p.rol))
+ .sort((a,b)=>String(a.nombre||'').localeCompare(String(b.nombre||''),'es'));
+ for(const p of list){
+  const label=(p.nombre||'Sin nombre')+' · '+(p.unidad?'Casa '+p.unidad+' · ':'')+p.rol;
+  sel.add(new Option(label,String(p.id)));
+ }
+ if([...sel.options].some(o=>o.value===current))sel.value=current;
+ mostrarRolActualOwner();
+ tbody.replaceChildren();
+ for(const p of profiles.filter(x=>['owner','admin'].includes(x.rol))){
+  const row=tbody.insertRow();
+  row.insertCell().textContent=p.nombre||'Sin nombre';
+  row.insertCell().textContent=p.rol==='owner'?'👑 Owner':'Administrador';
+  row.insertCell().textContent=p.activo===false?'Inactivo':'Activo';
+ }
+}
+function mostrarRolActualOwner(){
+ const id=document.getElementById('ownerRoleUser')?.value;
+ const current=profiles.find(x=>String(x.id)===String(id));
+ const el=document.getElementById('ownerCurrentRole');
+ if(el)el.textContent=current
+  ?'Rol actual: '+current.rol+'. Los cambios de Owner solo los puede realizar un Owner activo.'
+  :'Selecciona un perfil existente.';
+}
+async function guardarRolOwner(){
+ if(profile?.rol!=='owner')return;
+ const id=document.getElementById('ownerRoleUser')?.value;
+ const newRole=document.getElementById('ownerNewRole')?.value;
+ const target=profiles.find(p=>String(p.id)===String(id));
+ const msg=document.getElementById('ownerRoleMessage');
+ if(!target||!newRole)return msg.textContent='Selecciona un usuario y un rol.';
+ if(target.rol===newRole)return msg.textContent='El usuario ya tiene ese rol.';
+ if(target.rol==='residente'&&newRole!=='admin')return msg.textContent='Primero cambia a administrador para luego asignarle Owner.';
+ if(!confirm('¿Cambiar el rol de '+(target.nombre||'usuario')+' de '+target.rol+' a '+newRole+'? Esta acción modifica sus permisos.'))return;
+ msg.textContent='Guardando rol...';
+ const {error}=await sb.rpc('owner_manage_role',{p_user:id,p_new_role:newRole});
+ if(error){msg.textContent='No se pudo modificar el rol: '+error.message;return;}
+ msg.textContent='Rol actualizado correctamente.';
+ await loadAll();
+}
+
 function renderResidentes(){
   const body = document.getElementById('profilesRows');
   if(!body) return;
@@ -1347,7 +1422,7 @@ function renderResidentes(){
   body.innerHTML = lista.map(x=>`<tr>
     <td>${esc(x.nombre||'')}</td>
     <td><strong>${esc(x.unidad||'')}</strong></td>
-    <td>${esc(x.rol||'')}</td>
+    <td>${esc(x.rol==='owner'?'👑 Owner':(x.rol||''))}</td>
     <td>${x.estado_registro==='pendiente'
       ? '<span class="badge">Pendiente</span>'
       : (x.estado_registro==='rechazado'
@@ -1355,7 +1430,7 @@ function renderResidentes(){
         : (x.activo!==false
           ? '<span class="badge">Activo</span>'
           : '<span class="badge">Inactivo</span>'))}</td>
-    <td>${x.rol==='residente'
+    <td>${x.rol==='owner' ? '<span class="muted">👑 Propietario protegido</span>' : x.rol==='residente'
       ? `<button onclick="abrirEdicionResidente('${x.id}')">Editar</button> <button class="danger" onclick="eliminarResidente('${x.id}')">Eliminar</button>`
       : (x.rol==='admin' && x.id!==user?.id
         ? `<button class="danger" onclick="eliminarResidente('${x.id}')">Eliminar admin</button>`
@@ -1368,7 +1443,7 @@ function renderResidentes(){
 
 async function eliminarPago(id){
 
-  if(profile?.rol !== 'admin'){
+  if(!isAdminProfileRole(profile?.rol)){
     return;
   }
 
@@ -1450,7 +1525,7 @@ async function eliminarPago(id){
 }
 function verTotalPagado(){
 
-  if(profile?.rol !== 'admin'){
+  if(!isAdminProfileRole(profile?.rol)){
     return;
   }
 
@@ -1469,7 +1544,7 @@ function verTotalPagado(){
 
 async function cargarConfigCobroAutomatico(){
 
-  if(profile?.rol !== 'admin'){
+  if(!isAdminProfileRole(profile?.rol)){
     return;
   }
 
@@ -1549,7 +1624,7 @@ async function cargarConfigCobroAutomatico(){
 
 async function cambiarCobroAutomatico(){
 
-  if(profile?.rol !== 'admin'){
+  if(!isAdminProfileRole(profile?.rol)){
     return;
   }
 
@@ -1616,7 +1691,7 @@ async function cambiarCobroAutomatico(){
 
 async function guardarMontoAutomatico(){
 
-  if(profile?.rol !== 'admin'){
+  if(!isAdminProfileRole(profile?.rol)){
     return;
   }
 
@@ -1686,6 +1761,7 @@ const SB_URL='https://nndlfkuelwpwklldvtfo.supabase.co';
 const SB_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 let houseOccupancyDataError=false;
+function isAdminProfileRole(rol){return rol==='admin'||rol==='owner';}
 let user=null, profile=null, casas=[], profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], incidentes=[], incidenteMensajes=[], entregas=[], solicitudesContacto=[], mensajesContacto=[], notificaciones=[], notificacionLecturas=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
 let incidenteActualId=null;
 let chatConversaciones=[], chatMensajes=[], chatLecturas=[];
@@ -1862,7 +1938,7 @@ async function activarNotificaciones(){
   }
 }
   async function enviarNotificacionGeneral(){
-  if(profile?.rol!=='admin'){
+  if(!isAdminProfileRole(profile?.rol)){
     return alert('Solo el administrador puede enviar notificaciones.');
   }
 
@@ -1949,7 +2025,7 @@ function renderRegistroBiometrico(){
   if(!select)return;
   const previo=select.value;
   select.replaceChildren(new Option('Selecciona un residente',''));
-  if(profile?.rol!=='admin'){
+  if(!isAdminProfileRole(profile?.rol)){
     document.getElementById('bioSeleccion').textContent='';
     return;
   }
@@ -1963,7 +2039,7 @@ function renderRegistroBiometrico(){
 }
 function actualizarSeleccionBiometrica(){
   const mensaje=document.getElementById('bioSeleccion');
-  if(profile?.rol!=='admin'){mensaje.textContent='';return;}
+  if(!isAdminProfileRole(profile?.rol)){mensaje.textContent='';return;}
   const residente=profiles.find(p=>String(p.id)===document.getElementById('bioResidente').value);
   mensaje.textContent=residente
     ? 'Seleccionado: '+(residente.nombre||'Residente')+' · Casa '+casaNumero(residente.casa_id)+'. Captura pendiente de conexión.'
@@ -1992,7 +2068,7 @@ async function basuraActualizar(){
  }
 }
 async function basuraAccion(action){
- if(basuraBusy||!user||!['admin','residente'].includes(profile?.rol))return;
+ if(basuraBusy||!user||!['owner','admin','residente'].includes(profile?.rol))return;
  const texto=action==='start'?'¿Registrar una ventana de recolección de basura de 20 minutos? Esto solicitará mantener abierto el portón mediante Modo Evento si está habilitado. Comprueba que el paso esté despejado.':'¿Cancelar la ventana de recolección de basura activa?';
  if(!confirm(texto))return;
  basuraBusy=true;
@@ -2009,8 +2085,9 @@ async function basuraAccion(action){
 
 function show(id){
   if(id!=='visitas')ocultarCodigosPermanentes();
+  if(id==='ownerPanel'){if(profile?.rol!=='owner')return;renderOwnerPanel();}
   if(id==='biometrico'){
-    if(profile?.rol!=='admin')return;
+    if(!isAdminProfileRole(profile?.rol))return;
     renderRegistroBiometrico();
   }
   document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));
@@ -2038,20 +2115,20 @@ function show(id){
     basuraActualizar();
   }
   if(id==='esp32Panel'){
-    if(profile?.rol!=='admin')return;
+    if(!isAdminProfileRole(profile?.rol))return;
     refreshEsp32Panel();
   }
-  if(id==='accesos'&&profile?.rol==='admin')refreshEsp32History();
-  if(id==='visitas'&&['admin','residente'].includes(profile?.rol)){cargarCodigosVisita();if(profile.rol==='admin')adminVisPrepararCasas();}
-  if(id==='visitas'&&['residente','admin'].includes(profile?.rol))cargarCodigosPermanentes();
-  if(id==='accesos'&&['admin','residente'].includes(profile?.rol))cargarHistorialCodigosVisita();
+  if(id==='accesos'&&isAdminProfileRole(profile?.rol))refreshEsp32History();
+  if(id==='visitas'&&['owner','admin','residente'].includes(profile?.rol)){cargarCodigosVisita();if(isAdminProfileRole(profile.rol))adminVisPrepararCasas();}
+  if(id==='visitas'&&['residente','admin','owner'].includes(profile?.rol))cargarCodigosPermanentes();
+  if(id==='accesos'&&['owner','admin','residente'].includes(profile?.rol))cargarHistorialCodigosVisita();
   if(id==='entregas')actualizarSolicitudesEntrega();
 
   if(id==='camaras'){
     cargarCamara();
   }
 
-  if(id==='cuotas' && profile?.rol==='admin'){
+  if(id==='cuotas' && isAdminProfileRole(profile?.rol)){
     cargarConfigCobroAutomatico();
   }
 
@@ -2155,12 +2232,12 @@ async function abrirRutaNotificacion(){
 document.addEventListener('keydown',e=>{if(e.key==='Escape') closeMenu();});
 
 function cargarCamara(){
- if(!profile || !['admin','residente'].includes(profile.rol)) return;
+ if(!profile || !['owner','admin','residente'].includes(profile.rol)) return;
  const frame=$('cameraFrame');
  if(frame && !frame.src) frame.src='https://camara.administracionresidencial.org/camaraweb/';
 }
 function recargarCamara(){
- if(!profile || !['admin','residente'].includes(profile.rol)) return;
+ if(!profile || !['owner','admin','residente'].includes(profile.rol)) return;
  const frame=$('cameraFrame');
  if(!frame) return;
  frame.src='';
@@ -2341,14 +2418,15 @@ async function enter(){
  }
  cerrarChatFlotante();
  login.classList.add('hidden');app.classList.remove('hidden');
- who.textContent=`${profile.nombre} · ${profile.rol}${profile.unidad?' · '+profile.unidad:''}`;
- document.querySelectorAll('.adminOnly').forEach(x=>x.classList.toggle('hidden',profile.rol!=='admin'));
- document.querySelectorAll('.staffOnly').forEach(x=>x.classList.toggle('hidden',!['admin','guardia'].includes(profile.rol)));
+ who.textContent=`${profile.nombre} · ${profile.rol==='owner'?'👑 OWNER':profile.rol}${profile.unidad?' · '+profile.unidad:''}`;
+ document.querySelectorAll('.adminOnly').forEach(x=>x.classList.toggle('hidden',!isAdminProfileRole(profile.rol)));
+ document.querySelectorAll('.ownerOnly').forEach(x=>x.classList.toggle('hidden',profile.rol!=='owner'));
+ document.querySelectorAll('.staffOnly').forEach(x=>x.classList.toggle('hidden',!['owner','admin','guardia'].includes(profile.rol)));
  document.querySelectorAll('.residentOnly').forEach(x=>x.classList.toggle('hidden',profile.rol!=='residente'));
- document.querySelectorAll('.controlAccessOnly').forEach(x=>x.classList.toggle('hidden',!['admin','residente'].includes(profile.rol)));
- document.querySelectorAll('.paymentMethodsOnly').forEach(x=>x.classList.toggle('hidden',!['admin','residente'].includes(profile.rol)));
- document.querySelectorAll('.cameraOnly').forEach(x=>x.classList.toggle('hidden',!['admin','residente'].includes(profile.rol)));
- document.querySelectorAll('.residentAdminOnly').forEach(x=>x.classList.toggle('hidden',!['admin','residente'].includes(profile.rol)));
+ document.querySelectorAll('.controlAccessOnly').forEach(x=>x.classList.toggle('hidden',!['owner','admin','residente'].includes(profile.rol)));
+ document.querySelectorAll('.paymentMethodsOnly').forEach(x=>x.classList.toggle('hidden',!['owner','admin','residente'].includes(profile.rol)));
+ document.querySelectorAll('.cameraOnly').forEach(x=>x.classList.toggle('hidden',!['owner','admin','residente'].includes(profile.rol)));
+ document.querySelectorAll('.residentAdminOnly').forEach(x=>x.classList.toggle('hidden',!['owner','admin','residente'].includes(profile.rol)));
  cFecha.value=new Date().toISOString().slice(0,10); if(document.getElementById('resFecha')) resFecha.value=new Date().toISOString().slice(0,10);
  await loadAll();
  await cargarChatDatos();
@@ -2364,26 +2442,26 @@ async function enter(){
 async function loadAll(){
  const [ca,pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,inc,im,en,cs,cm,nt,nl,pk,rs,dc,em]=await Promise.all([
    sb.from('casas').select('*').order('numero',{ascending:true}),
-   ['admin','residente'].includes(profile.rol)?sb.from('profiles').select('*').order('nombre'):Promise.resolve({data:[profile]}),
+   ['owner','admin','residente'].includes(profile.rol)?sb.from('profiles').select('*').order('nombre'):Promise.resolve({data:[profile]}),
    sb.from('cuotas').select('*').order('created_at',{ascending:false}),
    sb.from('pagos').select('*').order('created_at',{ascending:false}),
    sb.from('visitas').select('*').order('created_at',{ascending:false}),
-   ['admin','guardia'].includes(profile.rol)?sb.from('accesos').select('*').order('created_at',{ascending:false}):Promise.resolve({data:[]}),
+   ['owner','admin','guardia'].includes(profile.rol)?sb.from('accesos').select('*').order('created_at',{ascending:false}):Promise.resolve({data:[]}),
    sb.from('eventos').select('*').order('fecha',{ascending:true}).order('hora',{ascending:true}),
-   ['admin','residente'].includes(profile.rol)?sb.from('controles_residenciales').select('*').order('numero_control',{ascending:true}):Promise.resolve({data:[]}),
-   profile.rol==='admin'?sb.from('gastos').select('*').order('fecha',{ascending:false}).order('created_at',{ascending:false}):Promise.resolve({data:[]}),
-   ['admin','residente'].includes(profile.rol)?sb.from('metodos_pago').select('*').order('created_at',{ascending:true}):Promise.resolve({data:[]}),
+   ['owner','admin','residente'].includes(profile.rol)?sb.from('controles_residenciales').select('*').order('numero_control',{ascending:true}):Promise.resolve({data:[]}),
+   isAdminProfileRole(profile.rol)?sb.from('gastos').select('*').order('fecha',{ascending:false}).order('created_at',{ascending:false}):Promise.resolve({data:[]}),
+   ['owner','admin','residente'].includes(profile.rol)?sb.from('metodos_pago').select('*').order('created_at',{ascending:true}):Promise.resolve({data:[]}),
    sb.from('avisos_condominio').select('*').order('created_at',{ascending:false}),
-   ['admin','residente'].includes(profile.rol)?sb.from('reportes_mantenimiento').select('*').order('created_at',{ascending:false}):Promise.resolve({data:[]}),
-   ['admin','residente'].includes(profile.rol)?sb.from('incidentes').select('*').order('updated_at',{ascending:false}):Promise.resolve({data:[]}),
-   ['admin','residente'].includes(profile.rol)?sb.from('incidente_mensajes').select('*').order('created_at',{ascending:true}):Promise.resolve({data:[]}),
-   ['admin','residente'].includes(profile.rol)?sb.from('entregas_contacto').select('id,casa_id,tipo,empresa,repartidor,mensaje,estado,respuesta,respondido_por,respondido_at,created_at,expires_at').order('created_at',{ascending:false}).limit(100):Promise.resolve({data:[]}),
+   ['owner','admin','residente'].includes(profile.rol)?sb.from('reportes_mantenimiento').select('*').order('created_at',{ascending:false}):Promise.resolve({data:[]}),
+   ['owner','admin','residente'].includes(profile.rol)?sb.from('incidentes').select('*').order('updated_at',{ascending:false}):Promise.resolve({data:[]}),
+   ['owner','admin','residente'].includes(profile.rol)?sb.from('incidente_mensajes').select('*').order('created_at',{ascending:true}):Promise.resolve({data:[]}),
+   ['owner','admin','residente'].includes(profile.rol)?sb.from('entregas_contacto').select('id,casa_id,tipo,empresa,repartidor,mensaje,estado,respuesta,respondido_por,respondido_at,created_at,expires_at').order('created_at',{ascending:false}).limit(100):Promise.resolve({data:[]}),
    profile.rol==='residente'?sb.from('contacto_residente_solicitudes').select('*').order('updated_at',{ascending:false}).limit(100):Promise.resolve({data:[]}),
    profile.rol==='residente'?sb.from('contacto_residente_mensajes').select('*').order('created_at',{ascending:true}).limit(500):Promise.resolve({data:[]}),
-   ['admin','residente'].includes(profile.rol)?sb.from('notificaciones_push').select('*').or('user_id.eq.'+user.id+',user_id.is.null').order('created_at',{ascending:false}).limit(100):Promise.resolve({data:[]}),
-   ['admin','residente'].includes(profile.rol)?sb.from('notificacion_lecturas').select('*').eq('user_id',user.id):Promise.resolve({data:[]}),
+   ['owner','admin','residente'].includes(profile.rol)?sb.from('notificaciones_push').select('*').or('user_id.eq.'+user.id+',user_id.is.null').order('created_at',{ascending:false}).limit(100):Promise.resolve({data:[]}),
+   ['owner','admin','residente'].includes(profile.rol)?sb.from('notificacion_lecturas').select('*').eq('user_id',user.id):Promise.resolve({data:[]}),
    sb.from('paquetes').select('*').order('created_at',{ascending:false}),
-   ['admin','residente'].includes(profile.rol)?sb.from('reservaciones').select('*').order('fecha',{ascending:true}):Promise.resolve({data:[]}),
+   ['owner','admin','residente'].includes(profile.rol)?sb.from('reservaciones').select('*').order('fecha',{ascending:true}):Promise.resolve({data:[]}),
    sb.from('documentos_condominio').select('*').order('created_at',{ascending:false}),
    sb.from('contactos_emergencia').select('*').order('tipo').order('nombre')
  ]);
@@ -2392,8 +2470,8 @@ async function loadAll(){
  eventos=ev.data||[]; controles=ct.data||[]; gastos=ga.data||[]; metodosPago=mp.data||[];
  avisos=av.data||[]; reportes=rp.data||[]; incidentes=inc.data||[]; incidenteMensajes=im.data||[]; entregas=en.data||[]; solicitudesContacto=cs.data||[]; mensajesContacto=cm.data||[]; notificaciones=nt.data||[]; notificacionLecturas=nl.data||[]; paquetes=pk.data||[]; reservas=rs.data||[]; documentos=dc.data||[]; contactosEmergencia=em.data||[];
  [ca,av,rp,inc,im,en,cs,cm,nt,nl,pk,rs,dc,em].forEach((r,i)=>{if(r?.error) console.warn(['Casas','Avisos','Reportes','Incidentes','Mensajes de incidentes','Entregas','Solicitudes de contacto','Mensajes entre residentes','Notificaciones','Lecturas de notificaciones','Paquetes','Reservaciones','Documentos','Emergencia'][i]+':',r.error)});
- if(ga.error && profile.rol==='admin') console.warn('Gastos:',ga.error);
- if(mp.error && ['admin','residente'].includes(profile.rol)) console.warn('Métodos de pago:',mp.error);
+ if(ga.error && isAdminProfileRole(profile.rol)) console.warn('Gastos:',ga.error);
+ if(mp.error && ['owner','admin','residente'].includes(profile.rol)) console.warn('Métodos de pago:',mp.error);
  render();
 }
 
@@ -2446,7 +2524,7 @@ function controlesDeCasa(casaId){
  return controles.filter(c=>String(casaIdDeRegistro(c))===String(casaId));
 }
 async function addControl(){
- if(profile?.rol!=='admin')return;
+ if(!isAdminProfileRole(profile?.rol))return;
  const casaId=document.getElementById('ctrlResidente')?.value;
  const numero=document.getElementById('ctrlNumero')?.value.trim();
  const msg=document.getElementById('ctrlMsg');
@@ -2471,7 +2549,7 @@ async function addControl(){
  await loadAll();
 }
 async function setControlEstado(id,estado){
- if(profile?.rol!=='admin')return;
+ if(!isAdminProfileRole(profile?.rol))return;
  if(!['suspendido','activo'].includes(estado))return;
  const control=controles.find(c=>String(c.id)===String(id));
  if(!control)return alert('No se encontró el control. Actualiza la lista e inténtalo de nuevo.');
@@ -2492,7 +2570,7 @@ async function setControlEstado(id,estado){
  await loadAll();
 }
 async function deleteControl(id){
- if(profile?.rol!=='admin')return;
+ if(!isAdminProfileRole(profile?.rol))return;
  if(!confirm('¿Eliminar este número de control de la casa?'))return;
  const {error}=await sb.from('controles_residenciales').delete().eq('id',id);
  if(error)return alert('No se pudo eliminar el control: '+error.message);
@@ -2504,7 +2582,7 @@ function renderControlesRegistrados(){
  const select=document.getElementById('ctrlResidente');
  const coll=new Intl.Collator('es',{numeric:true,sensitivity:'base'});
 
- if(profile?.rol==='admin'&&select){
+ if(isAdminProfileRole(profile?.rol)&&select){
    const prev=select.value;
    const lista=[...casas].filter(c=>c.activo!==false).sort((a,b)=>coll.compare(String(a.numero||''),String(b.numero||'')));
    select.innerHTML=lista.map(c=>'<option value="'+c.id+'">Casa '+esc(c.numero||'')+' — '+controlesDeCasa(c.id).length+' controles</option>').join('');
@@ -2520,7 +2598,7 @@ function renderControlesRegistrados(){
    }).join('')||'<tr><td colspan="2" class="muted">Tu casa no tiene controles registrados.</td></tr>';
  }
 
- if(profile?.rol==='admin'&&adminBody){
+ if(isAdminProfileRole(profile?.rol)&&adminBody){
    const modo=document.getElementById('ordenControles')?.value||'asc';
    const abiertas=new Set([...adminBody.querySelectorAll('details[open]')].map(d=>d.dataset.casa));
    const grupos=new Map();
@@ -2554,7 +2632,7 @@ function renderControlesRegistrados(){
 function renderPorton(){
  renderControlesRegistrados();
  const body=document.getElementById('portonRows');
- if(!body||profile?.rol!=='admin')return;
+ if(!body||!isAdminProfileRole(profile?.rol))return;
  const grace=Math.max(0,Number(document.getElementById('graceDays')?.value||5));
  const modo=document.getElementById('ordenControles')?.value||'asc';
  const coll=new Intl.Collator('es',{numeric:true,sensitivity:'base'});
@@ -2576,7 +2654,7 @@ function renderPorton(){
 
 
 async function addEvento(){
- if(profile?.rol!=='admin') return alert('Solo el administrador puede crear eventos.');
+ if(!isAdminProfileRole(profile?.rol)) return alert('Solo el administrador puede crear eventos.');
  const titulo=document.getElementById('eTitulo').value.trim();
  const fecha=document.getElementById('eFecha').value;
  if(!titulo||!fecha) return alert('Escribe el título y la fecha.');
@@ -2595,7 +2673,7 @@ async function addEvento(){
  await loadAll();
 }
 async function deleteEvento(id){
- if(profile?.rol!=='admin') return;
+ if(!isAdminProfileRole(profile?.rol)) return;
  if(!confirm('¿Eliminar este evento?')) return;
  const {error}=await sb.from('eventos').delete().eq('id',id);
  if(error) return alert('No se pudo eliminar: '+error.message);
@@ -2612,12 +2690,12 @@ function renderEventos(){
    <td>${esc(e.tipo||'')}</td>
    <td>${esc(e.lugar||'')}</td>
    <td>${esc(e.descripcion||'')}</td>
-   <td class="adminOnly">${profile?.rol==='admin'?`<button class="danger" onclick="deleteEvento(${e.id})">Eliminar</button>`:''}</td>
+   <td class="adminOnly">${isAdminProfileRole(profile?.rol)?`<button class="danger" onclick="deleteEvento(${e.id})">Eliminar</button>`:''}</td>
  </tr>`).join('')||'<tr><td colspan="7" class="muted">No hay próximos eventos.</td></tr>';
 }
 
 async function editarVencimientoCuota(id, fechaActual){
- if(profile?.rol!=='admin') return;
+ if(!isAdminProfileRole(profile?.rol)) return;
  const fecha=await new Promise(resolve=>{
    const dialog=document.getElementById('calendarioDialog');
    const cancelado=()=>resolve(null);
@@ -2638,7 +2716,7 @@ async function editarVencimientoCuota(id, fechaActual){
 }
 
 async function eliminarCuota(id){
- if(profile?.rol!=='admin') return;
+ if(!isAdminProfileRole(profile?.rol)) return;
  const cuota=cuotas.find(q=>String(q.id)===String(id));
  if(!cuota) return alert('No se encontró la cuota.');
 
@@ -2686,7 +2764,7 @@ async function subirMedia(file,path){
 }
 
 async function addAviso(){
- if(profile?.rol!=='admin') return;
+ if(!isAdminProfileRole(profile?.rol)) return;
  const titulo=avTitulo.value.trim(), mensaje=avMensaje.value.trim();
  if(!titulo||!mensaje) return alert('Escribe el título y el mensaje.');
  const {error}=await sb.from('avisos_condominio').insert({titulo,mensaje,prioridad:avPrioridad.value,vence:avVence.value||null,activo:true,creado_por:user.id});
@@ -2694,22 +2772,22 @@ async function addAviso(){
  avTitulo.value=''; avMensaje.value=''; avVence.value=''; await loadAll();
 }
 async function eliminarAviso(id){
- if(profile?.rol!=='admin'||!confirm('¿Eliminar este aviso?')) return;
+ if(!isAdminProfileRole(profile?.rol)||!confirm('¿Eliminar este aviso?')) return;
  const {error}=await sb.from('avisos_condominio').delete().eq('id',id); if(error)return alert(error.message); await loadAll();
 }
 function renderAvisos(){
  const caja=document.getElementById('avisosLista'), inicio=document.getElementById('avisosInicio');
- const cards=avisos.map(a=>`<div class="card notice ${esc(a.prioridad||'media')}" style="margin-bottom:12px"><div class="actions" style="justify-content:space-between"><h3 style="margin-bottom:6px">${esc(a.titulo)}</h3><span class="badge">${esc(prioridadTexto(a.prioridad))}</span></div><p>${esc(a.mensaje)}</p><div class="muted">Publicado: ${fechaHora(a.created_at)}${a.vence?' · Visible hasta '+esc(a.vence):''}</div>${profile?.rol==='admin'?`<button class="danger mini" style="margin-top:10px" onclick="eliminarAviso('${a.id}')">🗑️ Eliminar</button>`:''}</div>`).join('')||'<div class="card muted">No hay avisos activos.</div>';
+ const cards=avisos.map(a=>`<div class="card notice ${esc(a.prioridad||'media')}" style="margin-bottom:12px"><div class="actions" style="justify-content:space-between"><h3 style="margin-bottom:6px">${esc(a.titulo)}</h3><span class="badge">${esc(prioridadTexto(a.prioridad))}</span></div><p>${esc(a.mensaje)}</p><div class="muted">Publicado: ${fechaHora(a.created_at)}${a.vence?' · Visible hasta '+esc(a.vence):''}</div>${isAdminProfileRole(profile?.rol)?`<button class="danger mini" style="margin-top:10px" onclick="eliminarAviso('${a.id}')">🗑️ Eliminar</button>`:''}</div>`).join('')||'<div class="card muted">No hay avisos activos.</div>';
  if(caja)caja.innerHTML=cards;
  if(inicio) inicio.innerHTML=avisos.slice(0,2).map(a=>`<div class="card notice ${esc(a.prioridad||'media')}" style="margin-bottom:10px"><strong>📢 ${esc(a.titulo)}</strong><div style="margin-top:6px">${esc(a.mensaje)}</div></div>`).join('');
 }
 
 async function addReporte(){
-  if(!['admin','residente'].includes(profile?.rol)) return;
+  if(!['owner','admin','residente'].includes(profile?.rol)) return;
   let casaId=profile.casa_id||null;
   let rid=profile.rol==='residente'?user.id:null;
 
-  if(profile.rol==='admin'){
+  if(isAdminProfileRole(profile.rol)){
     casaId=repResidente.value||null;
     if(!casaId) return alert('Selecciona una casa.');
   }
@@ -2751,17 +2829,17 @@ async function addReporte(){
 }
 
 async function setReporteEstado(id,estado){
- if(profile?.rol!=='admin') return;
+ if(!isAdminProfileRole(profile?.rol)) return;
  const {error}=await sb.from('reportes_mantenimiento').update({estado,actualizado_en:new Date().toISOString()}).eq('id',id); if(error)return alert(error.message); await loadAll();
 }
 async function eliminarReporte(id){
- if(profile?.rol!=='admin'||!confirm('¿Eliminar este reporte?'))return;
+ if(!isAdminProfileRole(profile?.rol)||!confirm('¿Eliminar este reporte?'))return;
  const r=reportes.find(x=>String(x.id)===String(id)); const {error}=await sb.from('reportes_mantenimiento').delete().eq('id',id); if(error)return alert(error.message);
  if(r?.foto_path) await sb.storage.from('condominio-media').remove([r.foto_path]); await loadAll();
 }
 function renderReportes(){
  const body=document.getElementById('reportesRows'); if(!body)return;
- body.innerHTML=reportes.map(r=>`<tr><td>${fechaHora(r.created_at)}</td><td>${esc(r.unidad||'')}</td><td>${esc(r.categoria||'')}</td><td>${esc(r.descripcion||'')}</td><td>${esc(prioridadTexto(r.prioridad))}</td><td><span class="badge">${esc(r.estado||'')}</span></td><td>${r.foto_path?`<button class="mini" onclick="abrirArchivo('${encodeURIComponent(r.foto_path)}')">📷 Ver foto</button>`:'—'}</td><td>${profile?.rol==='admin'?`<div class="actions"><button class="mini" onclick="setReporteEstado('${r.id}','en proceso')">En proceso</button><button class="primary mini" onclick="setReporteEstado('${r.id}','resuelto')">Resuelto</button><button class="danger mini" onclick="eliminarReporte('${r.id}')">Eliminar</button></div>`:'—'}</td></tr>`).join('')||'<tr><td colspan="8" class="muted">No hay reportes.</td></tr>';
+ body.innerHTML=reportes.map(r=>`<tr><td>${fechaHora(r.created_at)}</td><td>${esc(r.unidad||'')}</td><td>${esc(r.categoria||'')}</td><td>${esc(r.descripcion||'')}</td><td>${esc(prioridadTexto(r.prioridad))}</td><td><span class="badge">${esc(r.estado||'')}</span></td><td>${r.foto_path?`<button class="mini" onclick="abrirArchivo('${encodeURIComponent(r.foto_path)}')">📷 Ver foto</button>`:'—'}</td><td>${isAdminProfileRole(profile?.rol)?`<div class="actions"><button class="mini" onclick="setReporteEstado('${r.id}','en proceso')">En proceso</button><button class="primary mini" onclick="setReporteEstado('${r.id}','resuelto')">Resuelto</button><button class="danger mini" onclick="eliminarReporte('${r.id}')">Eliminar</button></div>`:'—'}</td></tr>`).join('')||'<tr><td colspan="8" class="muted">No hay reportes.</td></tr>';
 }
 
 function textoEstadoIncidente(estado){
@@ -2836,7 +2914,7 @@ async function addIncidente(){
 
 function renderIncidentes(){
   const body=document.getElementById('incidentesRows');
-  if(!body||!['admin','residente'].includes(profile?.rol))return;
+  if(!body||!['owner','admin','residente'].includes(profile?.rol))return;
 
   const lista=[...incidentes].sort((a,b)=>
     new Date(b.updated_at||b.created_at)-new Date(a.updated_at||a.created_at)
@@ -2878,7 +2956,7 @@ function abrirIncidente(id){
   const casa=casaPorId(inc.casa_id);
 
   if(meta){
-    meta.textContent=profile?.rol==='admin'
+    meta.textContent=isAdminProfileRole(profile?.rol)
       ? 'Enviado por '+(remitente?.nombre||'Residente')+' · Casa '+(casa?.numero||'')+' · '+fechaHora(inc.created_at)
       : 'Reporte privado · '+fechaHora(inc.created_at);
   }
@@ -2917,7 +2995,7 @@ function renderMensajesIncidente(){
     const autor=profiles.find(p=>String(p.id)===String(m.autor_id));
     const etiqueta=esMio
       ? 'Tú'
-      : (profile?.rol==='admin' ? (autor?.nombre||'Residente') : 'Administración');
+      : (isAdminProfileRole(profile?.rol) ? (autor?.nombre||'Residente') : 'Administración');
 
     return '<div class="card" style="margin-bottom:10px">'+
       '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">'+
@@ -2930,7 +3008,7 @@ function renderMensajesIncidente(){
 }
 
 async function enviarMensajeIncidente(){
-  if(!incidenteActualId||!['admin','residente'].includes(profile?.rol))return;
+  if(!incidenteActualId||!['owner','admin','residente'].includes(profile?.rol))return;
 
   const input=document.getElementById('incNuevoMensaje');
   const mensaje=input?.value.trim()||'';
@@ -2951,7 +3029,7 @@ async function enviarMensajeIncidente(){
 }
 
 async function cambiarEstadoIncidente(){
-  if(profile?.rol!=='admin'||!incidenteActualId)return;
+  if(!isAdminProfileRole(profile?.rol)||!incidenteActualId)return;
 
   const estado=document.getElementById('incEstado')?.value;
   if(!estado)return;
@@ -3047,7 +3125,7 @@ async function responderEntrega(id,respuesta){
 }
 
 function renderPortalRepartidor(){
-  if(profile?.rol!=='admin')return;
+  if(!isAdminProfileRole(profile?.rol))return;
 
   const input=document.getElementById('deliveryPortalUrl');
   const qr=document.getElementById('deliveryQr');
@@ -3096,7 +3174,7 @@ async function copiarPortalRepartidor(){
 
 let entregasRefreshBusy=false;
 async function actualizarSolicitudesEntrega(){
- if(entregasRefreshBusy||!user||!['admin','residente'].includes(profile?.rol))return;
+ if(entregasRefreshBusy||!user||!['owner','admin','residente'].includes(profile?.rol))return;
  entregasRefreshBusy=true;
  const box=document.getElementById('entregasPendientes');
  try{
@@ -3113,7 +3191,7 @@ async function actualizarSolicitudesEntrega(){
  }finally{entregasRefreshBusy=false;}
 }
 function renderEntregas(){
-  if(!['admin','residente'].includes(profile?.rol))return;
+  if(!['owner','admin','residente'].includes(profile?.rol))return;
 
   const body=document.getElementById('entregasRows');
   const pendientes=document.getElementById('entregasPendientes');
@@ -3430,7 +3508,7 @@ function residentesDisponiblesChat(){
 }
 
 async function cargarChatDatos(){
-  if(!user||!['admin','residente'].includes(profile?.rol))return;
+  if(!user||!['owner','admin','residente'].includes(profile?.rol))return;
 
   const conv=await sb.from('chat_conversaciones')
     .select('*')
@@ -3481,7 +3559,7 @@ function renderChatBadge(){
 }
 
 function llenarSelectorChatAdmin(){
-  if(profile?.rol!=='admin')return;
+  if(!isAdminProfileRole(profile?.rol))return;
   const picker=document.getElementById('chatAdminPicker');
   const select=document.getElementById('chatResidentSelect');
   if(!picker||!select)return;
@@ -3507,7 +3585,7 @@ function llenarSelectorChatAdmin(){
 }
 
 async function abrirChatFlotante(conversacionId=null){
-  if(!user||!['admin','residente'].includes(profile?.rol))return;
+  if(!user||!['owner','admin','residente'].includes(profile?.rol))return;
 
   const panel=document.getElementById('chatPanel');
   if(!panel)return;
@@ -3515,7 +3593,7 @@ async function abrirChatFlotante(conversacionId=null){
   panel.classList.remove('hidden');
   await cargarChatDatos();
 
-  if(profile.rol==='admin'){
+  if(isAdminProfileRole(profile.rol)){
     llenarSelectorChatAdmin();
 
     if(conversacionId){
@@ -3553,7 +3631,7 @@ function cerrarChatFlotante(){
 }
 
 function seleccionarChatResidente(){
-  if(profile?.rol!=='admin')return;
+  if(!isAdminProfileRole(profile?.rol))return;
 
   const rid=document.getElementById('chatResidentSelect')?.value||'';
   const conv=chatConversaciones.find(c=>String(c.residente_id)===String(rid));
@@ -3571,7 +3649,7 @@ function renderChatPanel(){
   const send=document.getElementById('chatSendBtn');
   if(!body||!titulo||!subtitulo||!input||!send)return;
 
-  if(profile?.rol==='admin'){
+  if(isAdminProfileRole(profile?.rol)){
     llenarSelectorChatAdmin();
     const rid=document.getElementById('chatResidentSelect')?.value||'';
     const residente=profiles.find(p=>String(p.id)===String(rid));
@@ -3613,7 +3691,7 @@ function renderChatPanel(){
 
     if(mio){
       etiqueta='Tú';
-    }else if(profile?.rol==='admin'){
+    }else if(isAdminProfileRole(profile?.rol)){
       etiqueta=autor?.nombre||'Residente';
     }
 
@@ -3658,7 +3736,7 @@ async function obtenerOCrearConversacionChat(){
     return conv.id;
   }
 
-  if(profile?.rol!=='admin')return null;
+  if(!isAdminProfileRole(profile?.rol))return null;
 
   const rid=document.getElementById('chatResidentSelect')?.value||'';
   if(!rid)return null;
@@ -3692,7 +3770,7 @@ async function obtenerOCrearConversacionChat(){
 }
 
 async function enviarChatMensaje(){
-  if(!user||!['admin','residente'].includes(profile?.rol))return;
+  if(!user||!['owner','admin','residente'].includes(profile?.rol))return;
 
   const input=document.getElementById('chatInput');
   const mensaje=input?.value.trim()||'';
@@ -3755,7 +3833,7 @@ async function marcarChatActualLeido(){
 
 function iniciarChatPolling(){
   if(chatPolling)clearInterval(chatPolling);
-  if(!['admin','residente'].includes(profile?.rol))return;
+  if(!['owner','admin','residente'].includes(profile?.rol))return;
 
   chatPolling=setInterval(async()=>{
     if(!user)return;
@@ -3881,7 +3959,7 @@ let notificacionesRefreshQueued=false;
 let notificacionesRefreshTimer=null;
 
 async function actualizarNotificacionesEnVivo(){
- if(!user||!['admin','residente'].includes(profile?.rol))return;
+ if(!user||!['owner','admin','residente'].includes(profile?.rol))return;
  if(notificacionesRefreshBusy){notificacionesRefreshQueued=true;return;}
  notificacionesRefreshBusy=true;
  const currentId=user.id;
@@ -3915,7 +3993,7 @@ function solicitarNotificacionesActualizadas(){
  },150);
 }
 function iniciarNotificacionesEnVivo(){
- if(!user||!['admin','residente'].includes(profile?.rol))return;
+ if(!user||!['owner','admin','residente'].includes(profile?.rol))return;
  if(notificacionesRealtimeCanal){
   sb.removeChannel(notificacionesRealtimeCanal).catch(()=>{});
   notificacionesRealtimeCanal=null;
@@ -3949,7 +4027,7 @@ setInterval(()=>{
 },30000);
 
 function renderNotificaciones(){
-  if(!['admin','residente'].includes(profile?.rol))return;
+  if(!['owner','admin','residente'].includes(profile?.rol))return;
 
   const lista=document.getElementById('notificacionesLista');
   const badge=document.getElementById('notifBadge');
@@ -4048,7 +4126,7 @@ async function abrirNotificacion(id){
 }
 
 async function addPaquete(){
-  if(!['admin','guardia'].includes(profile?.rol)) return;
+  if(!['owner','admin','guardia'].includes(profile?.rol)) return;
 
   const casaId=paqUnidad.value||null;
   const casa=casaPorId(casaId);
@@ -4077,25 +4155,25 @@ async function addPaquete(){
 }
 
 async function entregarPaquete(id){
- if(!['admin','guardia'].includes(profile?.rol))return;
+ if(!['owner','admin','guardia'].includes(profile?.rol))return;
  const {error}=await sb.from('paquetes').update({estado:'entregado',entregado_en:new Date().toISOString(),entregado_por:user.id}).eq('id',id); if(error)return alert(error.message); await loadAll();
 }
 async function eliminarPaquete(id){
- if(profile?.rol!=='admin'||!confirm('¿Eliminar este registro de paquetería?'))return;
+ if(!isAdminProfileRole(profile?.rol)||!confirm('¿Eliminar este registro de paquetería?'))return;
  const {error}=await sb.from('paquetes').delete().eq('id',id); if(error)return alert(error.message); await loadAll();
 }
 function renderPaquetes(){
  const body=document.getElementById('paquetesRows'); if(!body)return;
- body.innerHTML=paquetes.map(p=>`<tr><td>${fechaHora(p.created_at)}</td><td>${esc(p.unidad||'')}</td><td>${esc(p.destinatario||'')}</td><td>${esc(p.empresa||'')}</td><td>${esc(p.descripcion||'')}</td><td><span class="badge">${p.estado==='entregado'?'✅ Entregado':'📦 Por entregar'}</span></td><td class="staffOnly">${['admin','guardia'].includes(profile?.rol)?`<div class="actions">${p.estado!=='entregado'?`<button class="primary mini" onclick="entregarPaquete('${p.id}')">✅ Entregar</button>`:''}${profile.rol==='admin'?`<button class="danger mini" onclick="eliminarPaquete('${p.id}')">Eliminar</button>`:''}</div>`:''}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">No hay paquetes registrados.</td></tr>';
+ body.innerHTML=paquetes.map(p=>`<tr><td>${fechaHora(p.created_at)}</td><td>${esc(p.unidad||'')}</td><td>${esc(p.destinatario||'')}</td><td>${esc(p.empresa||'')}</td><td>${esc(p.descripcion||'')}</td><td><span class="badge">${p.estado==='entregado'?'✅ Entregado':'📦 Por entregar'}</span></td><td class="staffOnly">${['owner','admin','guardia'].includes(profile?.rol)?`<div class="actions">${p.estado!=='entregado'?`<button class="primary mini" onclick="entregarPaquete('${p.id}')">✅ Entregar</button>`:''}${isAdminProfileRole(profile.rol)?`<button class="danger mini" onclick="eliminarPaquete('${p.id}')">Eliminar</button>`:''}</div>`:''}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">No hay paquetes registrados.</td></tr>';
 }
 
 async function addReserva(){
-  if(!['admin','residente'].includes(profile?.rol)) return;
+  if(!['owner','admin','residente'].includes(profile?.rol)) return;
 
   let casaId=profile.casa_id||null;
   let rid=profile.rol==='residente'?user.id:null;
 
-  if(profile.rol==='admin'){
+  if(isAdminProfileRole(profile.rol)){
     casaId=resResidente.value||null;
     if(!casaId) return alert('Selecciona una casa.');
   }
@@ -4129,21 +4207,21 @@ async function addReserva(){
 }
 
 async function setReservaEstado(id,estado){
- if(profile?.rol!=='admin')return;
+ if(!isAdminProfileRole(profile?.rol))return;
  const {error}=await sb.from('reservaciones').update({estado}).eq('id',id);if(error)return alert(error.message);await loadAll();
 }
 async function eliminarReserva(id){
- if(profile?.rol!=='admin'||!confirm('¿Eliminar esta reservación?'))return;
+ if(!isAdminProfileRole(profile?.rol)||!confirm('¿Eliminar esta reservación?'))return;
  const {error}=await sb.from('reservaciones').delete().eq('id',id);if(error)return alert(error.message);await loadAll();
 }
 function renderReservas(){
  const body=document.getElementById('reservasRows');if(!body)return;
- if(profile?.rol==='admin')refreshEventModeStatus();
- body.innerHTML=reservas.map(r=>`<tr><td>${esc(r.fecha||'')}</td><td>${esc(String(r.hora_inicio||'').slice(0,5))}–${esc(String(r.hora_fin||'').slice(0,5))}</td><td>${esc(r.area||'')}</td><td>${esc(r.unidad||'')}</td><td><span class="badge">${esc(r.estado||'')}</span></td><td>${esc(r.notas||'')}</td><td class="adminOnly">${profile?.rol==='admin'?`<div class="actions"><button class="primary mini" onclick="setReservaEstado('${r.id}','aprobada')">Aprobar</button><button class="mini" onclick="setReservaEstado('${r.id}','rechazada')">Rechazar</button><button class="danger mini" onclick="eliminarReserva('${r.id}')">Eliminar</button></div>`:''}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">No hay reservaciones.</td></tr>';
+ if(isAdminProfileRole(profile?.rol))refreshEventModeStatus();
+ body.innerHTML=reservas.map(r=>`<tr><td>${esc(r.fecha||'')}</td><td>${esc(String(r.hora_inicio||'').slice(0,5))}–${esc(String(r.hora_fin||'').slice(0,5))}</td><td>${esc(r.area||'')}</td><td>${esc(r.unidad||'')}</td><td><span class="badge">${esc(r.estado||'')}</span></td><td>${esc(r.notas||'')}</td><td class="adminOnly">${isAdminProfileRole(profile?.rol)?`<div class="actions"><button class="primary mini" onclick="setReservaEstado('${r.id}','aprobada')">Aprobar</button><button class="mini" onclick="setReservaEstado('${r.id}','rechazada')">Rechazar</button><button class="danger mini" onclick="eliminarReserva('${r.id}')">Eliminar</button></div>`:''}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">No hay reservaciones.</td></tr>';
 }
 
 async function testEventMode(){
- if(profile?.rol!=='admin')return;
+ if(!isAdminProfileRole(profile?.rol))return;
  if(!confirm('¿Confirmas que AMBOS relevadores GPIO 25 y GPIO 26 están SIN CONECTAR al portón ni a ninguna carga? V5 dará un pulso de 1 segundo en GPIO 26 y después activará GPIO 25 durante la prueba de 12 segundos.'))return;
  const btn=document.getElementById('eventModeTestBtn');
  const el=document.getElementById('eventModeStatus');
@@ -4161,7 +4239,7 @@ async function testEventMode(){
 }
 
 async function stopEventMode(){
- if(profile?.rol!=='admin')return;
+ if(!isAdminProfileRole(profile?.rol))return;
  if(!confirm('¿Desactivar el relevador Evento ahora? Esto detiene la prueba o la reservación activa.'))return;
  const btn=document.getElementById('eventModeStopBtn');
  if(btn)btn.disabled=true;
@@ -4176,7 +4254,7 @@ async function stopEventMode(){
 
 async function refreshEventModeStatus(){
  const el=document.getElementById('eventModeStatus');
- if(!el || profile?.rol!=='admin')return;
+ if(!el || !isAdminProfileRole(profile?.rol))return;
  try{
   const {data,error}=await sb.rpc('event_mode_status');
   if(error)throw error;
@@ -4199,7 +4277,7 @@ async function refreshEventModeStatus(){
 }
 
 async function addDocumento(){
- if(profile?.rol!=='admin')return;
+ if(!isAdminProfileRole(profile?.rol))return;
  const titulo=docTitulo.value.trim(), file=docArchivo.files?.[0]; if(!titulo||!file)return alert('Escribe el título y selecciona un archivo.');
  let archivo_path=null; try{archivo_path=await subirMedia(file,'documentos')}catch(e){return alert('No se pudo subir: '+e.message)}
  const {error}=await sb.from('documentos_condominio').insert({titulo,categoria:docCategoria.value,descripcion:docDescripcion.value.trim()||null,archivo_path,nombre_archivo:file.name,activo:true,creado_por:user.id});
@@ -4207,32 +4285,32 @@ async function addDocumento(){
  docTitulo.value='';docDescripcion.value='';docArchivo.value='';await loadAll();
 }
 async function eliminarDocumento(id){
- if(profile?.rol!=='admin'||!confirm('¿Eliminar este documento?'))return;
+ if(!isAdminProfileRole(profile?.rol)||!confirm('¿Eliminar este documento?'))return;
  const d=documentos.find(x=>String(x.id)===String(id));const {error}=await sb.from('documentos_condominio').delete().eq('id',id);if(error)return alert(error.message);if(d?.archivo_path)await sb.storage.from('condominio-media').remove([d.archivo_path]);await loadAll();
 }
 function renderDocumentos(){
  const body=document.getElementById('documentosRows');if(!body)return;
- body.innerHTML=documentos.map(d=>`<tr><td>${fechaHora(d.created_at)}</td><td><strong>${esc(d.titulo||'')}</strong></td><td>${esc(d.categoria||'')}</td><td>${esc(d.descripcion||'')}</td><td><button class="mini" onclick="abrirArchivo('${encodeURIComponent(d.archivo_path||'')}')">📄 Abrir</button></td><td class="adminOnly">${profile?.rol==='admin'?`<button class="danger mini" onclick="eliminarDocumento('${d.id}')">Eliminar</button>`:''}</td></tr>`).join('')||'<tr><td colspan="6" class="muted">No hay documentos publicados.</td></tr>';
+ body.innerHTML=documentos.map(d=>`<tr><td>${fechaHora(d.created_at)}</td><td><strong>${esc(d.titulo||'')}</strong></td><td>${esc(d.categoria||'')}</td><td>${esc(d.descripcion||'')}</td><td><button class="mini" onclick="abrirArchivo('${encodeURIComponent(d.archivo_path||'')}')">📄 Abrir</button></td><td class="adminOnly">${isAdminProfileRole(profile?.rol)?`<button class="danger mini" onclick="eliminarDocumento('${d.id}')">Eliminar</button>`:''}</td></tr>`).join('')||'<tr><td colspan="6" class="muted">No hay documentos publicados.</td></tr>';
 }
 
 async function addContactoEmergencia(){
- if(profile?.rol!=='admin')return;
+ if(!isAdminProfileRole(profile?.rol))return;
  const nombre=emNombre.value.trim(),telefono=emTelefono.value.trim();if(!nombre||!telefono)return alert('Escribe el nombre y teléfono.');
  const {error}=await sb.from('contactos_emergencia').insert({nombre,telefono,tipo:emTipo.value,notas:emNotas.value.trim()||null,activo:true,creado_por:user.id});if(error)return alert(error.message);emNombre.value='';emTelefono.value='';emNotas.value='';await loadAll();
 }
 async function eliminarContactoEmergencia(id){
- if(profile?.rol!=='admin'||!confirm('¿Eliminar este contacto?'))return;
+ if(!isAdminProfileRole(profile?.rol)||!confirm('¿Eliminar este contacto?'))return;
  const {error}=await sb.from('contactos_emergencia').delete().eq('id',id);if(error)return alert(error.message);await loadAll();
 }
 function renderEmergencia(){
  const caja=document.getElementById('emergenciaLista');if(!caja)return;
- caja.innerHTML=contactosEmergencia.map(c=>{const tel=String(c.telefono||'').replace(/[^0-9+]/g,'');return `<div class="card"><div class="badge">${esc(c.tipo||'Contacto')}</div><h3 style="margin-top:12px">${esc(c.nombre||'')}</h3><a href="tel:${esc(tel)}" style="color:#7dd3fc;font-size:1.15em;font-weight:800">📞 ${esc(c.telefono||'')}</a>${c.notas?`<p class="muted">${esc(c.notas)}</p>`:''}${profile?.rol==='admin'?`<button class="danger mini" onclick="eliminarContactoEmergencia('${c.id}')">Eliminar</button>`:''}</div>`}).join('')||'<div class="card muted">No hay contactos registrados.</div>';
+ caja.innerHTML=contactosEmergencia.map(c=>{const tel=String(c.telefono||'').replace(/[^0-9+]/g,'');return `<div class="card"><div class="badge">${esc(c.tipo||'Contacto')}</div><h3 style="margin-top:12px">${esc(c.nombre||'')}</h3><a href="tel:${esc(tel)}" style="color:#7dd3fc;font-size:1.15em;font-weight:800">📞 ${esc(c.telefono||'')}</a>${c.notas?`<p class="muted">${esc(c.notas)}</p>`:''}${isAdminProfileRole(profile?.rol)?`<button class="danger mini" onclick="eliminarContactoEmergencia('${c.id}')">Eliminar</button>`:''}</div>`}).join('')||'<div class="card muted">No hay contactos registrados.</div>';
 }
 
 
 function renderHistorial(){
- const resumen=document.getElementById('historialResumen'),body=document.getElementById('historialRows');if(!resumen||!body||!['admin','residente'].includes(profile?.rol))return;
- let casaId=profile.casa_id||null;if(profile.rol==='admin')casaId=document.getElementById('histResidente')?.value||null;
+ const resumen=document.getElementById('historialResumen'),body=document.getElementById('historialRows');if(!resumen||!body||!['owner','admin','residente'].includes(profile?.rol))return;
+ let casaId=profile.casa_id||null;if(isAdminProfileRole(profile.rol))casaId=document.getElementById('histResidente')?.value||null;
  if(!casaId){resumen.innerHTML='<div class="card muted">Selecciona una casa.</div>';body.innerHTML='';return;}
  const qs=cuotas.filter(x=>String(casaIdDeRegistro(x))===String(casaId)),ps=pagos.filter(x=>String(casaIdDeRegistro(x))===String(casaId)),vs=visitas.filter(x=>String(casaIdDeRegistro(x))===String(casaId)),reps=reportes.filter(x=>String(casaIdDeRegistro(x))===String(casaId)),pks=paquetes.filter(x=>String(casaIdDeRegistro(x))===String(casaId)),rss=reservas.filter(x=>String(casaIdDeRegistro(x))===String(casaId));
  const deuda=qs.reduce((sum,q)=>{const pag=ps.filter(p=>String(p.cuota_id)===String(q.id)).reduce((a,p)=>a+Number(p.monto||0),0);return sum+Math.max(0,Number(q.monto||0)-pag)},0);
@@ -4248,7 +4326,7 @@ function resumenDeudaResidente(residenteId){const p=profiles.find(x=>String(x.id
 
 
 function renderHouseOccupancy(){
- if(profile?.rol!=='admin')return;
+ if(!isAdminProfileRole(profile?.rol))return;
  const chart=document.getElementById('houseOccupancyDonut');
  if(!chart)return;
  const total=document.getElementById('houseOccupancyTotal');
@@ -4285,6 +4363,7 @@ function renderHouseOccupancy(){
 }
 
 function render(){
+ renderOwnerPanel();
  renderHouseOccupancy();
  renderRegistroBiometrico();
  const isResident=profile?.rol==='residente';
@@ -4331,10 +4410,10 @@ function render(){
  }
  const collCasa=new Intl.Collator('es',{numeric:true,sensitivity:'base'}),casasActivas=[...casas].filter(c=>c.activo!==false).sort((a,b)=>collCasa.compare(String(a.numero||''),String(b.numero||'')));
   const houseOptions=casasActivas.map(c=>'<option value="'+c.id+'">Casa '+esc(c.numero||'')+(nombresCasa(c.id)?' — '+esc(nombresCasa(c.id)):'')+'</option>').join('');
-  if(document.getElementById('cRes')&&profile?.rol==='admin')cRes.innerHTML=houseOptions;
+  if(document.getElementById('cRes')&&isAdminProfileRole(profile?.rol))cRes.innerHTML=houseOptions;
 
   const paidUntilCasaEl=document.getElementById('paidUntilCasa');
-  if(paidUntilCasaEl&&profile?.rol==='admin'){
+  if(paidUntilCasaEl&&isAdminProfileRole(profile?.rol)){
     const prev=paidUntilCasaEl.value;
     paidUntilCasaEl.innerHTML=houseOptions;
     if(prev&&[...paidUntilCasaEl.options].some(o=>o.value===prev))paidUntilCasaEl.value=prev;
@@ -4349,10 +4428,10 @@ function render(){
       : 'Sin adelanto registrado';
   }
 
-  cuotasRows.innerHTML=cuotas.map(x=>'<tr><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td>'+esc(x.concepto)+'</td><td>'+money(x.monto)+'</td><td>'+esc(x.vencimiento)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td><td class="adminOnly">'+(profile?.rol==='admin'?'<button onclick="editarVencimientoCuota('+x.id+', \''+esc(x.vencimiento||'')+'\')">Editar vencimiento</button> <button class="danger" onclick="eliminarCuota('+x.id+')">🗑️ Eliminar</button>':'')+'</td></tr>').join('');
+  cuotasRows.innerHTML=cuotas.map(x=>'<tr><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td>'+esc(x.concepto)+'</td><td>'+money(x.monto)+'</td><td>'+esc(x.vencimiento)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td><td class="adminOnly">'+(isAdminProfileRole(profile?.rol)?'<button onclick="editarVencimientoCuota('+x.id+', \''+esc(x.vencimiento||'')+'\')">Editar vencimiento</button> <button class="danger" onclick="eliminarCuota('+x.id+')">🗑️ Eliminar</button>':'')+'</td></tr>').join('');
   pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>'<option value="'+x.id+'">Casa '+esc(casaNumero(casaIdDeRegistro(x)))+' — '+esc(x.concepto)+' — '+money(x.monto)+'</option>').join('');
-  pagosRows.innerHTML=pagos.map(x=>'<tr><td>'+esc(x.fecha)+'</td><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td><strong>'+money(x.monto)+'</strong></td><td>'+esc(x.metodo)+'</td><td>'+esc(x.referencia)+'</td><td class="adminOnly">'+(profile?.rol==='admin'?'<button onclick="editarPago('+x.id+')">✏️ Editar total pagado</button> <button class="danger" onclick="eliminarPago('+x.id+')">🗑️ Eliminar pago</button>':'')+'</td></tr>').join('');
-  visitasRows.innerHTML=visitas.map(x=>'<tr><td>'+esc(x.fecha)+' '+esc(x.hora)+'</td><td>'+esc(x.visitante)+'</td><td>'+esc(casaNumero(casaIdDeRegistro(x))||x.unidad||'')+'</td><td>'+esc(x.placas)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td><td class="adminOnly">'+(profile?.rol==='admin'?'<button type="button" class="danger mini" data-visita-id="'+esc(String(x.id))+'" onclick="eliminarVisita(this.dataset.visitaId,this)">🗑️ Eliminar</button>':'')+'</td></tr>').join('')||'<tr><td colspan="'+(profile?.rol==='admin'?6:5)+'" class="muted">No hay visitas registradas.</td></tr>';
+  pagosRows.innerHTML=pagos.map(x=>'<tr><td>'+esc(x.fecha)+'</td><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td><strong>'+money(x.monto)+'</strong></td><td>'+esc(x.metodo)+'</td><td>'+esc(x.referencia)+'</td><td class="adminOnly">'+(isAdminProfileRole(profile?.rol)?'<button onclick="editarPago('+x.id+')">✏️ Editar total pagado</button> <button class="danger" onclick="eliminarPago('+x.id+')">🗑️ Eliminar pago</button>':'')+'</td></tr>').join('');
+  visitasRows.innerHTML=visitas.map(x=>'<tr><td>'+esc(x.fecha)+' '+esc(x.hora)+'</td><td>'+esc(x.visitante)+'</td><td>'+esc(casaNumero(casaIdDeRegistro(x))||x.unidad||'')+'</td><td>'+esc(x.placas)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td><td class="adminOnly">'+(isAdminProfileRole(profile?.rol)?'<button type="button" class="danger mini" data-visita-id="'+esc(String(x.id))+'" onclick="eliminarVisita(this.dataset.visitaId,this)">🗑️ Eliminar</button>':'')+'</td></tr>').join('')||'<tr><td colspan="'+(isAdminProfileRole(profile?.rol)?6:5)+'" class="muted">No hay visitas registradas.</td></tr>';
   accesosRows.innerHTML=accesos.map(x=>'<tr><td>'+new Date(x.created_at).toLocaleString('es-MX')+'</td><td>'+esc(x.persona)+'</td><td>'+esc(x.tipo)+'</td><td>'+esc(x.movimiento)+'</td><td>'+esc(casaNumero(x.casa_id)||x.unidad||'')+'</td></tr>').join('');
   ['repResidente','resResidente','histResidente','vUnidad','paqUnidad','aUnidad'].forEach(id=>{const el=document.getElementById(id);if(!el)return;const prev=el.value;el.innerHTML=houseOptions;if(profile?.rol==='residente'&&profile.casa_id&&[...el.options].some(o=>o.value===String(profile.casa_id)))el.value=String(profile.casa_id);else if(prev&&[...el.options].some(o=>o.value===prev))el.value=prev;});
   if(document.getElementById('kAvisos')) kAvisos.textContent=avisos.length;
@@ -4369,7 +4448,7 @@ function render(){
 
 
 async function eliminarDeudaCasa(casaId){
- if(profile?.rol!=='admin')return;const casa=casaPorId(casaId);if(!casa)return alert('No se encontró la casa.');
+ if(!isAdminProfileRole(profile?.rol))return;const casa=casaPorId(casaId);if(!casa)return alert('No se encontró la casa.');
  const pendientes=cuotas.filter(q=>String(casaIdDeRegistro(q))===String(casaId)).map(q=>{const pagado=pagos.filter(p=>String(p.cuota_id)===String(q.id)).reduce((sum,p)=>sum+Number(p.monto||0),0);return {q,pagado,saldo:Math.max(0,Number(q.monto||0)-pagado)}}).filter(x=>x.saldo>0.009),total=pendientes.reduce((sum,x)=>sum+x.saldo,0);
  if(total<=0.009)return alert('Esta casa no tiene deuda pendiente.');if(!confirm('¿Eliminar la deuda pendiente de la Casa '+casa.numero+'?\n\nDeuda a eliminar: '+money(total)+'\n\nLos pagos ya registrados NO se eliminan.'))return;
  for(const item of pendientes){const {error}=await sb.from('cuotas').update({monto:item.pagado,estado:'pagada'}).eq('id',item.q.id);if(error){alert('No se pudo eliminar toda la deuda: '+error.message);await loadAll();return;}}
@@ -4377,7 +4456,7 @@ async function eliminarDeudaCasa(casaId){
 }
 async function eliminarDeudaResidente(residenteId){const p=profiles.find(x=>String(x.id)===String(residenteId));if(!p?.casa_id)return alert('Este residente no tiene casa asignada.');return eliminarDeudaCasa(p.casa_id);}
 async function aprobarRegistro(id){
-  if(profile?.rol!=='admin') return;
+  if(!isAdminProfileRole(profile?.rol)) return;
 
   const residente=profiles.find(p=>String(p.id)===String(id) && p.rol==='residente');
   if(!residente) return alert('No se encontró la solicitud.');
@@ -4416,7 +4495,7 @@ async function aprobarRegistro(id){
 }
 
 async function rechazarRegistro(id){
- if(profile?.rol!=='admin') return;
+ if(!isAdminProfileRole(profile?.rol)) return;
  const r=profiles.find(p=>String(p.id)===String(id) && p.rol==='residente');
  if(!r) return alert('No se encontró la solicitud.');
  if(!confirm(`¿Rechazar la solicitud de ${r.nombre}?`)) return;
@@ -4427,7 +4506,7 @@ async function rechazarRegistro(id){
 }
 
 function abrirEdicionResidente(id){
- if(profile?.rol!=='admin') return;
+ if(!isAdminProfileRole(profile?.rol)) return;
  const r=profiles.find(p=>p.id===id && p.rol==='residente');
  if(!r) return alert('No se encontró el residente.');
 
@@ -4443,7 +4522,7 @@ function cerrarEdicionResidente(){
 }
 
 async function guardarEdicionResidente(){
-  if(profile?.rol!=='admin') return;
+  if(!isAdminProfileRole(profile?.rol)) return;
 
   const id=document.getElementById('editResidentId').value;
   const nombre=document.getElementById('editResidentNombre').value.trim();
@@ -4475,9 +4554,9 @@ async function guardarEdicionResidente(){
 }
 
 async function eliminarResidente(id){
- if(profile?.rol!=='admin') return;
+ if(!isAdminProfileRole(profile?.rol)) return;
 
- const r=profiles.find(p=>p.id===id && ['residente','admin'].includes(p.rol));
+ const r=profiles.find(p=>p.id===id && ['residente','admin','owner'].includes(p.rol));
  if(!r) return alert('No se encontró el usuario.');
 
  // Protección: el administrador que tiene la sesión abierta no puede eliminarse a sí mismo.
@@ -4506,7 +4585,7 @@ async function eliminarResidente(id){
 
 
 async function addGasto(){
- if(profile?.rol!=='admin') return;
+ if(!isAdminProfileRole(profile?.rol)) return;
 
  const fecha=document.getElementById('gFecha')?.value;
  const categoria=document.getElementById('gCategoria')?.value||'Otro';
@@ -4539,7 +4618,7 @@ async function addGasto(){
 }
 
 async function editarGasto(id){
- if(profile?.rol!=='admin') return;
+ if(!isAdminProfileRole(profile?.rol)) return;
  const g=gastos.find(x=>String(x.id)===String(id));
  if(!g) return alert('No se encontró el gasto.');
 
@@ -4561,7 +4640,7 @@ async function editarGasto(id){
 }
 
 async function eliminarGasto(id){
- if(profile?.rol!=='admin') return;
+ if(!isAdminProfileRole(profile?.rol)) return;
  if(!confirm('¿Eliminar este gasto del historial?')) return;
 
  const {error}=await sb.from('gastos').delete().eq('id',id);
@@ -4571,7 +4650,7 @@ async function eliminarGasto(id){
 }
 
 function renderGastos(){
- if(profile?.rol!=='admin') return;
+ if(!isAdminProfileRole(profile?.rol)) return;
 
  const ingresos=pagos.reduce((s,p)=>s+Number(p.monto||0),0);
  const egresos=gastos.reduce((s,g)=>s+Number(g.monto||0),0);
@@ -4618,7 +4697,7 @@ function renderGastos(){
 }
 
 function generarExcelAdministracion(){
- if(profile?.rol!=='admin') return alert('Solo el administrador puede generar este Excel.');
+ if(!isAdminProfileRole(profile?.rol)) return alert('Solo el administrador puede generar este Excel.');
  if(typeof XLSX==='undefined') return alert('No se pudo cargar el generador de Excel. Revisa tu conexión a Internet.');
 
  const wb=XLSX.utils.book_new();
@@ -4680,7 +4759,7 @@ function generarExcelAdministracion(){
 }
 
 function generarAclaracionGastos(){
- if(profile?.rol!=='admin') return;
+ if(!isAdminProfileRole(profile?.rol)) return;
 
  const ingresos=pagos.reduce((s,p)=>s+Number(p.monto||0),0);
  const egresos=gastos.reduce((s,g)=>s+Number(g.monto||0),0);
@@ -4762,7 +4841,7 @@ th{background:#f2f2f2}
  w.document.close();
 }
 async function addMetodoPago(){
- if(profile?.rol!=='admin') return;
+ if(!isAdminProfileRole(profile?.rol)) return;
  const nombre=document.getElementById('mpNombre')?.value.trim();
  const banco=document.getElementById('mpBanco')?.value.trim()||null;
  const beneficiario=document.getElementById('mpBeneficiario')?.value.trim()||null;
@@ -4778,7 +4857,7 @@ async function addMetodoPago(){
 }
 
 async function editarMetodoPago(id){
- if(profile?.rol!=='admin') return;
+ if(!isAdminProfileRole(profile?.rol)) return;
  const m=metodosPago.find(x=>String(x.id)===String(id));
  if(!m) return alert('No se encontró el método de pago.');
  const nombre=prompt('Nombre del método:',m.nombre||''); if(nombre===null)return;
@@ -4798,7 +4877,7 @@ async function editarMetodoPago(id){
 }
 
 async function cambiarEstadoMetodoPago(id,activo){
- if(profile?.rol!=='admin') return;
+ if(!isAdminProfileRole(profile?.rol)) return;
  if(!confirm(`¿Quieres ${activo?'activar':'suspender'} este método de pago?`)) return;
  const {error}=await sb.from('metodos_pago').update({activo}).eq('id',id);
  if(error) return alert('No se pudo actualizar: '+error.message);
@@ -4806,7 +4885,7 @@ async function cambiarEstadoMetodoPago(id,activo){
 }
 
 async function eliminarMetodoPago(id){
- if(profile?.rol!=='admin') return;
+ if(!isAdminProfileRole(profile?.rol)) return;
  if(!confirm('¿Eliminar este método de pago?')) return;
  const {error}=await sb.from('metodos_pago').delete().eq('id',id);
  if(error) return alert('No se pudo eliminar: '+error.message);
@@ -4825,13 +4904,13 @@ async function copiarCuenta(texto){
 
 function renderMetodosPago(){
  const caja=document.getElementById('metodosPagoLista');
- if(!caja || !['admin','residente'].includes(profile?.rol)) return;
+ if(!caja || !['owner','admin','residente'].includes(profile?.rol)) return;
  const lista=profile.rol==='residente'?metodosPago.filter(x=>x.activo!==false):metodosPago;
  caja.innerHTML=lista.map(m=>{
    const cuentaCodificada=encodeURIComponent(m.numero_cuenta||'');
    const cuenta=m.numero_cuenta?`<div style="margin-top:10px"><strong>Cuenta / CLABE:</strong><br><span style="font-size:1.08em">${esc(m.numero_cuenta)}</span><br><button style="margin-top:8px" onclick="copiarCuenta(decodeURIComponent('${cuentaCodificada}'))">📋 Copiar cuenta</button></div>`:'';
-   const acciones=profile.rol==='admin'?`<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button onclick="editarMetodoPago(${m.id})">✏️ Editar</button>${m.activo!==false?`<button class="danger" onclick="cambiarEstadoMetodoPago(${m.id},false)">Suspender</button>`:`<button class="primary" onclick="cambiarEstadoMetodoPago(${m.id},true)">Activar</button>`}<button class="danger" onclick="eliminarMetodoPago(${m.id})">🗑️ Eliminar</button></div>`:'';
-   return `<div class="card" style="margin-bottom:14px"><h3>💳 ${esc(m.nombre||'Método de pago')}</h3>${profile.rol==='admin'?`<div class="badge">${m.activo!==false?'✅ Activo':'⛔ Suspendido'}</div>`:''}${m.descripcion?`<p>${esc(m.descripcion)}</p>`:''}${m.banco?`<p><strong>Banco:</strong> ${esc(m.banco)}</p>`:''}${m.beneficiario?`<p><strong>Beneficiario:</strong> ${esc(m.beneficiario)}</p>`:''}${cuenta}${m.instrucciones?`<p style="margin-top:12px"><strong>Instrucciones:</strong><br>${esc(m.instrucciones)}</p>`:''}${acciones}</div>`;
+   const acciones=isAdminProfileRole(profile.rol)?`<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button onclick="editarMetodoPago(${m.id})">✏️ Editar</button>${m.activo!==false?`<button class="danger" onclick="cambiarEstadoMetodoPago(${m.id},false)">Suspender</button>`:`<button class="primary" onclick="cambiarEstadoMetodoPago(${m.id},true)">Activar</button>`}<button class="danger" onclick="eliminarMetodoPago(${m.id})">🗑️ Eliminar</button></div>`:'';
+   return `<div class="card" style="margin-bottom:14px"><h3>💳 ${esc(m.nombre||'Método de pago')}</h3>${isAdminProfileRole(profile.rol)?`<div class="badge">${m.activo!==false?'✅ Activo':'⛔ Suspendido'}</div>`:''}${m.descripcion?`<p>${esc(m.descripcion)}</p>`:''}${m.banco?`<p><strong>Banco:</strong> ${esc(m.banco)}</p>`:''}${m.beneficiario?`<p><strong>Beneficiario:</strong> ${esc(m.beneficiario)}</p>`:''}${cuenta}${m.instrucciones?`<p style="margin-top:12px"><strong>Instrucciones:</strong><br>${esc(m.instrucciones)}</p>`:''}${acciones}</div>`;
  }).join('')||'<div class="card muted">No hay métodos de pago disponibles.</div>';
 }
 
@@ -4957,7 +5036,7 @@ function finDeMesDesdeInput(valor){
 }
 
 function cargarPagadoHastaCasa(){
-  if(profile?.rol!=='admin')return;
+  if(!isAdminProfileRole(profile?.rol))return;
 
   const select=document.getElementById('paidUntilCasa');
   const input=document.getElementById('paidUntilMonth');
@@ -4978,7 +5057,7 @@ function cargarPagadoHastaCasa(){
 }
 
 async function guardarPagadoHasta(){
-  if(profile?.rol!=='admin')return;
+  if(!isAdminProfileRole(profile?.rol))return;
 
   const casaId=document.getElementById('paidUntilCasa')?.value;
   const mes=document.getElementById('paidUntilMonth')?.value;
@@ -5004,7 +5083,7 @@ async function guardarPagadoHasta(){
 }
 
 async function quitarPagadoHasta(){
-  if(profile?.rol!=='admin')return;
+  if(!isAdminProfileRole(profile?.rol))return;
 
   const casaId=document.getElementById('paidUntilCasa')?.value;
   const casa=casaPorId(casaId);
@@ -5026,18 +5105,18 @@ async function quitarPagadoHasta(){
 }
 
 async function addCasa(){
- if(profile?.rol!=='admin')return;const numero=document.getElementById('casaNumeroInput').value.trim(),nombre=document.getElementById('casaNombre').value.trim()||null;if(!numero)return alert('Escribe el número de la casa.');
+ if(!isAdminProfileRole(profile?.rol))return;const numero=document.getElementById('casaNumeroInput').value.trim(),nombre=document.getElementById('casaNombre').value.trim()||null;if(!numero)return alert('Escribe el número de la casa.');
  const {error}=await sb.from('casas').insert({numero,nombre,activo:true});if(error)return alert('No se pudo crear la casa: '+error.message);document.getElementById('casaNumeroInput').value='';document.getElementById('casaNombre').value='';await loadAll();
 }
 async function cambiarEstadoCasa(id,activo){
-  if(profile?.rol!=='admin')return;
+  if(!isAdminProfileRole(profile?.rol))return;
   const {error}=await sb.from('casas').update({activo}).eq('id',id);
   if(error)return alert(error.message);
   await loadAll();
 }
 
 async function eliminarCasa(id){
-  if(profile?.rol!=='admin')return;
+  if(!isAdminProfileRole(profile?.rol))return;
 
   const casa=casaPorId(id);
   if(!casa)return alert('No se encontró la casa.');
@@ -5090,7 +5169,7 @@ async function eliminarCasa(id){
 
 function renderCasas(){
   const body=document.getElementById('casasRows');
-  if(!body||profile?.rol!=='admin')return;
+  if(!body||!isAdminProfileRole(profile?.rol))return;
 
   const coll=new Intl.Collator('es',{numeric:true,sensitivity:'base'});
 
@@ -5116,6 +5195,7 @@ function renderCasas(){
 }
 
 async function addProfile(){
+  if(!isAdminProfileRole(profile?.rol))return alert('Se necesita permiso de administración.');
   const unidad=rUnidad.value.trim()||null;
   const rol=rRol.value;
   const casa=unidad?casas.find(c=>String(c.numero||'').trim()===unidad):null;
@@ -5190,7 +5270,7 @@ async function addPago(){
 }
 
 async function editarPago(id){
- if(profile?.rol!=='admin') return;
+ if(!isAdminProfileRole(profile?.rol)) return;
  const pago=pagos.find(p=>String(p.id)===String(id));
  if(!pago) return alert('No se encontró el pago.');
  const residente='Casa '+(casaNumero(casaIdDeRegistro(pago))||'');
@@ -5220,7 +5300,7 @@ async function editarPago(id){
  alert('Total pagado actualizado correctamente.');
 }
 async function eliminarVisita(id,boton){
-  if(profile?.rol!=='admin')return;
+  if(!isAdminProfileRole(profile?.rol))return;
   const visita=visitas.find(v=>String(v.id)===String(id));
   if(!visita)return alert('La visita ya no está disponible. Actualiza la página.');
   if(!confirm('¿Eliminar la visita de '+(visita.visitante||'este visitante')+' del '+(visita.fecha||'día indicado')+'?\n\nEsta acción no se puede deshacer.'))return;
@@ -5247,7 +5327,7 @@ function adminVisTipoCambio(){
  document.getElementById('adminVisFinWrap').classList.toggle('hidden',!temporal);
 }
 function adminVisPrepararCasas(){
- if(profile?.rol!=='admin')return;
+ if(!isAdminProfileRole(profile?.rol))return;
  const select=document.getElementById('adminVisCasa');if(!select)return;
  const old=select.value;
  select.replaceChildren();
@@ -5260,7 +5340,7 @@ function adminVisPrepararCasas(){
  adminVisTipoCambio();
 }
 async function adminRegistrarVisita(){
- if(profile?.rol!=='admin'||adminVisBusy)return;
+ if(!isAdminProfileRole(profile?.rol)||adminVisBusy)return;
  const house=document.getElementById('adminVisCasa').value;
  const nombre=document.getElementById('adminVisNombre').value.trim();
  const permanente=document.getElementById('adminVisTipo').value==='permanente';
@@ -5357,7 +5437,7 @@ async function revocarCodigoPermanente(item){
  await cargarCodigosPermanentes();
 }
 async function revisarCodigoPermanente(item,accion){
- if(profile?.rol!=='admin')return;
+ if(!isAdminProfileRole(profile?.rol))return;
  const labels={approve:'APROBAR',reject:'RECHAZAR',revoke:'REVOCAR'};
  if(!confirm('¿'+labels[accion]+' el código permanente de '+item.visitor+' para la Casa '+item.house+'?'))return;
  const {error}=await sb.rpc('permanent_pass_review',{p_id:item.id,p_action:accion});
@@ -5372,7 +5452,7 @@ function ocultarCodigosPermanentes(){
  document.querySelectorAll('.vpPassShow').forEach(btn=>{btn.textContent='👁 Ver código';btn.dataset.open='0';});
 }
 async function revelarCodigoPermanente(item,panel,button){
- if(!['admin','residente'].includes(profile?.rol)||item.revoked)return;
+ if(!['owner','admin','residente'].includes(profile?.rol)||item.revoked)return;
  if(button.dataset.open==='1'){
   panel.replaceChildren();panel.hidden=true;button.dataset.open='0';button.textContent='👁 Ver código';return;
  }
@@ -5410,8 +5490,8 @@ async function revelarCodigoPermanente(item,panel,button){
  }finally{button.disabled=false;}
 }
 async function regenerarCodigoPermanente(item){
- if(!['admin','residente'].includes(profile?.rol)||item.revoked)return;
- const admin=profile.rol==='admin';
+ if(!['owner','admin','residente'].includes(profile?.rol)||item.revoked)return;
+ const admin=isAdminProfileRole(profile.rol);
  const warning=admin
   ?'Se invalidará el código anterior. El nuevo quedará autorizado por administración.'
   :'Se invalidará el código anterior. El nuevo deberá ser aprobado otra vez por administración.';
@@ -5429,8 +5509,8 @@ async function regenerarCodigoPermanente(item){
  }catch(e){alert('No se pudo regenerar el código: '+(e.message||'error'));}
 }
 async function cargarCodigosPermanentes(){
- if(!['admin','residente'].includes(profile?.rol))return;
- const isAdmin=profile.rol==='admin';
+ if(!['owner','admin','residente'].includes(profile?.rol))return;
+ const isAdmin=isAdminProfileRole(profile.rol);
  const box=document.getElementById(isAdmin?'vpPermanentAdminList':'vpPermanentList');
  if(!box)return;
  ocultarCodigosPermanentes();
@@ -5514,8 +5594,8 @@ async function copiarCodigoVisita(){
  catch(e){document.getElementById('vcMensaje').textContent='No se pudo copiar; selecciona el código mostrado.';}
 }
 async function cargarCodigosVisita(){
- if(!['residente','admin'].includes(profile?.rol))return;
- const box=document.getElementById(profile.rol==='admin'?'adminVisListado':'vcListado');if(!box)return;
+ if(!['residente','admin','owner'].includes(profile?.rol))return;
+ const box=document.getElementById(isAdminProfileRole(profile.rol)?'adminVisListado':'vcListado');if(!box)return;
  try{
   const {data,error}=await sb.rpc('visitor_pass_list');if(error)throw error;
   box.replaceChildren();
@@ -5541,7 +5621,7 @@ async function revocarCodigoVisita(id){
  await cargarCodigosVisita();
 }
 async function cargarHistorialCodigosVisita(){
- if(!['admin','residente'].includes(profile?.rol))return;
+ if(!['owner','admin','residente'].includes(profile?.rol))return;
  const body=document.getElementById('vcHistorialRows');if(!body)return;
  try{
   const {data,error}=await sb.rpc('visitor_pass_history');if(error)throw error;
@@ -5688,7 +5768,7 @@ async function refreshDigitalAccess(){
 }
 
 async function pairDigitalESP32(){
-  if(profile?.rol!=='admin' || digitalBusy)return;
+  if(!isAdminProfileRole(profile?.rol) || digitalBusy)return;
   if(!confirm('Se descargará el programa del ESP32 con una nueva clave privada. Si ya había un equipo vinculado, su clave anterior dejará de funcionar y los residentes quedarán deshabilitados hasta terminar las pruebas. ¿Continuar?'))return;
   digitalBusy=true;digitalButtonsDisabled(true);
   const btn=document.getElementById('digitalPairBtn');btn.disabled=true;
@@ -5713,7 +5793,7 @@ async function pairDigitalESP32(){
 }
 
 async function configureDigitalAccess(kind){
-  if(profile?.rol!=='admin' || digitalBusy || !digitalLastStatus)return;
+  if(!isAdminProfileRole(profile?.rol) || digitalBusy || !digitalLastStatus)return;
   const action=kind==='pause'?(digitalLastStatus.enabled?'pause':'resume'):(digitalLastStatus.residents_enabled?'residents_off':'residents_on');
   if(action==='residents_on' && !confirm('¿Ya verificaste ambos relevadores y quieres habilitar el control digital para residentes? Las casas con controles suspendidos temporalmente o saldo pendiente con 10 días o más de atraso seguirán bloqueadas.'))return;
   digitalBusy=true;digitalButtonsDisabled(true);
@@ -5809,7 +5889,7 @@ function esp32PanelIsFresh(raw,serverTime){
 }
 async function refreshEsp32Panel(){
   const sec=document.getElementById('esp32Panel');
-  if(esp32PanelBusy || profile?.rol!=='admin' || !sec?.classList.contains('active'))return;
+  if(esp32PanelBusy || !isAdminProfileRole(profile?.rol) || !sec?.classList.contains('active'))return;
   esp32PanelBusy=true;
   const currentId=profile.id;
   esp32PanelWrite('esp32PanelStatus','Consultando Supabase...');
@@ -5861,7 +5941,7 @@ async function refreshEsp32History(){
  const section=document.getElementById('accesos');
  const rows=document.getElementById('esp32HistoryRows');
  const status=document.getElementById('esp32HistoryStatus');
- if(esp32HistoryBusy||profile?.rol!=='admin'||!user||!section?.classList.contains('active')||!rows||!status)return;
+ if(esp32HistoryBusy||!isAdminProfileRole(profile?.rol)||!user||!section?.classList.contains('active')||!rows||!status)return;
  esp32HistoryBusy=true;
  const currentId=profile.id;
  status.textContent='Consultando historial...';
@@ -5900,7 +5980,7 @@ async function actualizarVistaActiva(){
  try{
   if(document.getElementById('controlDigital')?.classList.contains('active')){
    await Promise.all([refreshDigitalAccess(),basuraActualizar()]);
-  }else if(profile.rol==='admin'&&document.getElementById('esp32Panel')?.classList.contains('active')){
+  }else if(isAdminProfileRole(profile.rol)&&document.getElementById('esp32Panel')?.classList.contains('active')){
    await refreshEsp32Panel();
   }
  }catch(error){console.warn('Actualización automática:',error);}
