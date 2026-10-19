@@ -5324,7 +5324,7 @@ async function revelarCodigoPermanente(item,panel,button){
   const previousUser=user?.id;
   const {data,error}=await sb.rpc('permanent_pass_reveal',{p_id:item.id});
   if(error)throw error;
-  if(previousUser!==user?.id||document.hidden)return;
+  if(previousUser!==user?.id||document.hidden||!document.getElementById('visitas')?.classList.contains('active'))return;
   panel.replaceChildren();panel.hidden=false;
   if(!data?.available){
    panel.textContent=data?.message||'Este código anterior no se puede recuperar. Regénéralo para obtener uno nuevo.';
