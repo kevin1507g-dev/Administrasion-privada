@@ -353,3 +353,41 @@ main>section{max-width:1450px;margin:0 auto}
 @media (max-width:560px){
   .appTopbar{padding-left:76px;min-height:76px}
 }
+
+
+/* Admin dashboard: live occupied/unoccupied houses circular chart. */
+.houseOccupancyCard{max-width:100%;overflow:hidden}
+.houseOccupancyHeading{display:flex;align-items:start;justify-content:space-between;gap:12px}
+.houseOccupancyHeading h2{margin:0 0 7px;font-size:1.22rem}
+.houseOccupancyHeading p{margin:0 0 12px}
+.houseOccupancyHeading button{flex-shrink:0}
+.houseOccupancyLayout{display:flex;align-items:center;justify-content:center;gap:clamp(18px,5vw,70px);flex-wrap:wrap;padding:12px 0}
+.houseOccupancyDonut{
+ --occupancy-angle:0deg;
+ width:clamp(180px,32vw,260px);height:clamp(180px,32vw,260px);
+ border-radius:50%;flex:none;display:grid;place-items:center;
+ background:conic-gradient(#36d4a4 0deg var(--occupancy-angle),#72bfff var(--occupancy-angle) 360deg);
+}
+.houseOccupancyCenter{
+ display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+ width:72%;height:72%;border-radius:50%;background:var(--p);color:var(--t);
+ box-shadow:0 0 0 2px var(--ui-line);padding:10px;
+}
+.houseOccupancyCenter strong{font-size:clamp(2rem,5vw,3.2rem);line-height:1.1}
+.houseOccupancyCenter span{font-size:.83rem;color:var(--m);margin-top:4px}
+.houseOccupancyStats{flex:1 1 230px;max-width:470px;min-width:0}
+.houseOccupancyStat{display:flex;align-items:center;gap:12px;padding:15px 0;border-bottom:1px solid var(--ui-line)}
+.houseOccupancyDot{width:15px;height:15px;border-radius:50%;flex:none}
+.houseOccupancyDot.hasResidents{background:#36d4a4}
+.houseOccupancyDot.noResidents{background:#72bfff}
+.houseOccupancyStat>div{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.houseOccupancyStat small{color:var(--m)}
+.houseOccupancyStat>strong{font-size:1.35rem;white-space:nowrap}
+.houseOccupancyStats>p{font-size:.83rem;margin:12px 0 0}
+@media(max-width:560px){
+ .houseOccupancyHeading{flex-wrap:wrap}
+ .houseOccupancyHeading button{width:100%}
+ .houseOccupancyLayout{gap:12px}
+ .houseOccupancyDonut{width:210px;height:210px}
+ .houseOccupancyStats{flex-basis:100%}
+}

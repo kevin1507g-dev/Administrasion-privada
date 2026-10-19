@@ -1,4 +1,4 @@
-const APP_CACHE = "privada-beteles-v11-menu-iphone";
+const APP_CACHE = "privada-beteles-v12-grafica-casas";
 const APP_SHELL = [
   "./",
   "./index.html",
