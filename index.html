@@ -2418,7 +2418,7 @@ async function enter(){
  }
  cerrarChatFlotante();
  login.classList.add('hidden');app.classList.remove('hidden');
- who.textContent=`${profile.nombre} · ${profile.rol}${profile.unidad?' · '+profile.unidad:''}`;
+ who.textContent=`${profile.nombre} · ${profile.rol==='owner'?'👑 OWNER':profile.rol}${profile.unidad?' · '+profile.unidad:''}`;
  document.querySelectorAll('.adminOnly').forEach(x=>x.classList.toggle('hidden',!isAdminProfileRole(profile.rol)));
  document.querySelectorAll('.ownerOnly').forEach(x=>x.classList.toggle('hidden',profile.rol!=='owner'));
  document.querySelectorAll('.staffOnly').forEach(x=>x.classList.toggle('hidden',!['owner','admin','guardia'].includes(profile.rol)));
@@ -5195,6 +5195,7 @@ function renderCasas(){
 }
 
 async function addProfile(){
+  if(!isAdminProfileRole(profile?.rol))return alert('Se necesita permiso de administración.');
   const unidad=rUnidad.value.trim()||null;
   const rol=rRol.value;
   const casa=unidad?casas.find(c=>String(c.numero||'').trim()===unidad):null;
