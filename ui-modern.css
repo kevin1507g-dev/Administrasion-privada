@@ -391,3 +391,23 @@ main>section{max-width:1450px;margin:0 auto}
  .houseOccupancyDonut{width:210px;height:210px}
  .houseOccupancyStats{flex-basis:100%}
 }
+
+
+/* Owner management shortcuts are responsive, and do not change anyone else's menus. */
+.ownerMetrics{grid-template-columns:repeat(4,minmax(0,1fr));margin:12px 0 20px}
+.ownerMetrics .card{padding:14px;min-width:0}
+.ownerQuickLinks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:12px 0 2px}
+.ownerQuickLinks button{min-width:0;min-height:46px;text-align:left;overflow-wrap:anywhere;font-weight:650}
+.ownerQuickLinks button:hover{background:var(--ui-raised)}
+.ownerAuditEntry{padding:10px 6px;border-bottom:1px solid var(--ui-line);overflow-wrap:anywhere}
+.ownerAuditEntry:last-child{border-bottom:0}
+#ownerPanel .actions{margin:12px 0;gap:8px}
+#ownerPanel .actions button{min-height:44px}
+@media(max-width:800px){
+ .ownerMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .ownerQuickLinks{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:480px){
+ .ownerQuickLinks{grid-template-columns:1fr}
+ #ownerPanel .actions button{width:100%}
+}

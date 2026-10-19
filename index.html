@@ -628,27 +628,79 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </section>
 
 <section id="ownerPanel" class="ownerOnly hidden">
-  <h2>👑 Panel Owner</h2>
+  <h2>👑 Centro de control Owner</h2>
   <div class="card">
-    <h3>Propietario de la plataforma</h3>
-    <p class="muted">El rol Owner tiene los permisos de administrador y puede administrar los roles superiores. Los administradores no pueden cambiar ni eliminar cuentas Owner.</p>
-    <h3>Administrar roles</h3>
+    <h3>Acceso general de propietario</h3>
+    <p class="muted">Control administrativo de toda la privada. Los códigos de acceso, acciones físicas del portón y datos privados conservan sus verificaciones de seguridad.</p>
+    <div class="grid ownerMetrics">
+      <div class="card"><div class="muted">Propietarios</div><strong class="kpi" id="ownerCountOwner">—</strong></div>
+      <div class="card"><div class="muted">Administradores</div><strong class="kpi" id="ownerCountAdmins">—</strong></div>
+      <div class="card"><div class="muted">Residentes</div><strong class="kpi" id="ownerCountResidents">—</strong></div>
+      <div class="card"><div class="muted">Guardias</div><strong class="kpi" id="ownerCountGuards">—</strong></div>
+    </div>
+    <h3 style="margin-top:16px">Todas las secciones de administración</h3>
+    <div class="ownerQuickLinks">
+      <button type="button" onclick="show('inicio')">🏠 Panel principal</button>
+      <button type="button" onclick="show('residentes')">👥 Usuarios y residentes</button>
+      <button type="button" onclick="show('solicitudes')">📝 Aprobar registros</button>
+      <button type="button" onclick="show('casas')">🏘️ Casas</button>
+      <button type="button" onclick="show('cuotas')">🧾 Cuotas y vencimientos</button>
+      <button type="button" onclick="show('pagos')">💳 Pagos</button>
+      <button type="button" onclick="show('deudas')">💰 Deuda total</button>
+      <button type="button" onclick="show('gastos')">📋 Gastos y aclaraciones</button>
+      <button type="button" onclick="show('metodosPago')">💵 Métodos de pago</button>
+      <button type="button" onclick="show('porton')">🚧 Controles de portón</button>
+      <button type="button" onclick="show('controlDigital')">📲 Control digital</button>
+      <button type="button" onclick="show('esp32Panel')">🖥️ ESP32</button>
+      <button type="button" onclick="show('biometrico')">🖐️ Biométrico</button>
+      <button type="button" onclick="show('camaras')">📹 Cámaras</button>
+      <button type="button" onclick="show('visitas')">🔑 Visitas y códigos</button>
+      <button type="button" onclick="show('accesos')">📋 Historial de accesos</button>
+      <button type="button" onclick="show('entregas')">🛵 Repartidores y proveedores</button>
+      <button type="button" onclick="show('eventos')">📅 Eventos</button>
+      <button type="button" onclick="show('reservaciones')">🏡 Reservaciones</button>
+      <button type="button" onclick="show('paqueteria')">📦 Paquetería</button>
+      <button type="button" onclick="show('avisos')">📢 Avisos</button>
+      <button type="button" onclick="show('notificaciones')">🔔 Notificaciones</button>
+      <button type="button" onclick="show('mantenimiento')">🛠️ Mantenimiento</button>
+      <button type="button" onclick="show('incidentes')">⚠️ Incidentes</button>
+      <button type="button" onclick="show('documentos')">📄 Documentos</button>
+      <button type="button" onclick="show('historialCasa')">📚 Historial por casa</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3>🛡️ Control de usuarios y administradores</h3>
+    <p class="muted">Puedes cambiar roles o activar y suspender cuentas. La cuenta Owner actual y el último Owner activo están protegidos.</p>
     <div class="form">
-      <div><label for="ownerRoleUser">Usuario</label><select id="ownerRoleUser" onchange="mostrarRolActualOwner()"><option value="">Seleccionar usuario</option></select></div>
+      <div><label for="ownerRoleUser">Cuenta</label>
+        <select id="ownerRoleUser" onchange="mostrarRolActualOwner()"><option value="">Seleccionar usuario</option></select>
+      </div>
       <div><label for="ownerNewRole">Asignar rol</label>
-      <select id="ownerNewRole">
-        <option value="admin">Administrador</option>
-        <option value="owner">Owner (propietario)</option>
-        <option value="guardia">Guardia</option>
-      </select></div>
+        <select id="ownerNewRole">
+          <option value="admin">Administrador</option>
+          <option value="owner">👑 Owner</option>
+          <option value="guardia">Guardia</option>
+          <option value="residente">Residente (requiere casa asignada)</option>
+        </select>
+      </div>
     </div>
     <p class="muted" id="ownerCurrentRole"></p>
-    <button type="button" class="primary" onclick="guardarRolOwner()">👑 Guardar cambio de rol</button>
-    <p id="ownerRoleMessage" class="muted" role="status"></p>
+    <div class="actions">
+      <button type="button" class="primary" onclick="guardarRolOwner()">👑 Actualizar rol</button>
+      <button type="button" id="ownerStatusBtn" onclick="alternarEstadoCuentaOwner()">Suspender cuenta</button>
+      <button type="button" onclick="loadAll()">↻ Actualizar usuarios</button>
+    </div>
+    <p class="muted" id="ownerRoleMessage" role="status"></p>
     <div class="table"><table>
       <thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th></tr></thead>
       <tbody id="ownerRolesRows"></tbody>
     </table></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3>🕘 Historial de gestión Owner</h3>
+    <p class="muted">Registro de cambios de roles y de cuentas activadas o suspendidas.</p>
+    <div id="ownerAuditList" role="status" class="muted">Abre esta sección para consultar los movimientos.</div>
+    <button type="button" onclick="cargarAccionesOwner()" style="margin-top:12px">↻ Actualizar historial</button>
   </div>
 </section>
 
@@ -1355,34 +1407,46 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 
 function renderOwnerPanel(){
  if(profile?.rol!=='owner')return;
+ const counts={owner:'ownerCountOwner',admin:'ownerCountAdmins',residente:'ownerCountResidents',guardia:'ownerCountGuards'};
+ for(const [rol,id] of Object.entries(counts)){
+  const el=document.getElementById(id);
+  if(el)el.textContent=String(profiles.filter(p=>p.rol===rol).length);
+ }
  const sel=document.getElementById('ownerRoleUser');
  const tbody=document.getElementById('ownerRolesRows');
  if(!sel||!tbody)return;
  const current=sel.value;
  sel.replaceChildren(new Option('Seleccionar usuario',''));
  const list=profiles.filter(p=>p.id!==user?.id && ['admin','owner','guardia','residente'].includes(p.rol))
- .sort((a,b)=>String(a.nombre||'').localeCompare(String(b.nombre||''),'es'));
+  .sort((a,b)=>String(a.nombre||'').localeCompare(String(b.nombre||''),'es'));
  for(const p of list){
-  const label=(p.nombre||'Sin nombre')+' · '+(p.unidad?'Casa '+p.unidad+' · ':'')+p.rol;
+  const label=(p.nombre||'Sin nombre')+(p.unidad?' · Casa '+p.unidad:'')+' · '+p.rol+
+   (p.activo===false?' · Suspendido':'');
   sel.add(new Option(label,String(p.id)));
  }
  if([...sel.options].some(o=>o.value===current))sel.value=current;
  mostrarRolActualOwner();
  tbody.replaceChildren();
- for(const p of profiles.filter(x=>['owner','admin'].includes(x.rol))){
+ for(const p of profiles.filter(x=>['owner','admin','guardia'].includes(x.rol))){
   const row=tbody.insertRow();
   row.insertCell().textContent=p.nombre||'Sin nombre';
-  row.insertCell().textContent=p.rol==='owner'?'👑 Owner':'Administrador';
-  row.insertCell().textContent=p.activo===false?'Inactivo':'Activo';
+  row.insertCell().textContent=p.rol==='owner'?'👑 Owner':p.rol==='admin'?'Administrador':'Guardia';
+  row.insertCell().textContent=p.activo===false?'Suspendido':'Activo';
  }
 }
 function mostrarRolActualOwner(){
  const id=document.getElementById('ownerRoleUser')?.value;
  const current=profiles.find(x=>String(x.id)===String(id));
  const el=document.getElementById('ownerCurrentRole');
+ const statusBtn=document.getElementById('ownerStatusBtn');
  if(el)el.textContent=current
-  ?'Rol actual: '+current.rol+'. Los cambios de Owner solo los puede realizar un Owner activo.'
-  :'Selecciona un perfil existente.';
+  ?'Rol actual: '+current.rol+' · '+(current.activo===false?'Cuenta suspendida':'Cuenta activa')+
+   (current.casa_id?' · Casa '+(casas.find(c=>c.id===current.casa_id)?.numero||current.unidad||''):' · Sin casa asignada')
+  :'Selecciona una cuenta para cambiar sus permisos o su estado.';
+ if(statusBtn){
+  statusBtn.disabled=!current;
+  statusBtn.textContent=current?.activo===false?'✅ Activar cuenta':'⛔ Suspender cuenta';
+ }
 }
 async function guardarRolOwner(){
  if(profile?.rol!=='owner')return;
@@ -1392,13 +1456,51 @@ async function guardarRolOwner(){
  const msg=document.getElementById('ownerRoleMessage');
  if(!target||!newRole)return msg.textContent='Selecciona un usuario y un rol.';
  if(target.rol===newRole)return msg.textContent='El usuario ya tiene ese rol.';
- if(target.rol==='residente'&&newRole!=='admin')return msg.textContent='Primero cambia a administrador para luego asignarle Owner.';
- if(!confirm('¿Cambiar el rol de '+(target.nombre||'usuario')+' de '+target.rol+' a '+newRole+'? Esta acción modifica sus permisos.'))return;
+ if(target.rol==='residente'&&newRole==='owner')
+  return msg.textContent='Por seguridad, cambia primero a administrador antes de asignar Owner.';
+ if(newRole==='residente'&&!casas.some(c=>c.id===target.casa_id&&c.activo===true))
+  return msg.textContent='Esta cuenta necesita tener una casa activa asignada antes de convertirse en residente.';
+ if(!confirm('¿Cambiar a '+(target.nombre||'usuario')+' de '+target.rol+' a '+newRole+'? Esto modifica sus permisos.'))return;
  msg.textContent='Guardando rol...';
  const {error}=await sb.rpc('owner_manage_role',{p_user:id,p_new_role:newRole});
  if(error){msg.textContent='No se pudo modificar el rol: '+error.message;return;}
- msg.textContent='Rol actualizado correctamente.';
  await loadAll();
+ msg.textContent='Rol actualizado. El usuario deberá volver a iniciar sesión.';
+ await cargarAccionesOwner();
+}
+async function alternarEstadoCuentaOwner(){
+ if(profile?.rol!=='owner')return;
+ const id=document.getElementById('ownerRoleUser')?.value;
+ const target=profiles.find(p=>String(p.id)===String(id));
+ const msg=document.getElementById('ownerRoleMessage');
+ if(!target)return msg.textContent='Selecciona una cuenta.';
+ const nuevoEstado=target.activo===false;
+ const verb=nuevoEstado?'activar':'suspender';
+ if(!confirm('¿'+(nuevoEstado?'Activar':'Suspender')+' la cuenta de '+(target.nombre||'usuario')+'?'+
+  (nuevoEstado?'':' El acceso de esa cuenta se revocará hasta reactivarla.')))return;
+ msg.textContent='Procesando solicitud...';
+ const {error}=await sb.rpc('owner_manage_account_status',{p_user:id,p_active:nuevoEstado});
+ if(error){msg.textContent='No se pudo '+verb+': '+error.message;return;}
+ await loadAll();
+ msg.textContent='Cuenta '+(nuevoEstado?'activada':'suspendida')+' correctamente.';
+ await cargarAccionesOwner();
+}
+async function cargarAccionesOwner(){
+ if(profile?.rol!=='owner')return;
+ const el=document.getElementById('ownerAuditList');
+ if(!el)return;
+ el.textContent='Consultando movimientos...';
+ const {data,error}=await sb.rpc('owner_recent_actions');
+ if(error){el.textContent='No se pudo consultar el historial: '+error.message;return;}
+ el.replaceChildren();
+ if(!Array.isArray(data)||!data.length){el.textContent='Todavía no hay cambios de roles o estados registrados desde esta función.';return;}
+ for(const item of data){
+  const row=document.createElement('div');row.className='ownerAuditEntry';
+  const what=item.action==='change_role'?'Rol':'Estado';
+  row.textContent=what+' · '+(item.target||'Usuario')+' · '+(item.previous||'—')+' → '+(item.new||'—')+
+   ' · '+new Date(item.created_at).toLocaleString('es-MX');
+  el.appendChild(row);
+ }
 }
 
 function renderResidentes(){
@@ -2085,7 +2187,7 @@ async function basuraAccion(action){
 
 function show(id){
   if(id!=='visitas')ocultarCodigosPermanentes();
-  if(id==='ownerPanel'){if(profile?.rol!=='owner')return;renderOwnerPanel();}
+  if(id==='ownerPanel'){if(profile?.rol!=='owner')return;renderOwnerPanel();cargarAccionesOwner();}
   if(id==='biometrico'){
     if(!isAdminProfileRole(profile?.rol))return;
     renderRegistroBiometrico();
@@ -2404,6 +2506,10 @@ async function enter(){
  const {data,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
  if(error||!data){loginMsg.textContent='Tu usuario existe, pero no tiene un perfil en la tabla profiles.';await sb.auth.signOut();return}
  profile=data;
+ if(profile.rol!=='residente'&&(profile.activo===false || (profile.estado_registro && profile.estado_registro!=='aprobado'))){
+  loginMsg.textContent='Esta cuenta de personal está suspendida o no está aprobada. Contacta al Owner.';
+  await sb.auth.signOut(); user=null;profile=null;return;
+ }
  if(profile.rol==='residente' && (profile.activo===false || profile.estado_registro==='pendiente')){
    loginMsg.textContent='Tu solicitud está pendiente de aprobación por la administración.';
    await sb.auth.signOut();
