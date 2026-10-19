@@ -279,6 +279,23 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div class="card"><div class="muted">Paquetes por entregar</div><div id="kPaquetes" class="kpi">0</div></div>
 </div>
 
+<div class="card adminOnly houseOccupancyCard" id="houseOccupancyCard" style="margin-top:14px">
+  <div class="houseOccupancyHeading">
+    <div><h2>🏘️ Casas con y sin residentes</h2><p class="muted">Casas activas con al menos un residente activo y aprobado.</p></div>
+    <button type="button" onclick="loadAll()" aria-label="Actualizar gráfica de casas">↻ Actualizar</button>
+  </div>
+  <div class="houseOccupancyLayout">
+    <div class="houseOccupancyDonut" id="houseOccupancyDonut" role="img" aria-label="Cargando distribución de casas">
+      <div class="houseOccupancyCenter"><strong id="houseOccupancyTotal">—</strong><span>casas activas</span></div>
+    </div>
+    <div class="houseOccupancyStats" aria-live="polite">
+      <div class="houseOccupancyStat"><span class="houseOccupancyDot hasResidents"></span><div><strong>Con residentes</strong><small id="houseOccupancyWithCount">— casas</small></div><strong id="houseOccupancyWithPercent">—%</strong></div>
+      <div class="houseOccupancyStat"><span class="houseOccupancyDot noResidents"></span><div><strong>Sin residentes</strong><small id="houseOccupancyWithoutCount">— casas</small></div><strong id="houseOccupancyWithoutPercent">—%</strong></div>
+      <p id="houseOccupancyMessage" class="muted">Los datos se actualizan al cargar la información.</p>
+    </div>
+  </div>
+</div>
+
 <div class="card residentAdminOnly" style="margin-top:14px">
   <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
     <div>
@@ -4228,7 +4245,38 @@ function resumenDeudaCasa(casaId){
 function resumenDeudaResidente(residenteId){const p=profiles.find(x=>String(x.id)===String(residenteId));return resumenDeudaCasa(p?.casa_id||profile?.casa_id);}
 
 
+function renderHouseOccupancy(){
+ if(profile?.rol!=='admin')return;
+ const chart=document.getElementById('houseOccupancyDonut');
+ if(!chart)return;
+ const total=document.getElementById('houseOccupancyTotal');
+ const withCount=document.getElementById('houseOccupancyWithCount');
+ const withoutCount=document.getElementById('houseOccupancyWithoutCount');
+ const withPercent=document.getElementById('houseOccupancyWithPercent');
+ const withoutPercent=document.getElementById('houseOccupancyWithoutPercent');
+ const message=document.getElementById('houseOccupancyMessage');
+ if(!Array.isArray(casas)||!Array.isArray(profiles)){message.textContent='No se pudieron cargar los datos.';return;}
+ const activeHouses=casas.filter(c=>c.activo===true);
+ const activeResidents=new Set(profiles.filter(p=>p.rol==='residente'&&p.activo===true&&
+  (p.estado_registro==null||p.estado_registro==='aprobado')&&p.casa_id!=null)
+  .map(p=>String(p.casa_id)));
+ const occupied=activeHouses.filter(c=>activeResidents.has(String(c.id))).length;
+ const unoccupied=activeHouses.length-occupied;
+ const percent=activeHouses.length?100*occupied/activeHouses.length:0;
+ const percentText=n=>n.toLocaleString('es-MX',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
+ total.textContent=String(activeHouses.length);
+ withCount.textContent=occupied+' '+(occupied===1?'casa':'casas');
+ withoutCount.textContent=unoccupied+' '+(unoccupied===1?'casa':'casas');
+ withPercent.textContent=percentText(percent);
+ withoutPercent.textContent=percentText(activeHouses.length?100-percent:0);
+ chart.style.setProperty('--occupancy-angle',(percent*3.6)+'deg');
+ chart.setAttribute('aria-label',occupied+' casas con residentes ('+percentText(percent)+') y '+
+  unoccupied+' casas sin residentes ('+percentText(activeHouses.length?100-percent:0)+')');
+ message.textContent=activeHouses.length?'Total: '+activeHouses.length+' casas activas.':'No hay casas activas registradas.';
+}
+
 function render(){
+ renderHouseOccupancy();
  renderRegistroBiometrico();
  const isResident=profile?.rol==='residente';
  const debtBox=document.getElementById('residentDebtSummary');
