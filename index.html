@@ -1545,8 +1545,8 @@ function renderResidentes(){
 
 async function eliminarPago(id){
 
-  if(!isAdminProfileRole(profile?.rol)){
-    return;
+  if(!isOwnerProfileRole(profile?.rol)){
+    return alert('Solo Owner puede eliminar pagos.');
   }
 
   const pago = pagos.find(
@@ -1864,6 +1864,7 @@ const SB_KEY='sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 let houseOccupancyDataError=false;
 function isAdminProfileRole(rol){return rol==='admin'||rol==='owner';}
+function isOwnerProfileRole(rol){return rol==='owner';}
 let user=null, profile=null, casas=[], profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], incidentes=[], incidenteMensajes=[], entregas=[], solicitudesContacto=[], mensajesContacto=[], notificaciones=[], notificacionLecturas=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
 let incidenteActualId=null;
 let chatConversaciones=[], chatMensajes=[], chatLecturas=[];
@@ -4536,7 +4537,7 @@ function render(){
 
   cuotasRows.innerHTML=cuotas.map(x=>'<tr><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td>'+esc(x.concepto)+'</td><td>'+money(x.monto)+'</td><td>'+esc(x.vencimiento)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td><td class="adminOnly">'+(isAdminProfileRole(profile?.rol)?'<button onclick="editarVencimientoCuota('+x.id+', \''+esc(x.vencimiento||'')+'\')">Editar vencimiento</button> <button class="danger" onclick="eliminarCuota('+x.id+')">🗑️ Eliminar</button>':'')+'</td></tr>').join('');
   pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>'<option value="'+x.id+'">Casa '+esc(casaNumero(casaIdDeRegistro(x)))+' — '+esc(x.concepto)+' — '+money(x.monto)+'</option>').join('');
-  pagosRows.innerHTML=pagos.map(x=>'<tr><td>'+esc(x.fecha)+'</td><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td><strong>'+money(x.monto)+'</strong></td><td>'+esc(x.metodo)+'</td><td>'+esc(x.referencia)+'</td><td class="adminOnly">'+(isAdminProfileRole(profile?.rol)?'<button onclick="editarPago('+x.id+')">✏️ Editar total pagado</button> <button class="danger" onclick="eliminarPago('+x.id+')">🗑️ Eliminar pago</button>':'')+'</td></tr>').join('');
+  pagosRows.innerHTML=pagos.map(x=>'<tr><td>'+esc(x.fecha)+'</td><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td><strong>'+money(x.monto)+'</strong></td><td>'+esc(x.metodo)+'</td><td>'+esc(x.referencia)+'</td><td class="adminOnly">'+(isAdminProfileRole(profile?.rol)?'<button onclick="editarPago('+x.id+')">✏️ Editar total pagado</button> '+(isOwnerProfileRole(profile?.rol)?'<button class="danger" onclick="eliminarPago('+x.id+')">🗑️ Eliminar pago</button>':''):'')+'</td></tr>').join('');
   visitasRows.innerHTML=visitas.map(x=>'<tr><td>'+esc(x.fecha)+' '+esc(x.hora)+'</td><td>'+esc(x.visitante)+'</td><td>'+esc(casaNumero(casaIdDeRegistro(x))||x.unidad||'')+'</td><td>'+esc(x.placas)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td><td class="adminOnly">'+(isAdminProfileRole(profile?.rol)?'<button type="button" class="danger mini" data-visita-id="'+esc(String(x.id))+'" onclick="eliminarVisita(this.dataset.visitaId,this)">🗑️ Eliminar</button>':'')+'</td></tr>').join('')||'<tr><td colspan="'+(isAdminProfileRole(profile?.rol)?6:5)+'" class="muted">No hay visitas registradas.</td></tr>';
   accesosRows.innerHTML=accesos.map(x=>'<tr><td>'+new Date(x.created_at).toLocaleString('es-MX')+'</td><td>'+esc(x.persona)+'</td><td>'+esc(x.tipo)+'</td><td>'+esc(x.movimiento)+'</td><td>'+esc(casaNumero(x.casa_id)||x.unidad||'')+'</td></tr>').join('');
   ['repResidente','resResidente','histResidente','vUnidad','paqUnidad','aUnidad'].forEach(id=>{const el=document.getElementById(id);if(!el)return;const prev=el.value;el.innerHTML=houseOptions;if(profile?.rol==='residente'&&profile.casa_id&&[...el.options].some(o=>o.value===String(profile.casa_id)))el.value=String(profile.casa_id);else if(prev&&[...el.options].some(o=>o.value===prev))el.value=prev;});
@@ -4746,8 +4747,8 @@ async function editarGasto(id){
 }
 
 async function eliminarGasto(id){
- if(!isAdminProfileRole(profile?.rol)) return;
- if(!confirm('¿Eliminar este gasto del historial?')) return;
+ if(!isOwnerProfileRole(profile?.rol)) return alert('Solo Owner puede eliminar gastos y aclaraciones.');
+ if(!confirm('¿Eliminar este gasto o aclaración del historial? Esta acción no se puede deshacer.')) return;
 
  const {error}=await sb.from('gastos').delete().eq('id',id);
  if(error) return alert('No se pudo eliminar el gasto: '+error.message);
@@ -4780,7 +4781,7 @@ function renderGastos(){
      <td><strong>${money(g.monto)}</strong></td>
      <td>
        <button onclick="editarGasto(${g.id})">Editar</button>
-       <button class="danger" onclick="eliminarGasto(${g.id})">Eliminar</button>
+       ${isOwnerProfileRole(profile?.rol)?`<button class="danger" onclick="eliminarGasto(${g.id})">🗑️ Eliminar</button>`:''}
      </td>
    </tr>`).join('')||'<tr><td colspan="7" class="muted">No hay gastos registrados.</td></tr>';
  }
