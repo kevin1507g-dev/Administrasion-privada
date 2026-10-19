@@ -629,6 +629,15 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 
 <section id="ownerPanel" class="ownerOnly hidden">
   <h2>👑 Centro de control Owner</h2>
+  <div class="card" style="margin-bottom:14px">
+    <h3>🔔 Notificaciones de toda la privada</h3>
+    <p class="muted">Recibirás avisos cuando llegue o se entregue paquetería de cualquier casa, se registren o editen gastos y aclaraciones, cambien pagos, se suspendan o reactiven controles y haya movimientos importantes de residentes, visitas, incidentes o mantenimiento.</p>
+    <p class="muted">Los avisos quedan en el Centro de notificaciones. Para recibir alertas en el iPhone aunque no estés viendo la plataforma, activa las notificaciones del dispositivo.</p>
+    <div class="actions">
+      <button type="button" class="primary" onclick="show('notificaciones')">🔔 Ver todas mis notificaciones</button>
+      <button type="button" onclick="activarNotificaciones()">📱 Activar avisos en este iPhone</button>
+    </div>
+  </div>
   <div class="card">
     <h3>Acceso general de propietario</h3>
     <p class="muted">Control administrativo de toda la privada. Los códigos de acceso, acciones físicas del portón y datos privados conservan sus verificaciones de seguridad.</p>
@@ -2266,6 +2275,23 @@ function destinoPorTipoNotificacion(tipo){
     pagado_hasta:'cuotas',
     miembro_agregado:'miembrosCasa',
     admin_general:'notificaciones',
+    owner_paquete_recibido:'paqueteria',
+    owner_paquete_entregado:'paqueteria',
+    owner_control_suspendido:'porton',
+    owner_control_reactivado:'porton',
+    owner_gasto_registrado:'gastos',
+    owner_gasto_modificado:'gastos',
+    owner_aclaracion_generada:'gastos',
+    owner_pago_registrado:'pagos',
+    owner_pago_modificado:'pagos',
+    owner_residente_solicitud:'solicitudes',
+    owner_residente_estado:'solicitudes',
+    owner_codigo_permanente:'visitas',
+    owner_codigo_permanente_estado:'visitas',
+    owner_incidente_nuevo:'incidentes',
+    owner_incidente_estado:'incidentes',
+    owner_mantenimiento_nuevo:'mantenimiento',
+    owner_mantenimiento_estado:'mantenimiento',
     aviso:'avisos'
   };
   return mapa[tipo]||'notificaciones';
@@ -4946,6 +4972,12 @@ th{background:#f2f2f2}
  w.document.open();
  w.document.write(reporte);
  w.document.close();
+ // The report is now generated. Inform Owner(s) through the authenticated server,
+ // not by sending a user-editable notification directly from this browser.
+ sb.rpc('owner_notify_clarification_generated',{p_event_id:crypto.randomUUID()})
+   .then(({error})=>{
+     if(error) console.warn('No se pudo avisar a Owner de la aclaración generada:',error);
+   });
 }
 async function addMetodoPago(){
  if(!isAdminProfileRole(profile?.rol)) return;
