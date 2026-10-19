@@ -430,7 +430,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <section id="solicitudes" class="adminOnly"><h2>📝 Solicitudes de registro</h2>
 <div class="card">
 <p class="muted">Aquí aparecen las cuentas creadas por residentes que todavía esperan tu autorización.</p>
-<div class="table"><table><thead><tr><th>Nombre</th><th>Unidad</th><th>Correo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="solicitudesRows"></tbody></table></div>
+<div class="table solicitudesResponsive"><table><thead><tr><th>Nombre</th><th>Unidad</th><th>Correo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="solicitudesRows"></tbody></table></div>
 </div></section>
 
 <section id="deudas" class="adminOnly"><h2>Deuda total</h2>
@@ -4267,10 +4267,10 @@ function render(){
  if(solicitudesBody){
    const pendientes=profiles.filter(x=>x.rol==='residente' && (x.estado_registro==='pendiente' || x.activo===false));
    solicitudesBody.innerHTML=pendientes.map(x=>`<tr>
-     <td>${esc(x.nombre||'')}</td><td>${esc(x.unidad||'')}</td><td>${esc(x.email||'')}</td>
-     <td><span class="badge">${x.estado_registro==='rechazado'?'Rechazado':'Pendiente'}</span></td>
-     <td><button class="primary" onclick="aprobarRegistro('${x.id}')">✅ Aprobar</button> <button class="danger" onclick="rechazarRegistro('${x.id}')">❌ Rechazar</button></td>
-   </tr>`).join('') || '<tr><td colspan="5" class="muted">No hay solicitudes pendientes.</td></tr>';
+     <td data-label="Nombre">${esc(x.nombre||'')}</td><td data-label="Unidad">${esc(x.unidad||'')}</td><td data-label="Correo">${esc(x.email||'')}</td>
+     <td data-label="Estado"><span class="badge">${x.estado_registro==='rechazado'?'Rechazado':'Pendiente'}</span></td>
+     <td data-label="Acciones"><button class="primary" onclick="aprobarRegistro('${x.id}')">✅ Aprobar</button> <button class="danger" onclick="rechazarRegistro('${x.id}')">❌ Rechazar</button></td>
+   </tr>`).join('') || '<tr class="solicitudesEmpty"><td colspan="5" class="muted">No hay solicitudes pendientes.</td></tr>';
  }
  const collCasa=new Intl.Collator('es',{numeric:true,sensitivity:'base'}),casasActivas=[...casas].filter(c=>c.activo!==false).sort((a,b)=>collCasa.compare(String(a.numero||''),String(b.numero||'')));
   const houseOptions=casasActivas.map(c=>'<option value="'+c.id+'">Casa '+esc(c.numero||'')+(nombresCasa(c.id)?' — '+esc(nombresCasa(c.id)):'')+'</option>').join('');

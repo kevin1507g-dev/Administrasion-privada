@@ -287,3 +287,35 @@ main>section{max-width:1450px;margin:0 auto}
  .appTopbar{gap:7px}
  .appTopbarCopy strong{font-size:.86rem}
 }
+
+
+/* Registro de residentes: tarjetas accesibles en teléfonos sin cortar columnas. */
+@media (max-width:640px){
+  #solicitudes .card{min-width:0;max-width:100%}
+  #solicitudes .solicitudesResponsive{width:100%;max-width:100%;overflow:visible}
+  #solicitudes .solicitudesResponsive table{display:block;min-width:0;width:100%;border-spacing:0}
+  #solicitudes .solicitudesResponsive thead{display:none}
+  #solicitudes .solicitudesResponsive tbody{display:block;width:100%}
+  #solicitudes .solicitudesResponsive tbody tr{
+    display:block;min-width:0;width:100%;padding:12px;margin:0 0 12px;
+    border:1px solid var(--ui-line);border-radius:14px;background:var(--p2);
+  }
+  #solicitudes .solicitudesResponsive tbody td{
+    display:block;width:100%;min-width:0;padding:8px 3px;
+    border-bottom:1px solid var(--ui-line);overflow-wrap:anywhere;word-break:break-word;
+  }
+  #solicitudes .solicitudesResponsive tbody td:last-child{border-bottom:0}
+  #solicitudes .solicitudesResponsive tbody td[data-label]::before{
+    content:attr(data-label);display:block;margin-bottom:4px;
+    color:var(--m);font-size:.76rem;font-weight:750;letter-spacing:.06em;text-transform:uppercase;
+  }
+  #solicitudes .solicitudesResponsive tbody td[data-label="Acciones"] button{
+    width:100%;margin:5px 0;white-space:normal;
+  }
+  #solicitudes .solicitudesResponsive tbody tr.solicitudesEmpty{
+    padding:14px;background:transparent;
+  }
+  #solicitudes .solicitudesResponsive tbody tr.solicitudesEmpty td{
+    padding:4px 0;text-align:center;overflow-wrap:break-word;
+  }
+}
