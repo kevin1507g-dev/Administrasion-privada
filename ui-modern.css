@@ -319,3 +319,37 @@ main>section{max-width:1450px;margin:0 auto}
     padding:4px 0;text-align:center;overflow-wrap:break-word;
   }
 }
+
+
+/* iPhone / PWA: keep navigation below the Dynamic Island and status bar. */
+@media (max-width:1049px){
+  .menuToggle{
+    position:fixed;
+    top:calc(env(safe-area-inset-top, 0px) + 18px);
+    left:calc(env(safe-area-inset-left, 0px) + 16px);
+    width:52px;
+    height:52px;
+    min-width:52px;
+    min-height:52px;
+    border-radius:15px;
+    font-size:27px;
+    display:grid;
+    place-items:center;
+    touch-action:manipulation;
+    -webkit-tap-highlight-color:transparent;
+    z-index:10020;
+  }
+  main{padding-top:calc(env(safe-area-inset-top, 0px) + 12px)}
+  .appTopbar{
+    top:calc(env(safe-area-inset-top, 0px) + 8px);
+    padding-left:78px;
+    min-height:76px;
+  }
+  aside{
+    padding-top:calc(env(safe-area-inset-top, 0px) + 18px);
+  }
+  .menuClose{width:48px;height:48px;flex-shrink:0}
+}
+@media (max-width:560px){
+  .appTopbar{padding-left:76px;min-height:76px}
+}
