@@ -1,4 +1,4 @@
-const APP_CACHE = "privada-beteles-v9-codigos-visibles";
+const APP_CACHE = "privada-beteles-v10-solicitudes-movil";
 const APP_SHELL = [
   "./",
   "./index.html",
