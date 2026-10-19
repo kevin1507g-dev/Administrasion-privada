@@ -927,7 +927,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
  <p class="muted">Registra una visita para cualquier casa activa. Puedes generar un código temporal o permanente; los creados por administración quedan autorizados desde su emisión, sujetos a las restricciones de acceso de la casa y del ESP32.</p>
  <div class="form">
   <div><label for="adminVisCasa">Casa de la visita</label><select id="adminVisCasa"><option value="">Selecciona una casa</option></select></div>
-  <div><label for="adminVisNombre">Nombre de la visita</label><input id="adminVisNombre" maxlength="100" placeholder="Nombre completo"></div>
+  <div><label for="adminVisNombre">Nombre o referencia de la visita (opcional)</label><input id="adminVisNombre" maxlength="100" placeholder="Ej. Familia, Juan o dejar vacío"></div>
   <div><label for="adminVisTipo">Tipo de código</label><select id="adminVisTipo" onchange="adminVisTipoCambio()"><option value="temporal">Temporal (por horario)</option><option value="permanente">Permanente (hasta revocación)</option></select></div>
   <div id="adminVisInicioWrap"><label for="adminVisInicio">Inicio autorizado</label><input id="adminVisInicio" type="datetime-local"></div>
   <div id="adminVisFinWrap"><label for="adminVisFin">Fin autorizado</label><input id="adminVisFin" type="datetime-local"></div>
@@ -947,7 +947,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
  <h3>🔐 Código de acceso temporal para visitas</h3>
  <p class="muted">Autoriza a una visita a solicitar la apertura del portón varias veces durante un horario. Máximo 12 horas y 20 solicitudes; 45 segundos entre solicitudes. Solo funciona si el ESP32 y tu casa tienen acceso habilitado.</p>
  <div class="form">
-  <div><label>Nombre completo de la visita</label><input id="vcNombre" maxlength="100" autocomplete="off" placeholder="Nombre que escribirá la visita"></div>
+  <div><label>Nombre o referencia (opcional)</label><input id="vcNombre" maxlength="100" autocomplete="off" placeholder="Puedes dejarlo vacío"></div>
   <div><label>Inicio autorizado</label><input id="vcInicio" type="datetime-local"></div>
   <div><label>Fin autorizado</label><input id="vcFin" type="datetime-local"></div>
  </div>
@@ -966,8 +966,8 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div class="card residentOnly" style="margin-top:14px">
  <h3>♾️ Solicitar código permanente</h3>
  <p class="muted">Para visitas frecuentes. No vence por horario, pero <strong>solo funciona después de la aprobación de un administrador</strong>. Si modificas el nombre o regeneras el código, se suspende hasta una nueva autorización.</p>
- <label for="vpPermanentName">Nombre completo de la visita frecuente</label>
- <input id="vpPermanentName" maxlength="100" placeholder="Nombre que escribirá la visita">
+ <label for="vpPermanentName">Nombre o referencia (opcional)</label>
+ <input id="vpPermanentName" maxlength="100" placeholder="Ej. Familiar o dejar vacío">
  <button type="button" class="primary" style="margin-top:12px" id="vpPermanentCreate" onclick="solicitarCodigoPermanente()">🔐 Solicitar código permanente</button>
  <p id="vpPermanentMessage" role="status" class="muted"></p>
  <div id="vpPermanentResult" class="hidden">
@@ -5209,7 +5209,7 @@ async function adminRegistrarVisita(){
  const inicio=document.getElementById('adminVisInicio').value;
  const fin=document.getElementById('adminVisFin').value;
  const msg=document.getElementById('adminVisMensaje');
- if(!house||nombre.length<2)return msg.textContent='Selecciona casa y escribe el nombre completo.';
+ if(!house)return msg.textContent='Selecciona una casa.';
  if(!permanente&&(!inicio||!fin||new Date(fin)<=new Date(inicio)))return msg.textContent='Selecciona un horario válido.';
  if(permanente&&!confirm('Este código será permanente y quedará autorizado por administración. ¿Continuar?'))return;
  adminVisBusy=true;
@@ -5262,7 +5262,7 @@ async function solicitarCodigoPermanente(){
  if(profile?.rol!=='residente'||vpPermanentBusy)return;
  const nombre=document.getElementById('vpPermanentName').value.trim();
  const msg=document.getElementById('vpPermanentMessage');
- if(nombre.length<2)return msg.textContent='Escribe el nombre completo de la visita.';
+ if(nombre.length>100)return msg.textContent='El nombre es demasiado largo.';
  vpPermanentBusy=true;
  const btn=document.getElementById('vpPermanentCreate');btn.disabled=true;
  document.getElementById('vpPermanentResult').classList.add('hidden');
@@ -5278,9 +5278,9 @@ async function solicitarCodigoPermanente(){
 }
 async function modificarCodigoPermanente(item){
  if(profile?.rol!=='residente'||vpPermanentBusy)return;
- const nombre=prompt('Nombre completo de la visita. Se generará un NUEVO código y deberá aprobarlo administración:',item.visitor);
+ const nombre=prompt('Nombre o referencia (puede estar vacío). Se generará un NUEVO código y deberá aprobarlo administración:',item.visitor);
  if(nombre===null)return;
- if(nombre.trim().length<2)return alert('Escribe un nombre válido.');
+ if(nombre.trim().length>100)return alert('El nombre es demasiado largo.');
  if(!confirm('Se invalidará el código anterior y la autorización quedará pendiente hasta nueva aprobación. ¿Continuar?'))return;
  vpPermanentBusy=true;
  try{
@@ -5353,7 +5353,7 @@ async function crearCodigoVisita(){
  const inicio=document.getElementById('vcInicio').value;
  const fin=document.getElementById('vcFin').value;
  const msg=document.getElementById('vcMensaje'),btn=document.getElementById('vcCrearBtn');
- if(nombre.length<2||!inicio||!fin||new Date(fin)<=new Date(inicio))return msg.textContent='Completa nombre, inicio y fin válidos.';
+ if(!inicio||!fin||new Date(fin)<=new Date(inicio))return msg.textContent='Completa un inicio y fin válidos.';
  vcLoading=true;btn.disabled=true;msg.textContent='Generando código seguro...';
  document.getElementById('vcResultado').classList.add('hidden');
  try{

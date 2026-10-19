@@ -39,14 +39,14 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
 
   <div class="card hidden" id="visitorPassCard">
     <h2>🔑 Tengo un código de visita</h2>
-    <p class="muted">Si un residente te compartió un código, escribe exactamente tu nombre, número de casa y código para solicitar la apertura del portón durante el horario autorizado.</p>
+    <p class="muted">Si un residente te compartió un código, escribe el número de casa y el código para solicitar la apertura del portón durante el horario autorizado.</p>
     <form id="visitorPassForm" onsubmit="solicitarAccesoVisita(event)">
-      <label for="vpNombre">Tu nombre</label>
-      <input id="vpNombre" required maxlength="100" autocomplete="name" placeholder="Nombre registrado por el residente">
+      <label for="vpNombre">Tu nombre (opcional, puedes escribirlo libremente)</label>
+      <input id="vpNombre" maxlength="100" autocomplete="name" placeholder="Ej. Juan, familia o dejar vacío">
       <label for="vpCasa">Número de casa</label>
       <input id="vpCasa" required maxlength="20" autocomplete="off" placeholder="Ej. 35">
-      <label for="vpCodigo">Código temporal</label>
-      <input id="vpCodigo" required minlength="16" maxlength="16" pattern="[A-Fa-f0-9]{16}" autocapitalize="characters" autocomplete="off" placeholder="16 letras o números">
+      <label for="vpCodigo">Código de visita</label>
+      <input id="vpCodigo" required minlength="7" maxlength="16" pattern="([A-HJ-NP-Za-hj-np-z][0-9]{6}|[A-Fa-f0-9]{16})" autocapitalize="characters" autocomplete="off" placeholder="Ej. A123456">
       <button type="submit" class="primary" id="vpEnviar" style="margin-top:18px">🚪 Solicitar apertura del portón</button>
     </form>
     <p id="vpEstado" class="muted" role="status" aria-live="polite"></p>
@@ -120,7 +120,7 @@ async function solicitarAccesoVisita(event){
  const nombre=document.getElementById('vpNombre').value.trim();
  const casa=document.getElementById('vpCasa').value.trim();
  const codigo=document.getElementById('vpCodigo').value.trim().toUpperCase();
- if(nombre.length<2||!casa||!/^[A-F0-9]{16}$/.test(codigo)){status.textContent='Completa nombre, casa y código de 16 caracteres.';return;}
+ if(!casa||!/^([A-HJ-NP-Z][0-9]{6}|[A-F0-9]{16})$/.test(codigo)){status.textContent='Escribe la casa y un código válido (ej. A123456).';return;}
  vpBusy=true;btn.disabled=true;status.textContent='Verificando autorización...';
  try{
   const {data,error}=await sb.rpc('visitor_pass_request',{p_name:nombre,p_house:casa,p_code:codigo});
