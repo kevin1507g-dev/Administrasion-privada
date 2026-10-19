@@ -936,7 +936,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
  <p class="muted" role="status" id="adminVisMensaje"></p>
  <div class="hidden" id="adminVisResultado" style="margin-top:12px">
   <strong id="adminVisDatos"></strong>
-  <p class="muted">El código se muestra una sola vez. Compártelo solo con la visita autorizada.</p>
+  <p class="muted">Compártelo únicamente con la visita autorizada. Los códigos permanentes pueden consultarse más adelante.</p>
   <button type="button" onclick="adminCopiarVisita()">📋 Copiar instrucciones</button>
  </div>
  <h4>Visitas temporales registradas</h4>
@@ -972,7 +972,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
  <p id="vpPermanentMessage" role="status" class="muted"></p>
  <div id="vpPermanentResult" class="hidden">
   <strong id="vpPermanentCode"></strong>
-  <p class="muted">Este código se muestra solo ahora. No funcionará hasta que lo apruebe un administrador.</p>
+  <p class="muted">El código permanecerá consultable en «Mis solicitudes permanentes». No funcionará hasta que lo apruebe un administrador.</p>
   <button type="button" onclick="copiarCodigoPermanente()">📋 Copiar datos para la visita</button>
  </div>
  <h4>Mis solicitudes permanentes</h4>
@@ -1990,6 +1990,7 @@ async function basuraAccion(action){
 }
 
 function show(id){
+  if(id!=='visitas')ocultarCodigosPermanentes();
   if(id==='biometrico'){
     if(profile?.rol!=='admin')return;
     renderRegistroBiometrico();
@@ -2303,7 +2304,7 @@ async function signIn(){
   }
 }
 
-async function signOut(){detenerCamara();await sb.auth.signOut();location.reload()}
+async function signOut(){ocultarCodigosPermanentes();detenerCamara();await sb.auth.signOut();location.reload()}
 async function enter(){
  const {data,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
  if(error||!data){loginMsg.textContent='Tu usuario existe, pero no tiene un perfil en la tabla profiles.';await sb.auth.signOut();return}
@@ -5228,7 +5229,7 @@ async function adminRegistrarVisita(){
    '\nPortal: '+portal;
   document.getElementById('adminVisDatos').textContent='Casa '+data.house+' · '+data.visitor+' · Código '+data.code+' · '+(data.permanent?'Permanente':'Temporal');
   document.getElementById('adminVisResultado').classList.remove('hidden');
-  msg.textContent='Visita registrada y autorizada. El código solo se muestra ahora.';
+  msg.textContent=permanente?'Visita registrada y autorizada. Puedes consultar el código permanente en la lista.':'Visita registrada y autorizada. Guarda el código temporal ahora.';
   document.getElementById('adminVisNombre').value='';
   if(permanente)await cargarCodigosPermanentes();else await cargarCodigosVisita();
  }catch(e){msg.textContent='No se pudo registrar: '+(e.message||'error');}
@@ -5306,34 +5307,116 @@ async function revisarCodigoPermanente(item,accion){
  if(error)return alert('No se pudo resolver la solicitud: '+error.message);
  await cargarCodigosPermanentes();
 }
+
+// El código no se incluye en los listados: se descifra solo cuando la persona autorizada lo solicita.
+document.addEventListener('visibilitychange',()=>{if(document.hidden)ocultarCodigosPermanentes();});
+function ocultarCodigosPermanentes(){
+ document.querySelectorAll('.vpPassReveal').forEach(el=>{el.replaceChildren();el.hidden=true;});
+ document.querySelectorAll('.vpPassShow').forEach(btn=>{btn.textContent='👁 Ver código';btn.dataset.open='0';});
+}
+async function revelarCodigoPermanente(item,panel,button){
+ if(!['admin','residente'].includes(profile?.rol)||item.revoked)return;
+ if(button.dataset.open==='1'){
+  panel.replaceChildren();panel.hidden=true;button.dataset.open='0';button.textContent='👁 Ver código';return;
+ }
+ button.disabled=true;button.textContent='Consultando...';
+ try{
+  const previousUser=user?.id;
+  const {data,error}=await sb.rpc('permanent_pass_reveal',{p_id:item.id});
+  if(error)throw error;
+  if(previousUser!==user?.id||document.hidden)return;
+  panel.replaceChildren();panel.hidden=false;
+  if(!data?.available){
+   panel.textContent=data?.message||'Este código anterior no se puede recuperar. Regénéralo para obtener uno nuevo.';
+   button.textContent='👁 Ver código';button.dataset.open='0';
+   return;
+  }
+  const code=document.createElement('strong');
+  code.textContent='🔑 Código: '+data.code;
+  code.style.display='block';code.style.fontSize='1.3rem';code.style.letterSpacing='0.07em';
+  panel.appendChild(code);
+  const note=document.createElement('p');note.className='muted';
+  note.textContent=item.status==='approved'?'Código autorizado. Compártelo solo con la persona indicada.':
+   'Este código todavía NO está autorizado para abrir el portón.';
+  panel.appendChild(note);
+  const copyBtn=document.createElement('button');
+  copyBtn.type='button';copyBtn.textContent='📋 Copiar código';
+  copyBtn.onclick=async()=>{
+   try{await navigator.clipboard.writeText(data.code);note.textContent='Código copiado. Compártelo de forma privada.';}
+   catch(_){note.textContent='No se pudo copiar; selecciona el código mostrado.';}
+  };
+  panel.appendChild(copyBtn);
+  button.textContent='🙈 Ocultar código';button.dataset.open='1';
+ }catch(e){
+  panel.hidden=false;panel.textContent='No se pudo consultar el código: '+(e.message||'error');
+  button.textContent='👁 Ver código';button.dataset.open='0';
+ }finally{button.disabled=false;}
+}
+async function regenerarCodigoPermanente(item){
+ if(!['admin','residente'].includes(profile?.rol)||item.revoked)return;
+ const admin=profile.rol==='admin';
+ const warning=admin
+  ?'Se invalidará el código anterior. El nuevo quedará autorizado por administración.'
+  :'Se invalidará el código anterior. El nuevo deberá ser aprobado otra vez por administración.';
+ if(!confirm('¿Generar otro código para '+item.visitor+' de la Casa '+item.house+'?\n\n'+warning))return;
+ try{
+  const {data,error}=await sb.rpc('permanent_pass_rotate',{p_id:item.id});
+  if(error)throw error;
+  await cargarCodigosPermanentes();
+  const row=[...document.querySelectorAll('.vpPermanentEntry')].find(el=>el.dataset.passId===String(item.id));
+  const reveal=row?.querySelector('.vpPassShow');
+  if(reveal)reveal.click();
+  const message=admin?'Nuevo código generado y autorizado.':'Nuevo código generado; pendiente de autorización administrativa.';
+  const target=document.getElementById(admin?'adminVisMensaje':'vpPermanentMessage');
+  if(target)target.textContent=message;
+ }catch(e){alert('No se pudo regenerar el código: '+(e.message||'error'));}
+}
 async function cargarCodigosPermanentes(){
  if(!['admin','residente'].includes(profile?.rol))return;
  const isAdmin=profile.rol==='admin';
  const box=document.getElementById(isAdmin?'vpPermanentAdminList':'vpPermanentList');
  if(!box)return;
+ ocultarCodigosPermanentes();
  try{
   const {data,error}=await sb.rpc('permanent_pass_list');if(error)throw error;
   box.replaceChildren();
   if(!data?.length){box.textContent='No hay códigos permanentes registrados.';return;}
   for(const item of data){
-   const wrap=document.createElement('div');wrap.className='card';wrap.style.marginTop='8px';
+   const wrap=document.createElement('div');wrap.className='card vpPermanentEntry';wrap.style.marginTop='8px';
+   wrap.dataset.passId=String(item.id);
    const detail=document.createElement('div');
-   detail.textContent=item.visitor+' · Casa '+item.house+(isAdmin?' · Residente: '+item.sponsor:'')+' · '+(vpPermanentStatus[item.status]||item.status)+' · '+item.used_count+' solicitudes de apertura';
+   detail.textContent=item.visitor+' · Casa '+item.house+(isAdmin?' · Residente: '+item.sponsor:'')+
+    ' · '+(vpPermanentStatus[item.status]||item.status)+' · '+item.used_count+' solicitudes de apertura';
    wrap.appendChild(detail);
-   const actions=document.createElement('div');actions.style.marginTop='10px';actions.style.display='flex';actions.style.gap='8px';actions.style.flexWrap='wrap';
-   function action(label,fn,danger=false){
+   const actions=document.createElement('div');actions.style.marginTop='10px';
+   actions.style.display='flex';actions.style.gap='8px';actions.style.flexWrap='wrap';
+   function action(label,fn,danger=false,className=''){
     const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=fn;
-    if(danger)b.className='danger';actions.appendChild(b);
+    if(danger)b.className='danger';
+    if(className)b.classList.add(className);
+    actions.appendChild(b);return b;
    }
    if(!item.revoked){
+    if(item.recoverable){
+     const view=document.createElement('div');view.className='vpPassReveal';view.hidden=true;
+     const button=action('👁 Ver código',()=>revelarCodigoPermanente(item,view,button),false,'vpPassShow');
+     button.dataset.open='0';
+     wrap.appendChild(view);
+    }else{
+     const old=document.createElement('p');old.className='muted';
+     old.textContent='Este código es antiguo y no puede visualizarse: solo se guardó su huella de seguridad.';
+     wrap.appendChild(old);
+    }
     if(isAdmin){
      if(item.status==='pending'){
       action('✓ Aprobar',()=>revisarCodigoPermanente(item,'approve'));
       action('✕ Rechazar',()=>revisarCodigoPermanente(item,'reject'),true);
      }
      if(item.status==='approved')action('Revocar',()=>revisarCodigoPermanente(item,'revoke'),true);
+     action('🔄 Regenerar código',()=>regenerarCodigoPermanente(item));
     }else{
      action('✏️ Modificar / generar nuevo código',()=>modificarCodigoPermanente(item));
+     if(!item.recoverable)action('🔄 Regenerar para visualizar',()=>regenerarCodigoPermanente(item));
      action('Revocar',()=>revocarCodigoPermanente(item),true);
     }
    }
