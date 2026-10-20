@@ -214,6 +214,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </button>
 <div class="navSectionLabel">Panel general</div>
 <button onclick="show('inicio')">🏠 Inicio</button>
+<button type="button" class="ownerResidentNav hidden" onclick="show('ownerResidentPreview')">🏠 Vista del residente</button>
 <button class="residentOnly" onclick="show('miembrosCasa')">👨‍👩‍👧 Miembros de mi casa</button>
 <button class="residentOnly" onclick="show('comunicacion')">💬 Comunicación</button>
 <button class="cameraOnly" onclick="show('camaras')">📹 Cámaras</button>
@@ -249,6 +250,15 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <header class="appTopbar">
   <span class="appBrandMark" aria-hidden="true"><img src="./pwa-icon.svg" alt="" width="40" height="40"></span>
   <div class="appTopbarCopy"><strong id="topbarSectionTitle">Panel principal</strong><small>Privada Beteles · Administración Residencial</small></div>
+  <div id="ownerPanelSwitcher" class="ownerPanelSwitcher hidden">
+    <label for="ownerPanelMode">Cambiar panel</label>
+    <select id="ownerPanelMode" aria-label="Seleccionar panel Owner, Administrador o Residente"
+      onchange="cambiarPanelOwner(this.value)">
+      <option value="owner">👑 Owner</option>
+      <option value="admin">🛡️ Administrador</option>
+      <option value="resident">🏠 Residente</option>
+    </select>
+  </div>
   <button type="button" class="appTopbarLink residentAdminOnly" onclick="show('notificaciones')">🔔 Notificaciones</button>
   <button id="uiThemeButton" type="button" class="uiThemeButton" onclick="toggleUiTheme()" aria-label="Cambiar tema de colores" title="Cambiar tema visual">☀️</button>
 </header>
@@ -630,6 +640,15 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <section id="ownerPanel" class="ownerOnly hidden">
   <h2>👑 Centro de control Owner</h2>
   <div class="card" style="margin-bottom:14px">
+    <h3>🔀 Cambiar de panel</h3>
+    <p class="muted">Explora el panel de administrador o consulta cómo se ve una casa desde la vista de residente. Tu cuenta siempre conserva el rango Owner.</p>
+    <div class="ownerModeButtons">
+      <button type="button" onclick="cambiarPanelOwner('owner')">👑 Panel Owner</button>
+      <button type="button" onclick="cambiarPanelOwner('admin')">🛡️ Panel Administrador</button>
+      <button type="button" onclick="cambiarPanelOwner('resident')">🏠 Vista Residente</button>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:14px">
     <h3>🔔 Notificaciones de toda la privada</h3>
     <p class="muted">Recibirás avisos cuando llegue o se entregue paquetería de cualquier casa, se registren o editen gastos y aclaraciones, cambien pagos, se suspendan o reactiven controles y haya movimientos importantes de residentes, visitas, incidentes o mantenimiento.</p>
     <p class="muted">Los avisos quedan en el Centro de notificaciones. Para recibir alertas en el iPhone aunque no estés viendo la plataforma, activa las notificaciones del dispositivo.</p>
@@ -710,6 +729,63 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     <p class="muted">Registro de cambios de roles y de cuentas activadas o suspendidas.</p>
     <div id="ownerAuditList" role="status" class="muted">Abre esta sección para consultar los movimientos.</div>
     <button type="button" onclick="cargarAccionesOwner()" style="margin-top:12px">↻ Actualizar historial</button>
+  </div>
+</section>
+
+
+<section id="ownerResidentPreview" class="ownerResidentPreview hidden">
+  <h2>🏠 Panel Residente · Vista previa</h2>
+  <div class="card">
+    <p class="muted">Consulta los datos de una casa como los vería un residente. <strong>Esta vista es de solo lectura:</strong> no te cambia de usuario y no permite registrar visitas, modificar pagos ni abrir el portón.</p>
+    <div class="ownerResidentPicker">
+      <label for="ownerPreviewHouseSelect">Selecciona la casa</label>
+      <select id="ownerPreviewHouseSelect" onchange="seleccionarCasaVistaResidente(this.value)">
+        <option value="">Selecciona una casa</option>
+      </select>
+    </div>
+    <p class="muted" id="ownerPreviewHouseResidents">Selecciona una vivienda para consultar su información.</p>
+  </div>
+  <div class="grid ownerResidentMetrics" style="margin-top:14px">
+    <div class="card"><div class="muted">Saldo pendiente</div><div class="kpi" id="ownerPreviewDebt">—</div></div>
+    <div class="card"><div class="muted">Cuotas pendientes</div><div class="kpi" id="ownerPreviewPending">—</div></div>
+    <div class="card"><div class="muted">Pagos registrados</div><div class="kpi" id="ownerPreviewPaymentCount">—</div></div>
+    <div class="card"><div class="muted">Controles activos</div><div class="kpi" id="ownerPreviewActiveControls">—</div></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3>🧾 Cuotas de la casa</h3>
+    <div class="table"><table>
+      <thead><tr><th>Concepto</th><th>Vencimiento</th><th>Monto</th><th>Pagado</th><th>Saldo</th><th>Estado</th></tr></thead>
+      <tbody id="ownerPreviewDuesRows"><tr><td colspan="6">Selecciona una casa.</td></tr></tbody>
+    </table></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3>💳 Historial de pagos de la casa</h3>
+    <div class="table"><table>
+      <thead><tr><th>Fecha</th><th>Monto</th><th>Método</th><th>Referencia</th></tr></thead>
+      <tbody id="ownerPreviewPaymentsRows"><tr><td colspan="4">Selecciona una casa.</td></tr></tbody>
+    </table></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3>🚧 Controles del portón (consulta)</h3>
+    <div class="table"><table>
+      <thead><tr><th>Número de control</th><th>Estado</th></tr></thead>
+      <tbody id="ownerPreviewControlsRows"><tr><td colspan="2">Selecciona una casa.</td></tr></tbody>
+    </table></div>
+    <p class="muted">Esta vista no envía solicitudes de apertura al ESP32.</p>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3>📦 Paquetería de la casa</h3>
+    <div class="table"><table>
+      <thead><tr><th>Fecha</th><th>Destinatario</th><th>Empresa</th><th>Estado</th></tr></thead>
+      <tbody id="ownerPreviewPackagesRows"><tr><td colspan="4">Selecciona una casa.</td></tr></tbody>
+    </table></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3>📅 Próximos eventos de la privada</h3>
+    <div class="table"><table>
+      <thead><tr><th>Fecha</th><th>Evento</th><th>Hora</th><th>Lugar</th></tr></thead>
+      <tbody id="ownerPreviewEventsRows"><tr><td colspan="4">No hay eventos registrados.</td></tr></tbody>
+    </table></div>
   </div>
 </section>
 
@@ -1874,6 +1950,104 @@ const sb=supabase.createClient(SB_URL,SB_KEY);
 let houseOccupancyDataError=false;
 function isAdminProfileRole(rol){return rol==='admin'||rol==='owner';}
 function isOwnerProfileRole(rol){return rol==='owner';}
+let ownerPanelMode='owner';
+let ownerPreviewHouseId='';
+function isOwnerPanelActive(){return profile?.rol==='owner' && ownerPanelMode==='owner';}
+function cambiarPanelOwner(modo){
+ if(profile?.rol!=='owner')return;
+ if(!['owner','admin','resident'].includes(modo))return;
+ const fromMode=ownerPanelMode;
+ ownerPanelMode=modo;
+ document.body.dataset.ownerPanel=modo;
+ const select=document.getElementById('ownerPanelMode');
+ if(select)select.value=modo;
+ // Viewer mode does not change Supabase auth, roles or profile data.
+ document.querySelectorAll('.ownerOnly').forEach(el=>
+   el.classList.toggle('hidden',modo!=='owner')
+ );
+ const residentNav=document.querySelector('.ownerResidentNav');
+ if(residentNav)residentNav.classList.toggle('hidden',modo!=='resident');
+ const preview=document.getElementById('ownerResidentPreview');
+ if(preview)preview.classList.toggle('hidden',modo!=='resident');
+ ocultarCodigosPermanentes();
+ if(modo==='resident'){
+   renderOwnerResidentPreview();
+   show('ownerResidentPreview');
+ }else if(modo==='admin'){
+   // "Admin" is a view of the current owner session, not an account downgrade.
+   show('inicio');
+ }else{
+   show('ownerPanel');
+ }
+ if(fromMode!==modo)render();
+}
+function seleccionarCasaVistaResidente(casaId){
+ if(profile?.rol!=='owner'||ownerPanelMode!=='resident')return;
+ ownerPreviewHouseId=String(casaId||'');
+ renderOwnerResidentPreview();
+}
+function renderOwnerResidentPreview(){
+ if(profile?.rol!=='owner')return;
+ const sel=document.getElementById('ownerPreviewHouseSelect');
+ if(!sel)return;
+ const houses=casas.filter(c=>c.activo===true)
+  .sort((a,b)=>String(a.numero||'').localeCompare(String(b.numero||''),'es',{numeric:true}));
+ const old=ownerPreviewHouseId;
+ sel.replaceChildren(new Option('Selecciona una casa',''));
+ for(const house of houses)sel.add(new Option('Casa '+house.numero,String(house.id)));
+ if(houses.some(h=>String(h.id)===old))ownerPreviewHouseId=old;
+ else ownerPreviewHouseId=houses.find(h=>residentesDeCasa(h.id).some(p=>p.activo===true))?.id||
+   houses[0]?.id||'';
+ sel.value=ownerPreviewHouseId;
+ const selected=houses.find(h=>String(h.id)===String(ownerPreviewHouseId));
+ const houseId=selected?.id;
+ const view=document.getElementById('ownerPreviewHouseResidents');
+ const activeResidents=houseId?residentesDeCasa(houseId).filter(p=>p.activo===true&&p.estado_registro==='aprobado'):[];
+ if(view)view.textContent=selected
+  ?'Casa '+selected.numero+' · '+(activeResidents.length
+    ?'Residentes: '+activeResidents.map(p=>p.nombre).join(', ')
+    :'Sin residentes activos registrados')
+  :'Selecciona una casa para consultar su información.';
+ const debt=houseId?resumenDeudaCasa(houseId):null;
+ const payments=houseId?pagos.filter(p=>String(casaIdDeRegistro(p))===String(houseId)):[];
+ const gateControls=houseId?controles.filter(c=>String(casaIdDeRegistro(c))===String(houseId)):[];
+ const parcels=houseId?paquetes.filter(p=>(p.casa_id&&String(p.casa_id)===String(houseId))||
+   (!p.casa_id&&String(p.unidad)===String(selected.numero))):[];
+ const textAt=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=String(value);};
+ textAt('ownerPreviewDebt',debt?money(debt.deuda):'—');
+ textAt('ownerPreviewPending',debt?debt.pendientes:'—');
+ textAt('ownerPreviewPaymentCount',houseId?payments.length:'—');
+ textAt('ownerPreviewActiveControls',houseId?gateControls.filter(c=>c.estado==='activo').length:'—');
+ const safeRows=(id,rows,empty,colspan)=>{
+  const el=document.getElementById(id);if(!el)return;
+  el.replaceChildren();
+  if(!rows.length){
+   const tr=el.insertRow();const td=tr.insertCell();td.colSpan=colspan;td.className='muted';td.textContent=empty;return;
+  }
+  for(const cells of rows){
+   const tr=el.insertRow();
+   for(const value of cells)tr.insertCell().textContent=String(value??'');
+  }
+ };
+ safeRows('ownerPreviewDuesRows',(debt?.detalle||[]).map(q=>[
+    q.concepto||'Cuota',q.vencimiento||'—',money(q.monto),money(q.pagado),money(q.saldo),q.estado
+   ]),'No hay cuotas registradas para esta casa.',6);
+ safeRows('ownerPreviewPaymentsRows',payments.map(p=>[
+    p.fecha||'—',money(p.monto),p.metodo||'—',p.referencia||'—'
+   ]),'No hay pagos registrados para esta casa.',4);
+ safeRows('ownerPreviewControlsRows',gateControls.map(c=>[
+    c.numero_control||'—',c.estado==='suspendido'?'⛔ Suspendido temporalmente':'✅ Activo'
+   ]),'Esta casa no tiene controles registrados.',2);
+ safeRows('ownerPreviewPackagesRows',parcels.map(p=>[
+    fechaHora(p.created_at),p.destinatario||'—',p.empresa||'—',
+    p.estado==='entregado'?'✅ Entregado':'📦 Por entregar'
+   ]),'No hay paquetes registrados para esta casa.',4);
+ const today=new Date().toISOString().slice(0,10);
+ safeRows('ownerPreviewEventsRows',eventos.filter(e=>!e.fecha||e.fecha>=today).map(e=>[
+    e.fecha||'—',e.titulo||'Evento',String(e.hora||'').slice(0,5),e.lugar||'—'
+   ]),'No hay eventos próximos.',4);
+}
+
 let user=null, profile=null, casas=[], profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], incidentes=[], incidenteMensajes=[], entregas=[], solicitudesContacto=[], mensajesContacto=[], notificaciones=[], notificacionLecturas=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
 let incidenteActualId=null;
 let chatConversaciones=[], chatMensajes=[], chatLecturas=[];
@@ -2196,6 +2370,9 @@ async function basuraAccion(action){
 }
 
 function show(id){
+  if(profile?.rol==='owner' && ownerPanelMode==='resident' && id!=='ownerResidentPreview')return;
+  if(id==='ownerResidentPreview' && (profile?.rol!=='owner'||ownerPanelMode!=='resident'))return;
+  if(id==='ownerPanel' && (profile?.rol!=='owner'||ownerPanelMode!=='owner'))return;
   if(id!=='visitas')ocultarCodigosPermanentes();
   if(id==='ownerPanel'){if(profile?.rol!=='owner')return;renderOwnerPanel();cargarAccionesOwner();}
   if(id==='biometrico'){
@@ -2552,6 +2729,11 @@ async function enter(){
  cerrarChatFlotante();
  login.classList.add('hidden');app.classList.remove('hidden');
  who.textContent=`${profile.nombre} · ${profile.rol==='owner'?'👑 OWNER':profile.rol}${profile.unidad?' · '+profile.unidad:''}`;
+ const ownerSwitcher=document.getElementById('ownerPanelSwitcher');
+ if(ownerSwitcher)ownerSwitcher.classList.toggle('hidden',profile.rol!=='owner');
+ ownerPanelMode='owner';
+ document.body.dataset.ownerPanel=profile.rol==='owner'?'owner':'regular';
+
  document.querySelectorAll('.adminOnly').forEach(x=>x.classList.toggle('hidden',!isAdminProfileRole(profile.rol)));
  document.querySelectorAll('.ownerOnly').forEach(x=>x.classList.toggle('hidden',profile.rol!=='owner'));
  document.querySelectorAll('.staffOnly').forEach(x=>x.classList.toggle('hidden',!['owner','admin','guardia'].includes(profile.rol)));
@@ -4496,6 +4678,7 @@ function renderHouseOccupancy(){
 }
 
 function render(){
+ renderOwnerResidentPreview();
  renderOwnerPanel();
  renderHouseOccupancy();
  renderRegistroBiometrico();
@@ -4563,7 +4746,7 @@ function render(){
 
   cuotasRows.innerHTML=cuotas.map(x=>'<tr><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td>'+esc(x.concepto)+'</td><td>'+money(x.monto)+'</td><td>'+esc(x.vencimiento)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td><td class="adminOnly">'+(isAdminProfileRole(profile?.rol)?'<button onclick="editarVencimientoCuota('+x.id+', \''+esc(x.vencimiento||'')+'\')">Editar vencimiento</button> <button class="danger" onclick="eliminarCuota('+x.id+')">🗑️ Eliminar</button>':'')+'</td></tr>').join('');
   pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>'<option value="'+x.id+'">Casa '+esc(casaNumero(casaIdDeRegistro(x)))+' — '+esc(x.concepto)+' — '+money(x.monto)+'</option>').join('');
-  pagosRows.innerHTML=pagos.map(x=>'<tr><td>'+esc(x.fecha)+'</td><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td><strong>'+money(x.monto)+'</strong></td><td>'+esc(x.metodo)+'</td><td>'+esc(x.referencia)+'</td><td class="adminOnly">'+(isAdminProfileRole(profile?.rol)?'<button onclick="editarPago('+x.id+')">✏️ Editar total pagado</button> '+(isOwnerProfileRole(profile?.rol)?'<button class="danger" onclick="eliminarPago('+x.id+')">🗑️ Eliminar pago</button>':''):'')+'</td></tr>').join('');
+  pagosRows.innerHTML=pagos.map(x=>'<tr><td>'+esc(x.fecha)+'</td><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td><strong>'+money(x.monto)+'</strong></td><td>'+esc(x.metodo)+'</td><td>'+esc(x.referencia)+'</td><td class="adminOnly">'+(isAdminProfileRole(profile?.rol)?'<button onclick="editarPago('+x.id+')">✏️ Editar total pagado</button> '+(isOwnerPanelActive()?'<button class="danger" onclick="eliminarPago('+x.id+')">🗑️ Eliminar pago</button>':''):'')+'</td></tr>').join('');
   visitasRows.innerHTML=visitas.map(x=>'<tr><td>'+esc(x.fecha)+' '+esc(x.hora)+'</td><td>'+esc(x.visitante)+'</td><td>'+esc(casaNumero(casaIdDeRegistro(x))||x.unidad||'')+'</td><td>'+esc(x.placas)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td><td class="adminOnly">'+(isAdminProfileRole(profile?.rol)?'<button type="button" class="danger mini" data-visita-id="'+esc(String(x.id))+'" onclick="eliminarVisita(this.dataset.visitaId,this)">🗑️ Eliminar</button>':'')+'</td></tr>').join('')||'<tr><td colspan="'+(isAdminProfileRole(profile?.rol)?6:5)+'" class="muted">No hay visitas registradas.</td></tr>';
   accesosRows.innerHTML=accesos.map(x=>'<tr><td>'+new Date(x.created_at).toLocaleString('es-MX')+'</td><td>'+esc(x.persona)+'</td><td>'+esc(x.tipo)+'</td><td>'+esc(x.movimiento)+'</td><td>'+esc(casaNumero(x.casa_id)||x.unidad||'')+'</td></tr>').join('');
   ['repResidente','resResidente','histResidente','vUnidad','paqUnidad','aUnidad'].forEach(id=>{const el=document.getElementById(id);if(!el)return;const prev=el.value;el.innerHTML=houseOptions;if(profile?.rol==='residente'&&profile.casa_id&&[...el.options].some(o=>o.value===String(profile.casa_id)))el.value=String(profile.casa_id);else if(prev&&[...el.options].some(o=>o.value===prev))el.value=prev;});
@@ -4807,7 +4990,7 @@ function renderGastos(){
      <td><strong>${money(g.monto)}</strong></td>
      <td>
        <button onclick="editarGasto(${g.id})">Editar</button>
-       ${isOwnerProfileRole(profile?.rol)?`<button class="danger" onclick="eliminarGasto(${g.id})">🗑️ Eliminar</button>`:''}
+       ${isOwnerPanelActive()?`<button class="danger" onclick="eliminarGasto(${g.id})">🗑️ Eliminar</button>`:''}
      </td>
    </tr>`).join('')||'<tr><td colspan="7" class="muted">No hay gastos registrados.</td></tr>';
  }
