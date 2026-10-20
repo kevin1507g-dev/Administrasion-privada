@@ -922,9 +922,15 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       <div><label>Monto</label><input id="cMonto" type="number" step=".01"></div>
       <div><label>Vencimiento</label><input id="cFecha" type="date"></div>
     </div>
-    <button class="primary" style="margin-top:12px" onclick="addCuota()">Crear cuota</button>
+    <button id="crearCuotaBtn" class="primary" style="margin-top:12px" onclick="addCuota()">Crear cuota</button>
+    <p class="muted" style="margin-top:8px">El sistema comprueba si esta casa ya tiene una cuota con el mismo concepto y vencimiento. Los cobros repetidos serán rechazados.</p>
   </div>
 
+  <div class="adminOnly card" style="margin-top:14px">
+    <h3>🔎 Revisión de cuotas posiblemente duplicadas</h3>
+    <p class="muted">Se señalarán las cuotas existentes con la misma casa, concepto y fecha de vencimiento. No se eliminará ninguna automáticamente; verifica los cargos antes de hacer cambios.</p>
+    <div id="duplicatedDuesWarning" role="status" class="muted">Cargando revisión...</div>
+  </div>
   <div class="card table" style="margin-top:14px">
     <table>
       <thead>
@@ -965,9 +971,10 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
           <option>Otro</option>
         </select>
       </div>
-      <div><label>Referencia</label><input id="pRef"></div>
+      <div><label>Referencia / folio</label><input id="pRef" maxlength="250" placeholder="Obligatorio para transferencias"></div>
     </div>
-    <button class="primary" style="margin-top:12px" onclick="addPago()">Registrar pago</button>
+    <button id="registrarPagoBtn" class="primary" style="margin-top:12px" onclick="addPago()">Registrar pago</button>
+    <p class="muted" id="pagoRegistroAyuda" role="status" style="margin-top:8px">Se verifica el saldo pendiente, se bloquean dobles clics y se comprueba la referencia para evitar pagos duplicados. Puedes registrar abonos parciales válidos.</p>
   </div>
 
   <div class="card table" style="margin-top:14px">
@@ -1672,39 +1679,7 @@ async function eliminarPago(id){
     );
   }
 
-  // Recalcular el estado de la cuota
-  if(cuotaId){
-
-    const cuota = cuotas.find(
-      q => String(q.id) === String(cuotaId)
-    );
-
-    if(cuota){
-
-      const totalRestante = pagos
-        .filter(p =>
-          String(p.id) !== String(id) &&
-          String(p.cuota_id) === String(cuotaId)
-        )
-        .reduce(
-          (suma,p) =>
-            suma + Number(p.monto || 0),
-          0
-        );
-
-      const nuevoEstado =
-        totalRestante >= Number(cuota.monto || 0)
-          ? 'pagada'
-          : 'pendiente';
-
-      await sb
-        .from('cuotas')
-        .update({
-          estado: nuevoEstado
-        })
-        .eq('id', cuotaId);
-    }
-  }
+  // Supabase sincroniza automáticamente el saldo y estado de la cuota.
 
   await loadAll();
 
@@ -4678,6 +4653,7 @@ function renderHouseOccupancy(){
 }
 
 function render(){
+ renderDuplicateDuesWarning();
  renderOwnerResidentPreview();
  renderOwnerPanel();
  renderHouseOccupancy();
@@ -4745,7 +4721,14 @@ function render(){
   }
 
   cuotasRows.innerHTML=cuotas.map(x=>'<tr><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td>'+esc(x.concepto)+'</td><td>'+money(x.monto)+'</td><td>'+esc(x.vencimiento)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td><td class="adminOnly">'+(isAdminProfileRole(profile?.rol)?'<button onclick="editarVencimientoCuota('+x.id+', \''+esc(x.vencimiento||'')+'\')">Editar vencimiento</button> <button class="danger" onclick="eliminarCuota('+x.id+')">🗑️ Eliminar</button>':'')+'</td></tr>').join('');
-  pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>'<option value="'+x.id+'">Casa '+esc(casaNumero(casaIdDeRegistro(x)))+' — '+esc(x.concepto)+' — '+money(x.monto)+'</option>').join('');
+  const previouslySelectedQuota=pCuota.value;
+  pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>{
+    const pagado=pagos.filter(p=>String(p.cuota_id)===String(x.id)).reduce((total,p)=>total+Number(p.monto||0),0);
+    const pendiente=Math.max(0,Number(x.monto||0)-pagado);
+    return '<option value="'+x.id+'">Casa '+esc(casaNumero(casaIdDeRegistro(x)))+
+      ' — '+esc(x.concepto)+' — Pendiente: '+money(pendiente)+'</option>';
+  }).join('');
+  if([...pCuota.options].some(o=>o.value===previouslySelectedQuota))pCuota.value=previouslySelectedQuota;
   pagosRows.innerHTML=pagos.map(x=>'<tr><td>'+esc(x.fecha)+'</td><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td><strong>'+money(x.monto)+'</strong></td><td>'+esc(x.metodo)+'</td><td>'+esc(x.referencia)+'</td><td class="adminOnly">'+(isAdminProfileRole(profile?.rol)?'<button onclick="editarPago('+x.id+')">✏️ Editar total pagado</button> '+(isOwnerPanelActive()?'<button class="danger" onclick="eliminarPago('+x.id+')">🗑️ Eliminar pago</button>':''):'')+'</td></tr>').join('');
   visitasRows.innerHTML=visitas.map(x=>'<tr><td>'+esc(x.fecha)+' '+esc(x.hora)+'</td><td>'+esc(x.visitante)+'</td><td>'+esc(casaNumero(casaIdDeRegistro(x))||x.unidad||'')+'</td><td>'+esc(x.placas)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td><td class="adminOnly">'+(isAdminProfileRole(profile?.rol)?'<button type="button" class="danger mini" data-visita-id="'+esc(String(x.id))+'" onclick="eliminarVisita(this.dataset.visitaId,this)">🗑️ Eliminar</button>':'')+'</td></tr>').join('')||'<tr><td colspan="'+(isAdminProfileRole(profile?.rol)?6:5)+'" class="muted">No hay visitas registradas.</td></tr>';
   accesosRows.innerHTML=accesos.map(x=>'<tr><td>'+new Date(x.created_at).toLocaleString('es-MX')+'</td><td>'+esc(x.persona)+'</td><td>'+esc(x.tipo)+'</td><td>'+esc(x.movimiento)+'</td><td>'+esc(casaNumero(x.casa_id)||x.unidad||'')+'</td></tr>').join('');
@@ -5540,55 +5523,155 @@ async function addProfile(){
   await loadAll();
 }
 
+
+let cuotaGuardando=false;
+let pagoGuardando=false;
+
+function renderDuplicateDuesWarning(){
+ if(!isAdminProfileRole(profile?.rol))return;
+ const el=document.getElementById('duplicatedDuesWarning');
+ if(!el)return;
+ const groups=new Map();
+ for(const q of cuotas){
+  const houseId=casaIdDeRegistro(q);
+  if(!houseId)continue;
+  const normalized=String(q.concepto||'').trim().toLocaleLowerCase('es').replace(/\s+/g,' ');
+  const key=String(houseId)+'|'+normalized+'|'+String(q.vencimiento||'');
+  if(!groups.has(key))groups.set(key,[]);
+  groups.get(key).push(q);
+ }
+ const repeats=[...groups.values()].filter(xs=>xs.length>1);
+ el.replaceChildren();
+ if(!repeats.length){
+  el.textContent='✅ No se detectan cuotas repetidas con el mismo concepto y vencimiento.';
+  return;
+ }
+ const warning=document.createElement('p');warning.style.fontWeight='700';
+ warning.textContent='⚠️ Hay '+repeats.length+' grupo(s) de cuotas posiblemente duplicadas. Solo Owner debe decidir si corresponde corregirlas.';
+ el.appendChild(warning);
+ for(const items of repeats){
+  const row=document.createElement('p');
+  row.textContent='Casa '+(casaNumero(casaIdDeRegistro(items[0]))||'?')+
+   ' · '+items[0].concepto+' · '+items[0].vencimiento+
+   ' · '+items.length+' cuotas · IDs: '+items.map(q=>q.id).join(', ');
+  el.appendChild(row);
+ }
+}
+
 async function addCuota(){
-  const casaId=cRes.value;
-  if(!casaPorId(casaId)) return alert('Selecciona una casa.');
-
+ if(!isAdminProfileRole(profile?.rol)||cuotaGuardando)return;
+ const casaId=cRes.value;
+ const casa=casaPorId(casaId);
+ const concepto=cConcepto.value.trim().replace(/\s+/g,' ');
+ const monto=Number(cMonto.value);
+ const vencimiento=cFecha.value;
+ if(!casa)return alert('Selecciona una casa.');
+ if(!concepto||concepto.length>180)return alert('Escribe un concepto válido para la cuota.');
+ if(!Number.isFinite(monto)||monto<=0||Math.abs(monto*100-Math.round(monto*100))>0.00001)
+  return alert('Escribe un monto válido, mayor a cero y con máximo dos decimales.');
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(vencimiento))return alert('Selecciona una fecha de vencimiento.');
+ const alreadyExists=cuotas.find(q=>String(casaIdDeRegistro(q))===String(casaId)&&
+   String(q.concepto||'').trim().replace(/\s+/g,' ').toLocaleLowerCase('es')===concepto.toLocaleLowerCase('es')&&q.vencimiento===vencimiento);
+ if(alreadyExists)return alert('⚠️ Ya existe esta cuota (ID '+alreadyExists.id+') para Casa '+casa.numero+'. No se registró otro cobro.');
+ if(!confirm('¿Crear una sola cuota?\n\nCasa '+casa.numero+'\nConcepto: '+concepto+
+   '\nMonto: '+money(monto)+'\nVencimiento: '+vencimiento+'\n\nVerifica que no se haya cobrado antes.'))return;
+ cuotaGuardando=true;
+ const btn=document.getElementById('crearCuotaBtn');
+ if(btn){btn.disabled=true;btn.textContent='Comprobando y guardando...';}
+ try{
   const {error}=await sb.from('cuotas').insert({
-    casa_id:casaId,
-    residente_id:null,
-    concepto:cConcepto.value,
-    monto:Number(cMonto.value),
-    vencimiento:cFecha.value,
-    estado:'pendiente'
+    casa_id:casaId,residente_id:null,concepto,monto,vencimiento,estado:'pendiente'
   });
-
-  if(error) return alert(error.message);
-  cConcepto.value='';
-  cMonto.value='';
-  cFecha.value='';
+  if(error)throw error;
+  cConcepto.value='';cMonto.value='';
   await loadAll();
-  cRes.value='';
-  cRes.focus();
-  alert('Cuota registrada. El sistema generó una notificación para los residentes activos de esa casa. El aviso push llegará a quienes hayan activado las notificaciones en su dispositivo.');
+  alert('✅ Cuota registrada una sola vez. Se generaron los avisos correspondientes.');
+ }catch(e){
+  alert('No se registró otra cuota: '+(e?.message||String(e))+
+    '\n\nSi ya existe, revisa el historial antes de volver a intentar.');
+  await loadAll();
+ }finally{
+  cuotaGuardando=false;
+  if(btn){btn.disabled=false;btn.textContent='Crear cuota';}
+ }
+}
+
+async function claveReintentoPago(datos){
+ const encoded=new TextEncoder().encode(JSON.stringify(datos));
+ const digest=await crypto.subtle.digest('SHA-256',encoded);
+ return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('');
 }
 
 async function addPago(){
-  const q=cuotas.find(x=>String(x.id)===String(pCuota.value));
-  if(!q) return alert('Selecciona una cuota');
-
-  const monto=Number(pMonto.value);
-  const {error}=await sb.from('pagos').insert({
-    cuota_id:q.id,
-    casa_id:casaIdDeRegistro(q),
-    residente_id:q.residente_id||null,
-    monto,
-    metodo:pMetodo.value,
-    referencia:pRef.value,
-    fecha:new Date().toISOString().slice(0,10)
+ if(!isAdminProfileRole(profile?.rol)||pagoGuardando)return;
+ const q=cuotas.find(x=>String(x.id)===String(pCuota.value));
+ if(!q)return alert('Selecciona una cuota pendiente.');
+ const casaId=casaIdDeRegistro(q);
+ const numero=casaNumero(casaId)||'sin asignar';
+ const monto=Number(pMonto.value);
+ const metodo=pMetodo.value.trim();
+ const referencia=pRef.value.trim();
+ if(!Number.isFinite(monto)||monto<=0||Math.abs(monto*100-Math.round(monto*100))>0.00001)
+  return alert('Escribe un monto mayor a cero con máximo dos decimales.');
+ if(!metodo)return alert('Selecciona un método de pago.');
+ if(metodo.toLowerCase()==='transferencia'&&!referencia)
+  return alert('Para transferencias debes indicar el folio o referencia bancaria.');
+ const previo=pagos.filter(p=>String(p.cuota_id)===String(q.id))
+   .reduce((total,p)=>total+Number(p.monto||0),0);
+ const faltante=Number(q.monto||0)-previo;
+ if(monto>faltante+0.009)
+  return alert('⚠️ El saldo de esta cuota es '+money(Math.max(0,faltante))+
+   '. No puedes registrar un pago mayor. Actualiza los datos si ya hubo otro pago.');
+ if(referencia&&pagos.some(p=>String(casaIdDeRegistro(p))===String(casaId)&&
+   String(p.referencia||'').trim().toLowerCase()===referencia.toLowerCase()))
+  return alert('⚠️ Esa referencia ya se registró para Casa '+numero+'. Consulta los pagos existentes.');
+ if(!confirm('¿Confirmar el registro de ESTE pago?\n\nCasa '+numero+
+  '\nCuota: '+q.concepto+'\nMonto: '+money(monto)+'\nSaldo pendiente: '+money(faltante)+
+  '\nMétodo: '+metodo+(referencia?'\nReferencia: '+referencia:'')+
+  '\n\nEsta operación se guardará una sola vez.'))return;
+ pagoGuardando=true;
+ const button=document.getElementById('registrarPagoBtn');
+ const status=document.getElementById('pagoRegistroAyuda');
+ if(button){button.disabled=true;button.textContent='Verificando pago...';}
+ if(status)status.textContent='Comprobando el saldo y la existencia de otro pago en Supabase...';
+ try{
+  const key='residencial_pago_pendiente_'+user.id;
+  const fingerprint=await claveReintentoPago([String(q.id),monto,metodo.toLowerCase(),referencia.toLowerCase()]);
+  let requestId=null;
+  try{
+   const stored=JSON.parse(localStorage.getItem(key)||'null');
+   if(stored&&stored.hash===fingerprint&&Date.now()-Number(stored.timestamp)<86400000){
+    requestId=stored.requestId;
+   }
+  }catch(_){}
+  if(!requestId){
+   requestId=crypto.randomUUID();
+   try{localStorage.setItem(key,JSON.stringify({hash:fingerprint,requestId,timestamp:Date.now()}));}catch(_){}
+  }
+  const {data,error}=await sb.rpc('registrar_pago_seguro',{
+   p_cuota_id:q.id,p_monto:monto,p_metodo:metodo,
+   p_referencia:referencia,p_solicitud_uuid:requestId
   });
-
-  if(error) return alert(error.message);
-
-  const totalDespues=
-    pagos.filter(p=>String(p.cuota_id)===String(q.id))
-      .reduce((sum,p)=>sum+Number(p.monto||0),0)+monto;
-
-  await sb.from('cuotas')
-    .update({estado:totalDespues+0.009>=Number(q.monto||0)?'pagada':'pendiente'})
-    .eq('id',q.id);
-
+  if(error)throw error;
+  if(!data?.ok)throw new Error('El servidor no confirmó el registro del pago.');
+  try{localStorage.removeItem(key);}catch(_){}
+  pMonto.value='';pRef.value='';
+  if(status)status.textContent='✅ Pago confirmado. Folio interno: '+data.pago_id+
+   (data.ya_registrado?' · Era un reintento, no se creó otro pago.':'');
   await loadAll();
+  alert(data.ya_registrado?
+    '✅ El pago ya estaba registrado. No se generó otro movimiento.':
+    '✅ Pago guardado y saldo actualizado, sin duplicar el movimiento.');
+ }catch(e){
+  const msg=e?.message||String(e);
+  if(status)status.textContent='No se confirmó el pago: '+msg;
+  alert('⚠️ No se registró otro pago: '+msg+
+   '\n\nRevisa el historial antes de reintentarlo.');
+  await loadAll();
+ }finally{
+  pagoGuardando=false;
+  if(button){button.disabled=false;button.textContent='Registrar pago';}
+ }
 }
 
 async function editarPago(id){
@@ -5606,17 +5689,7 @@ async function editarPago(id){
  const {error}=await sb.from('pagos').update({monto:nuevoMonto}).eq('id',id);
  if(error) return alert('No se pudo editar el pago: '+error.message);
 
- if(pago.cuota_id){
-   const q=cuotas.find(x=>String(x.id)===String(pago.cuota_id));
-   if(q){
-     const totalPagado=pagos
-       .filter(p=>String(p.cuota_id)===String(q.id))
-       .reduce((s,p)=>s+(String(p.id)===String(id)?nuevoMonto:Number(p.monto||0)),0);
-     const estado=totalPagado+0.009>=Number(q.monto||0)?'pagada':'pendiente';
-     const {error:qError}=await sb.from('cuotas').update({estado}).eq('id',q.id);
-     if(qError) console.warn('No se pudo actualizar el estado de la cuota:',qError);
-   }
- }
+ // El trigger del servidor recalcula el estado de la cuota sin cálculos antiguos del navegador.
 
  await loadAll();
  alert('Total pagado actualizado correctamente.');
