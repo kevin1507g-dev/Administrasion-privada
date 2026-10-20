@@ -1630,7 +1630,7 @@ function renderResidentes(){
 
 async function eliminarPago(id){
 
-  if(!isOwnerProfileRole(profile?.rol)){
+  if(!isOwnerPanelActive()){
     return alert('Solo Owner puede eliminar pagos.');
   }
 
@@ -4956,7 +4956,7 @@ async function editarGasto(id){
 }
 
 async function eliminarGasto(id){
- if(!isOwnerProfileRole(profile?.rol)) return alert('Solo Owner puede eliminar gastos y aclaraciones.');
+ if(!isOwnerPanelActive()) return alert('Solo el panel Owner permite eliminar gastos y aclaraciones.');
  if(!confirm('¿Eliminar este gasto o aclaración del historial? Esta acción no se puede deshacer.')) return;
 
  const {error}=await sb.from('gastos').delete().eq('id',id);
