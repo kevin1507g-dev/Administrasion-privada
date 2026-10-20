@@ -411,3 +411,47 @@ main>section{max-width:1450px;margin:0 auto}
  .ownerQuickLinks{grid-template-columns:1fr}
  #ownerPanel .actions button{width:100%}
 }
+
+
+/* Owner may switch UI modes without changing the authenticated Supabase role. */
+.ownerPanelSwitcher{
+ display:flex;flex-direction:column;justify-content:center;gap:5px;
+ flex:0 1 185px;min-width:155px;max-width:205px;
+}
+.ownerPanelSwitcher label{
+ font-size:.7rem;font-weight:750;color:var(--m);margin:0;
+}
+.ownerPanelSwitcher select{
+ width:100%;min-height:44px;font-size:.86rem;
+ color:var(--t);background:var(--p2);border:1px solid var(--ui-line);
+ padding:9px 11px;border-radius:12px;touch-action:manipulation;
+}
+.ownerModeButtons{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 2px}
+.ownerModeButtons button{min-height:44px}
+.ownerResidentPicker{max-width:450px}
+.ownerResidentPicker label{margin-top:12px}
+.ownerResidentMetrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+.ownerResidentPreview .card{max-width:100%;min-width:0}
+.ownerResidentPreview .table{max-width:100%;overflow-x:auto}
+.ownerResidentPreview .table table{min-width:570px}
+.ownerResidentPreview table th,.ownerResidentPreview table td{overflow-wrap:anywhere}
+/* Administrator preview must not show Owner-exclusive commands or navigation. */
+body[data-owner-panel="admin"] .ownerOnly{display:none!important}
+body[data-owner-panel="resident"] .ownerOnly{display:none!important}
+body[data-owner-panel="resident"] #sideMenu .nav > :not(.ownerResidentNav){display:none!important}
+body[data-owner-panel="resident"] #sideMenu .nav > .ownerResidentNav:not(.hidden){display:flex!important}
+body[data-owner-panel="resident"] .appTopbarLink{display:none!important}
+@media(max-width:900px){
+ .ownerResidentMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:650px){
+ .appTopbar:has(.ownerPanelSwitcher:not(.hidden)){flex-wrap:wrap;column-gap:9px;row-gap:8px}
+ .appTopbar:has(.ownerPanelSwitcher:not(.hidden)) .appTopbarCopy{flex:1 1 100px}
+ .appTopbar:has(.ownerPanelSwitcher:not(.hidden)) .ownerPanelSwitcher{
+   flex:1 1 100%;max-width:100%;min-width:0;order:5;
+   flex-direction:row;align-items:center;gap:10px
+ }
+ .ownerPanelSwitcher label{min-width:94px}
+ .ownerPanelSwitcher select{width:100%;min-width:0}
+ .ownerModeButtons button{flex:1 1 100%}
+}
