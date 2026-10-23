@@ -747,6 +747,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       <button type="button" onclick="show('camaras')">📹 Cámaras</button>
       <button type="button" onclick="show('visitas')">🔑 Visitas y códigos</button>
       <button type="button" onclick="show('accesos')">📋 Historial de accesos</button>
+      <button type="button" onclick="abrirHistorialBasuraOwner()">🚛 Quién activó camión de basura</button>
       <button type="button" onclick="show('entregas')">🛵 Repartidores y proveedores</button>
       <button type="button" onclick="show('eventos')">📅 Eventos</button>
       <button type="button" onclick="show('reservaciones')">🏡 Reservaciones</button>
@@ -1500,6 +1501,21 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <h3>🔑 Historial de accesos con código de visita</h3>
 <p class="muted">Cada solicitud de apertura queda registrada, incluso si el ESP32 no confirma el pulso.</p>
 <div class="table"><table><thead><tr><th>Fecha</th><th>Visita</th><th>Casa</th><th>Estado de orden</th><th>Confirmación</th></tr></thead><tbody id="vcHistorialRows"><tr><td colspan="5">Abre esta sección para cargar el historial.</td></tr></tbody></table></div>
+</div>
+<div class="card ownerOnly hidden" id="garbageHistoryCard" style="margin-top:14px">
+  <h3>🚛 Quién activó el camión de basura</h3>
+  <p class="muted">Historial exclusivo del propietario: muestra qué cuenta inició o canceló la ventana de recolección, su casa, fecha y hora. Registrar una solicitud no confirma que se haya producido un pulso físico ni que el portón esté abierto.</p>
+  <div class="actions">
+    <button type="button" onclick="cargarHistorialBasuraOwner()">↻ Actualizar solicitudes</button>
+    <span id="garbageHistoryStatus" role="status" class="muted">Abre este apartado para consultar el historial.</span>
+  </div>
+  <div class="table" style="overflow-x:auto">
+    <table>
+      <thead><tr><th>Fecha y hora</th><th>Solicitó</th><th>Casa</th><th>Acción</th><th>Fin programado</th></tr></thead>
+      <tbody id="garbageHistoryRows"><tr><td colspan="5">Sin consultar todavía.</td></tr></tbody>
+    </table>
+  </div>
+  <p class="muted" style="font-size:.81rem">Se conserva el registro disponible más reciente al activar esta función; los movimientos posteriores quedarán en el historial.</p>
 </div>
 <div class="card esp32PanelTable adminOnly" style="margin-top:14px">
     <h3>🖥️ Historial de accesos del ESP32</h3>
@@ -2712,6 +2728,7 @@ function show(id){
     refreshEsp32Panel();
   }
   if(id==='accesos'&&isAdminProfileRole(profile?.rol))refreshEsp32History();
+  if(id==='accesos'&&isOwnerPanelActive())cargarHistorialBasuraOwner();
   if(id==='visitas'&&['owner','admin','residente'].includes(profile?.rol)){cargarCodigosVisita();if(isAdminProfileRole(profile.rol))adminVisPrepararCasas();}
   if(id==='visitas'&&['residente','admin','owner'].includes(profile?.rol))cargarCodigosPermanentes();
   if(id==='accesos'&&['owner','admin','residente'].includes(profile?.rol))cargarHistorialCodigosVisita();
@@ -6665,6 +6682,54 @@ async function refreshEsp32Panel(){
     esp32PanelBusy=false;
   }
 }
+/* Auditoría de ventanas de recolección: solo lectura y exclusivamente Owner. */
+let garbageHistoryBusy=false;
+function abrirHistorialBasuraOwner(){
+ if(!isOwnerPanelActive())return;
+ show('accesos');
+ const card=document.getElementById('garbageHistoryCard');
+ if(card)card.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function cargarHistorialBasuraOwner(){
+ const section=document.getElementById('accesos');
+ const rows=document.getElementById('garbageHistoryRows');
+ const status=document.getElementById('garbageHistoryStatus');
+ if(garbageHistoryBusy||!isOwnerPanelActive()||!user||
+    !section?.classList.contains('active')||!rows||!status)return;
+ garbageHistoryBusy=true;
+ const requester=user.id;
+ status.textContent='Consultando solicitudes de recolección…';
+ try{
+  const {data,error}=await sb.rpc('garbage_window_history',{p_limit:50});
+  if(error)throw error;
+  if(user?.id!==requester||!isOwnerPanelActive()||!section.classList.contains('active'))return;
+  rows.replaceChildren();
+  if(!Array.isArray(data)||!data.length){
+   const row=rows.insertRow(),cell=row.insertCell();
+   cell.colSpan=5;cell.textContent='Todavía no hay solicitudes registradas.';
+  }else{
+   for(const item of data){
+    const row=rows.insertRow();
+    const labels={
+     owner:'Owner',admin:'Administrador',residente:'Residente',guardia:'Guardia'
+    };
+    const values=[
+     esp32PanelDate(item.performed_at),
+     String(item.actor||'Cuenta no disponible')+' · '+(labels[item.role]||'Cuenta'),
+     item.house&&item.house!=='—'?'Casa '+item.house:'—',
+     item.action==='start'?'🚛 Activó recolección':'⏹ Canceló recolección',
+     item.action==='start'?esp32PanelDate(item.ends_at):'—'
+    ];
+    for(const value of values)row.insertCell().textContent=value;
+    if(item.imported)row.title='Recuperado del último estado disponible antes de habilitar el historial.';
+   }
+  }
+  status.textContent=data.length+' movimiento(s) mostrados · '+new Date().toLocaleString('es-MX');
+ }catch(e){
+  if(user?.id===requester)status.textContent='No se pudo consultar el historial: '+(e?.message||'sin conexión');
+ }finally{garbageHistoryBusy=false;}
+}
+
 /* Historial ESP32 reubicado en Accesos; solo administradores. */
 let esp32HistoryBusy=false;
 async function refreshEsp32History(){
