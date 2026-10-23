@@ -588,3 +588,31 @@ body[data-owner-panel="resident"] .appTopbarLink{display:none!important}
  .ownerAccessLegendRow{gap:7px}
  .ownerAccessLegendPercent{min-width:43px}
 }
+
+
+/* Owner v22: SVG circles with an explicit round box, including iPhone PWA. */
+#ownerPanel .ownerAnalyticsRing{
+  width:min(210px,100%);
+  height:auto;
+  aspect-ratio:1/1;
+  border-radius:50%;
+  position:relative;
+  margin:8px auto 12px;
+  display:grid;
+  place-items:center;
+  background:transparent;
+  flex-shrink:0;
+}
+#ownerPanel .ownerAnalyticsRing svg.ownerChartSvg{
+  position:absolute;inset:0;width:100%;height:100%;overflow:visible;
+}
+#ownerPanel .ownerAnalyticsRing .ownerAnalyticsRingCenter{
+  width:72%;height:72%;position:relative;z-index:1;
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;
+}
+@media(max-width:560px){
+  #ownerPanel .ownerAnalyticsRing{width:min(210px,95%)}
+  #ownerPanel .ownerAnalyticsCharts{grid-template-columns:minmax(0,1fr)}
+  #ownerPanel .ownerAnalyticsChartCard{min-width:0}
+}
