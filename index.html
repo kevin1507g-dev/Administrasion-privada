@@ -639,6 +639,67 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 
 <section id="ownerPanel" class="ownerOnly hidden">
   <h2>👑 Centro de control Owner</h2>
+  <div id="ownerAnalyticsDashboard" class="ownerAnalyticsDashboard">
+    <div class="ownerAnalyticsHeading">
+      <div>
+        <h3>📊 Avance y actividad de la privada</h3>
+        <p class="muted">Cifras reales de cuotas, controles y solicitudes confirmadas por el ESP32. Solo Owner.</p>
+      </div>
+      <button type="button" id="ownerAnalyticsRefresh" onclick="actualizarMetricasOwner()" aria-label="Actualizar las gráficas Owner">↻ Actualizar gráficas</button>
+    </div>
+    <div class="ownerAnalyticsKpis">
+      <div class="ownerAnalyticsKpi"><span>Avance de cobranza</span><strong id="ownerAnalyticCollection">—</strong><small>De las cuotas registradas</small></div>
+      <div class="ownerAnalyticsKpi"><span>Casas con residentes</span><strong id="ownerAnalyticOccupied">—</strong><small id="ownerAnalyticOccupiedDetail">Casas activas</small></div>
+      <div class="ownerAnalyticsKpi"><span>Accesos confirmados</span><strong id="ownerAnalyticAccess">—</strong><small>Últimos 30 días</small></div>
+      <div class="ownerAnalyticsKpi"><span>Controles activos</span><strong id="ownerAnalyticControls">—</strong><small id="ownerAnalyticControlsDetail">Controles registrados</small></div>
+    </div>
+    <div class="ownerAnalyticsCharts">
+      <div class="ownerAnalyticsChartCard">
+        <div class="ownerAnalyticsChartTitle"><h4>💰 Avance de cobranza</h4><span>Histórico registrado</span></div>
+        <div class="ownerAnalyticsRing" id="ownerCollectionRing" role="img" aria-label="Cobranza pendiente de cargar">
+          <div class="ownerAnalyticsRingCenter"><strong id="ownerCollectionPercent">—</strong><small>Cobrado</small></div>
+        </div>
+        <div class="ownerAnalyticsLegend">
+          <div><i class="ownerLegendDot ownerGreen"></i><span>Cobrado aplicado</span><strong id="ownerCollectionPaid">—</strong></div>
+          <div><i class="ownerLegendDot ownerAmber"></i><span>Saldo pendiente</span><strong id="ownerCollectionPending">—</strong></div>
+        </div>
+        <p class="muted ownerAnalyticsNote" id="ownerCollectionNote">Cargando cuotas y pagos…</p>
+      </div>
+      <div class="ownerAnalyticsChartCard">
+        <div class="ownerAnalyticsChartTitle"><h4>🚪 Uso de accesos</h4><span>Últimos 30 días</span></div>
+        <div class="ownerAnalyticsAccessTotal"><strong id="ownerAccessConfirmed">—</strong><span>comandos de apertura confirmados</span></div>
+        <div id="ownerAccessTypeBars" class="ownerAnalyticsBars" aria-label="Distribución de comandos confirmados por tipo">
+          <p class="muted">Consultando actividad…</p>
+        </div>
+        <h5 class="ownerWeekTitle">Actividad de los últimos 7 días</h5>
+        <div id="ownerAccessWeekBars" class="ownerWeekBars" aria-label="Comandos de apertura confirmados por día"></div>
+        <p class="muted ownerAnalyticsNote" id="ownerAccessNote">Las confirmaciones son respuestas del ESP32, no un sensor de paso físico.</p>
+      </div>
+      <div class="ownerAnalyticsChartCard">
+        <div class="ownerAnalyticsChartTitle"><h4>🚧 Estado de uso</h4><span>Controles registrados</span></div>
+        <div class="ownerAnalyticsRing ownerControlRing" id="ownerControlsRing" role="img" aria-label="Estados de controles por cargar">
+          <div class="ownerAnalyticsRingCenter"><strong id="ownerControlsPercent">—</strong><small>Activos</small></div>
+        </div>
+        <div class="ownerAnalyticsLegend">
+          <div><i class="ownerLegendDot ownerGreen"></i><span>Activos</span><strong id="ownerControlsActiveCount">—</strong></div>
+          <div><i class="ownerLegendDot ownerCoral"></i><span>Suspendidos</span><strong id="ownerControlsSuspendedCount">—</strong></div>
+          <div><i class="ownerLegendDot ownerGray"></i><span>Otros estados</span><strong id="ownerControlsOtherCount">—</strong></div>
+        </div>
+        <div class="ownerPassMetrics">
+          <h5>🔑 Códigos permanentes</h5>
+          <div><span>Autorizados</span><strong id="ownerPassApproved">—</strong></div>
+          <div><span>Pendientes</span><strong id="ownerPassPending">—</strong></div>
+          <div><span>Revocados</span><strong id="ownerPassRevoked">—</strong></div>
+        </div>
+        <p class="muted ownerAnalyticsNote" id="ownerControlsNote">Datos registrados en Administración Residencial.</p>
+      </div>
+    </div>
+    <div class="ownerAnalyticsFooter">
+      <span class="muted" id="ownerAnalyticsUpdated" role="status">Actualiza o entra al panel para cargar las métricas.</span>
+      <span class="muted">Los porcentajes se recalculan al actualizar los registros.</span>
+    </div>
+  </div>
+
   <div class="card" style="margin-bottom:14px">
     <h3>🔀 Cambiar de panel</h3>
     <p class="muted">Explora el panel de administrador o consulta cómo se ve una casa desde la vista de residente. Tu cuenta siempre conserva el rango Owner.</p>
@@ -2349,7 +2410,7 @@ function show(id){
   if(id==='ownerResidentPreview' && (profile?.rol!=='owner'||ownerPanelMode!=='resident'))return;
   if(id==='ownerPanel' && (profile?.rol!=='owner'||ownerPanelMode!=='owner'))return;
   if(id!=='visitas')ocultarCodigosPermanentes();
-  if(id==='ownerPanel'){if(profile?.rol!=='owner')return;renderOwnerPanel();cargarAccionesOwner();}
+  if(id==='ownerPanel'){if(profile?.rol!=='owner')return;renderOwnerPanel();cargarAccionesOwner();cargarMetricasOwnerAccesos();}
   if(id==='biometrico'){
     if(!isAdminProfileRole(profile?.rol))return;
     renderRegistroBiometrico();
@@ -2756,6 +2817,8 @@ async function loadAll(){
    sb.from('contactos_emergencia').select('*').order('tipo').order('nombre')
  ]);
  houseOccupancyDataError=!!(ca.error||pr.error);
+ ownerAnalyticsFinanceError=!!(cu.error||pa.error);
+ ownerAnalyticsControlError=!!ct.error;
  casas=ca.data||[]; profiles=pr.data||[]; cuotas=cu.data||[]; pagos=pa.data||[]; visitas=vi.data||[]; accesos=ac.data||[];
  eventos=ev.data||[]; controles=ct.data||[]; gastos=ga.data||[]; metodosPago=mp.data||[];
  avisos=av.data||[]; reportes=rp.data||[]; incidentes=inc.data||[]; incidenteMensajes=im.data||[]; entregas=en.data||[]; solicitudesContacto=cs.data||[]; mensajesContacto=cm.data||[]; notificaciones=nt.data||[]; notificacionLecturas=nl.data||[]; paquetes=pk.data||[]; reservas=rs.data||[]; documentos=dc.data||[]; contactosEmergencia=em.data||[];
@@ -4653,6 +4716,7 @@ function renderHouseOccupancy(){
 }
 
 function render(){
+ renderOwnerAnalytics();
  renderDuplicateDuesWarning();
  renderOwnerResidentPreview();
  renderOwnerPanel();
