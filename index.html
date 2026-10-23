@@ -1160,16 +1160,16 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
  <p id="vpPermanentMessage" role="status" class="muted"></p>
  <div id="vpPermanentResult" class="hidden">
   <strong id="vpPermanentCode"></strong>
-  <p class="muted">El código permanecerá consultable en «Mis solicitudes permanentes». No funcionará hasta que lo apruebe un administrador.</p>
+  <p class="muted">El código permanecerá consultable en «Mis solicitudes permanentes». No funcionará hasta que lo apruebe el Owner.</p>
   <button type="button" onclick="copiarCodigoPermanente()">📋 Copiar datos para la visita</button>
  </div>
  <h4>Mis solicitudes permanentes</h4>
  <div id="vpPermanentList" class="muted">Abre esta sección para consultar las solicitudes.</div>
  <button type="button" style="margin-top:10px" onclick="cargarCodigosPermanentes()">↻ Actualizar solicitudes</button>
 </div>
-<div class="card adminOnly" style="margin-top:14px">
- <h3>🛡️ Autorizar códigos permanentes</h3>
- <p class="muted">Revisa la casa y el nombre de cada visita. Solo un administrador puede aprobar, rechazar o revocar. Los cambios realizados por residentes requieren una nueva aprobación.</p>
+<div class="card ownerOnly hidden" style="margin-top:14px">
+ <h3>👑 Autorizar códigos permanentes · Solo Owner</h3>
+ <p class="muted">Solo el propietario puede revisar los códigos de todas las casas y aprobar, rechazar, revocar, consultar o regenerar sus credenciales. Los cambios realizados por residentes requieren una nueva aprobación del Owner.</p>
  <div id="vpPermanentAdminList" class="muted">Abre esta sección para consultar las solicitudes.</div>
  <button type="button" style="margin-top:10px" onclick="cargarCodigosPermanentes()">↻ Actualizar autorizaciones</button>
 </div>
@@ -5820,7 +5820,7 @@ async function modificarCodigoPermanente(item){
   const {data,error}=await sb.rpc('permanent_pass_edit',{p_id:item.id,p_name:nombre.trim(),p_rotate:true});
   if(error)throw error;
   mostrarCodigoPermanente(data);
-  document.getElementById('vpPermanentMessage').textContent='Código modificado. Nueva autorización pendiente.';
+  document.getElementById('vpPermanentMessage').textContent='Código modificado. Espera una nueva autorización del Owner.';
   await cargarCodigosPermanentes();
  }catch(e){alert('No se pudo modificar: '+(e.message||'error'));}
  finally{vpPermanentBusy=false;}
@@ -5832,7 +5832,7 @@ async function revocarCodigoPermanente(item){
  await cargarCodigosPermanentes();
 }
 async function revisarCodigoPermanente(item,accion){
- if(!isAdminProfileRole(profile?.rol))return;
+ if(profile?.rol!=='owner'||ownerPanelMode!=='owner')return;
  const labels={approve:'APROBAR',reject:'RECHAZAR',revoke:'REVOCAR'};
  if(!confirm('¿'+labels[accion]+' el código permanente de '+item.visitor+' para la Casa '+item.house+'?'))return;
  const {error}=await sb.rpc('permanent_pass_review',{p_id:item.id,p_action:accion});
@@ -5847,7 +5847,8 @@ function ocultarCodigosPermanentes(){
  document.querySelectorAll('.vpPassShow').forEach(btn=>{btn.textContent='👁 Ver código';btn.dataset.open='0';});
 }
 async function revelarCodigoPermanente(item,panel,button){
- if(!['owner','admin','residente'].includes(profile?.rol)||item.revoked)return;
+ if(!['owner','residente'].includes(profile?.rol)||item.revoked||
+   (profile.rol==='owner'&&ownerPanelMode!=='owner'))return;
  if(button.dataset.open==='1'){
   panel.replaceChildren();panel.hidden=true;button.dataset.open='0';button.textContent='👁 Ver código';return;
  }
@@ -5885,11 +5886,12 @@ async function revelarCodigoPermanente(item,panel,button){
  }finally{button.disabled=false;}
 }
 async function regenerarCodigoPermanente(item){
- if(!['owner','admin','residente'].includes(profile?.rol)||item.revoked)return;
- const admin=isAdminProfileRole(profile.rol);
+ if(!['owner','residente'].includes(profile?.rol)||item.revoked||
+   (profile.rol==='owner'&&ownerPanelMode!=='owner'))return;
+ const admin=profile.rol==='owner';
  const warning=admin
-  ?'Se invalidará el código anterior. El nuevo quedará autorizado por administración.'
-  :'Se invalidará el código anterior. El nuevo deberá ser aprobado otra vez por administración.';
+  ?'Se invalidará el código anterior. El nuevo quedará autorizado por Owner.'
+  :'Se invalidará el código anterior. El nuevo deberá ser aprobado otra vez por Owner.';
  if(!confirm('¿Generar otro código para '+item.visitor+' de la Casa '+item.house+'?\n\n'+warning))return;
  try{
   const {data,error}=await sb.rpc('permanent_pass_rotate',{p_id:item.id});
@@ -5898,14 +5900,15 @@ async function regenerarCodigoPermanente(item){
   const row=[...document.querySelectorAll('.vpPermanentEntry')].find(el=>el.dataset.passId===String(item.id));
   const reveal=row?.querySelector('.vpPassShow');
   if(reveal)reveal.click();
-  const message=admin?'Nuevo código generado y autorizado.':'Nuevo código generado; pendiente de autorización administrativa.';
+  const message=admin?'Nuevo código generado y autorizado por Owner.':'Nuevo código generado; pendiente de autorización del Owner.';
   const target=document.getElementById(admin?'adminVisMensaje':'vpPermanentMessage');
   if(target)target.textContent=message;
  }catch(e){alert('No se pudo regenerar el código: '+(e.message||'error'));}
 }
 async function cargarCodigosPermanentes(){
- if(!['owner','admin','residente'].includes(profile?.rol))return;
- const isAdmin=isAdminProfileRole(profile.rol);
+ if(!['owner','residente'].includes(profile?.rol)||
+   (profile.rol==='owner'&&ownerPanelMode!=='owner'))return;
+ const isAdmin=profile.rol==='owner';
  const box=document.getElementById(isAdmin?'vpPermanentAdminList':'vpPermanentList');
  if(!box)return;
  ocultarCodigosPermanentes();
