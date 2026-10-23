@@ -166,7 +166,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 #calendarioDias button:disabled{opacity:.3;cursor:not-allowed}
 
 </style>
-<link rel="stylesheet" href="./ui-modern.css?v=20261013" />
+<link rel="stylesheet" href="./ui-modern.css?v=owner-circular22" />
 </head>
 <body>
 <div id="login" class="login"><div class="card">
@@ -697,7 +697,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       </div>
     </div>
     <div class="ownerAnalyticsFooter">
-      <span class="muted" id="ownerAnalyticsUpdated" role="status">Actualiza o entra al panel para cargar las métricas.</span>
+      <span class="muted" id="ownerAnalyticsUpdated" role="status">Actualiza o entra al panel para cargar las métricas.</span><span class="muted">Diseño circular · v22</span>
       <span class="muted">Los porcentajes se recalculan al actualizar los registros.</span>
     </div>
   </div>
@@ -1581,18 +1581,66 @@ function ownerChartSet(id,value){
 }
 function ownerChartRing(id,segments,description){
  const el=document.getElementById(id);if(!el)return;
- const sum=segments.reduce((a,s)=>a+Math.max(0,Number(s.value)||0),0);
- let pos=0;
- if(sum<=0){
-  el.style.background='conic-gradient(#334155 0% 100%)';
- }else{
-  const stops=[];
-  for(const part of segments){
-   const start=pos;
-   pos+=100*Math.max(0,Number(part.value)||0)/sum;
-   stops.push(part.color+' '+start.toFixed(3)+'% '+pos.toFixed(3)+'%');
+ // SVG rings work reliably in Safari/iPhone PWA even with stale CSS or
+ // unsupported conic-gradient interpolation.
+ el.style.width='min(210px, 100%)';
+ el.style.height='auto';
+ el.style.aspectRatio='1 / 1';
+ el.style.borderRadius='50%';
+ el.style.position='relative';
+ el.style.display='grid';
+ el.style.placeItems='center';
+ el.style.background='transparent';
+ el.style.margin='8px auto 12px';
+ const center=el.querySelector('.ownerAnalyticsRingCenter');
+ if(center){
+  center.style.position='relative';
+  center.style.zIndex='1';
+  center.style.width='72%';
+  center.style.height='72%';
+  center.style.borderRadius='50%';
+  center.style.background='var(--p, #0f172a)';
+  center.style.display='flex';
+  center.style.flexDirection='column';
+  center.style.alignItems='center';
+  center.style.justifyContent='center';
+ }
+ const ns='http://www.w3.org/2000/svg';
+ let svg=el.querySelector('svg.ownerChartSvg');
+ if(!svg){
+  svg=document.createElementNS(ns,'svg');
+  svg.setAttribute('class','ownerChartSvg');
+  svg.setAttribute('viewBox','0 0 220 220');
+  svg.setAttribute('aria-hidden','true');
+  svg.setAttribute('focusable','false');
+  svg.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible';
+  el.prepend(svg);
+ }
+ svg.replaceChildren();
+ function arc(color,stroke,dash,offset){
+  const circle=document.createElementNS(ns,'circle');
+  circle.setAttribute('cx','110');circle.setAttribute('cy','110');
+  circle.setAttribute('r','89');circle.setAttribute('fill','none');
+  circle.setAttribute('stroke',color);
+  circle.setAttribute('stroke-width',String(stroke));
+  circle.setAttribute('stroke-dasharray',dash);
+  circle.setAttribute('stroke-dashoffset',String(offset));
+  circle.setAttribute('transform','rotate(-90 110 110)');
+  svg.appendChild(circle);
+ }
+ const circumference=2*Math.PI*89;
+ arc('#334155',29,'none',0);
+ const valid=segments.filter(x=>Number(x.value)>0);
+ const sum=valid.reduce((n,x)=>n+Number(x.value),0);
+ let offset=0;
+ if(sum>0){
+  for(const segment of valid){
+   const length=circumference*Number(segment.value)/sum;
+   arc(segment.color,29,
+    length.toFixed(4)+' '+(circumference-length).toFixed(4),
+    (-offset).toFixed(4));
+   offset+=length;
   }
-  el.style.background='conic-gradient('+stops.join(',')+')';
  }
  el.setAttribute('aria-label',description);
 }
