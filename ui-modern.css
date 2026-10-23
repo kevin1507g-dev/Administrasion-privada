@@ -562,3 +562,29 @@ body[data-owner-panel="resident"] .appTopbarLink{display:none!important}
  .ownerAnalyticsLegend>div{flex-wrap:wrap}
  .ownerAnalyticsFooter{flex-direction:column}
 }
+
+
+/* Owner: circular distribution of access usage. All three main charts are donuts. */
+.ownerAnalyticsChartCard .ownerAccessRing{
+ width:clamp(166px,17vw,222px);
+ height:clamp(166px,17vw,222px);
+}
+.ownerAccessLegend{min-height:0;margin-top:0;gap:9px}
+.ownerAccessLegendRow{
+ display:flex;align-items:center;gap:8px;min-width:0;
+ padding:3px 0;font-size:.82rem;
+}
+.ownerAccessLegendRow>.ownerLegendDot{flex:0 0 12px}
+.ownerAccessLegendRow>span{flex:1;min-width:0;overflow-wrap:anywhere}
+.ownerAccessLegendRow>strong{font-variant-numeric:tabular-nums;min-width:22px;text-align:right}
+.ownerAccessLegendPercent{
+ min-width:49px;flex-shrink:0;text-align:right;
+ font-variant-numeric:tabular-nums;color:var(--m);font-size:.76rem
+}
+@media(max-width:850px){
+ .ownerAnalyticsChartCard .ownerAccessRing{width:202px;height:202px}
+}
+@media(max-width:560px){
+ .ownerAccessLegendRow{gap:7px}
+ .ownerAccessLegendPercent{min-width:43px}
+}
