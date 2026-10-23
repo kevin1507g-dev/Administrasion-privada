@@ -667,8 +667,10 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       </div>
       <div class="ownerAnalyticsChartCard">
         <div class="ownerAnalyticsChartTitle"><h4>🚪 Uso de accesos</h4><span>Últimos 30 días</span></div>
-        <div class="ownerAnalyticsAccessTotal"><strong id="ownerAccessConfirmed">—</strong><span>comandos de apertura confirmados</span></div>
-        <div id="ownerAccessTypeBars" class="ownerAnalyticsBars" aria-label="Distribución de comandos confirmados por tipo">
+        <div class="ownerAnalyticsRing ownerAccessRing" id="ownerAccessRing" role="img" aria-label="Distribución de accesos por cargar">
+          <div class="ownerAnalyticsRingCenter"><strong id="ownerAccessConfirmed">—</strong><small>Confirmados</small></div>
+        </div>
+        <div id="ownerAccessTypeBars" class="ownerAnalyticsLegend ownerAccessLegend" aria-label="Porcentaje y número de accesos confirmados por tipo">
           <p class="muted">Consultando actividad…</p>
         </div>
         <h5 class="ownerWeekTitle">Actividad de los últimos 7 días</h5>
@@ -1678,6 +1680,7 @@ function renderOwnerAnalytics(){
  if(!ownerAccessStats){
   ownerChartSet('ownerAnalyticAccess','—');
   ownerChartSet('ownerAccessConfirmed','—');
+  ownerChartRing('ownerAccessRing',[],'Distribución de accesos pendiente de cargar');
   const p=document.createElement('p');p.className='muted';
   p.textContent=ownerAccessStatsBusy?'Cargando historial del ESP32…':
    ownerAccessStatsError?'No se pudo consultar el uso: '+ownerAccessStatsError:
@@ -1698,17 +1701,23 @@ function renderOwnerAnalytics(){
   ['Repartidores',stats.categories?.repartidores||0,'#fb923c'],
   ['Otros',stats.categories?.otros||0,'#94a3b8']
  ];
- const biggest=Math.max(1,...categories.map(c=>c[1]));
+ const totalByCategory=categories.reduce((sum,c)=>sum+Math.max(0,Number(c[1])||0),0);
+ ownerChartRing('ownerAccessRing',
+  categories.map(([label,value,color])=>({value:Number(value)||0,color})),
+  totalByCategory>0
+   ?'Uso de accesos en 30 días: '+categories.map(([label,value])=>
+     label+' '+ownerChartLabelPercent(100*(Number(value)||0)/totalByCategory)).join(', ')
+   :'No hay accesos confirmados en los últimos 30 días.'
+ );
  for(const [label,value,color] of categories){
-  const row=document.createElement('div');row.className='ownerUsageBarItem';
-  const heading=document.createElement('div');heading.className='ownerUsageBarHeading';
+  const row=document.createElement('div');row.className='ownerAccessLegendRow';
+  const dot=document.createElement('i');dot.className='ownerLegendDot';dot.style.background=color;
   const name=document.createElement('span');name.textContent=label;
   const count=document.createElement('strong');count.textContent=ownerChartNumber(value);
-  heading.append(name,count);
-  const track=document.createElement('div');track.className='ownerUsageBarTrack';
-  const fill=document.createElement('div');fill.className='ownerUsageBarFill';
-  fill.style.width=(100*value/biggest)+'%';fill.style.background=color;
-  track.appendChild(fill);row.append(heading,track);chart.appendChild(row);
+  const percent=document.createElement('small');percent.className='ownerAccessLegendPercent';
+  percent.textContent=totalByCategory>0?
+    ownerChartLabelPercent(100*(Number(value)||0)/totalByCategory):'0,0%';
+  row.append(dot,name,count,percent);chart.appendChild(row);
  }
  const days=Array.isArray(stats.daily)?stats.daily:[];
  const max=Math.max(1,...days.map(d=>Number(d.confirmed)||0));
