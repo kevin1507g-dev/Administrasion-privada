@@ -1112,7 +1112,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <section id="visitas"><h2>Visitas</h2>
 <div class="card adminOnly">
  <h3>🛡️ Registrar visita como administrador</h3>
- <p class="muted">Registra una visita para cualquier casa activa. Puedes generar un código temporal o permanente; los creados por administración quedan autorizados desde su emisión, sujetos a las restricciones de acceso de la casa y del ESP32.</p>
+ <p class="muted">Registra una visita para cualquier casa activa. Los códigos temporales quedan autorizados al crearse. Los permanentes solicitados por administradores necesitan autorización del Owner y siguen sujetos a los permisos de la casa y del ESP32.</p>
  <div class="form">
   <div><label for="adminVisCasa">Casa de la visita</label><select id="adminVisCasa"><option value="">Selecciona una casa</option></select></div>
   <div><label for="adminVisNombre">Nombre o referencia de la visita (opcional)</label><input id="adminVisNombre" maxlength="100" placeholder="Ej. Familia, Juan o dejar vacío"></div>
@@ -1160,16 +1160,16 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
  <p id="vpPermanentMessage" role="status" class="muted"></p>
  <div id="vpPermanentResult" class="hidden">
   <strong id="vpPermanentCode"></strong>
-  <p class="muted">El código permanecerá consultable en «Mis solicitudes permanentes». No funcionará hasta que lo apruebe un administrador.</p>
+  <p class="muted">El código permanecerá consultable en «Mis solicitudes permanentes». No funcionará hasta que lo apruebe el Owner.</p>
   <button type="button" onclick="copiarCodigoPermanente()">📋 Copiar datos para la visita</button>
  </div>
  <h4>Mis solicitudes permanentes</h4>
  <div id="vpPermanentList" class="muted">Abre esta sección para consultar las solicitudes.</div>
  <button type="button" style="margin-top:10px" onclick="cargarCodigosPermanentes()">↻ Actualizar solicitudes</button>
 </div>
-<div class="card adminOnly" style="margin-top:14px">
- <h3>🛡️ Autorizar códigos permanentes</h3>
- <p class="muted">Revisa la casa y el nombre de cada visita. Solo un administrador puede aprobar, rechazar o revocar. Los cambios realizados por residentes requieren una nueva aprobación.</p>
+<div class="card ownerOnly hidden" style="margin-top:14px">
+ <h3>👑 Autorizar códigos permanentes · Solo Owner</h3>
+ <p class="muted">Solo el propietario puede revisar los códigos de todas las casas y aprobar, rechazar, revocar, consultar o regenerar sus credenciales. Los cambios realizados por residentes requieren una nueva aprobación del Owner.</p>
  <div id="vpPermanentAdminList" class="muted">Abre esta sección para consultar las solicitudes.</div>
  <button type="button" style="margin-top:10px" onclick="cargarCodigosPermanentes()">↻ Actualizar autorizaciones</button>
 </div>
@@ -5744,7 +5744,7 @@ async function adminRegistrarVisita(){
  const msg=document.getElementById('adminVisMensaje');
  if(!house)return msg.textContent='Selecciona una casa.';
  if(!permanente&&(!inicio||!fin||new Date(fin)<=new Date(inicio)))return msg.textContent='Selecciona un horario válido.';
- if(permanente&&!confirm('Este código será permanente y quedará autorizado por administración. ¿Continuar?'))return;
+ if(permanente&&!confirm(profile.rol==='owner'?'Este código permanente quedará autorizado por Owner. ¿Continuar?':'Este código permanente quedará pendiente de autorización del Owner. ¿Continuar?'))return;
  adminVisBusy=true;
  const btn=document.getElementById('adminVisCrearBtn');btn.disabled=true;
  document.getElementById('adminVisResultado').classList.add('hidden');
@@ -5755,13 +5755,13 @@ async function adminRegistrarVisita(){
   });
   if(error)throw error;
   const portal=new URL('./repartidor.html',location.href).href;
-  adminVisCopy='Visita autorizada · Privada Beteles\nNombre: '+data.visitor+'\nCasa: '+data.house+'\nCódigo: '+data.code+
+  adminVisCopy=(data.status==='pending'?'Visita pendiente de autorización Owner':'Visita autorizada')+' · Privada Beteles\nNombre: '+data.visitor+'\nCasa: '+data.house+'\nCódigo: '+data.code+
    '\nTipo: '+(data.permanent?'Permanente':'Temporal')+
    (data.permanent?'':'\nHorario: '+new Date(data.starts_at).toLocaleString('es-MX')+' a '+new Date(data.ends_at).toLocaleString('es-MX'))+
    '\nPortal: '+portal;
-  document.getElementById('adminVisDatos').textContent='Casa '+data.house+' · '+data.visitor+' · Código '+data.code+' · '+(data.permanent?'Permanente':'Temporal');
+  document.getElementById('adminVisDatos').textContent='Casa '+data.house+' · '+data.visitor+' · Código '+data.code+' · '+(data.permanent?'Permanente':'Temporal')+(data.status==='pending'?' · Pendiente de autorización Owner':'');
   document.getElementById('adminVisResultado').classList.remove('hidden');
-  msg.textContent=permanente?'Visita registrada y autorizada. Puedes consultar el código permanente en la lista.':'Visita registrada y autorizada. Guarda el código temporal ahora.';
+  msg.textContent=data.status==='pending'?'Código permanente registrado, pero INACTIVO hasta que Owner lo autorice. Guarda este código ahora.':permanente?'Código permanente autorizado por Owner; puedes consultarlo en la lista.':'Visita temporal registrada y autorizada. Guarda el código ahora.';
   document.getElementById('adminVisNombre').value='';
   if(permanente)await cargarCodigosPermanentes();else await cargarCodigosVisita();
  }catch(e){msg.textContent='No se pudo registrar: '+(e.message||'error');}
@@ -5776,13 +5776,13 @@ async function adminCopiarVisita(){
 let vpPermanentCopy='',vpPermanentBusy=false;
 const vpPermanentStatus={
  pending:'⏳ Pendiente de autorización',
- approved:'✅ Autorizado por administración',
+ approved:'✅ Autorizado por Owner',
  rejected:'❌ Rechazado (puedes modificar y volver a solicitar)',
  revoked:'🚫 Revocado'
 };
 function mostrarCodigoPermanente(data){
  const portal=new URL('./repartidor.html',location.href).href;
- vpPermanentCopy='Visita frecuente · Privada Beteles\nNombre: '+data.visitor+'\nCasa: '+data.house+'\nCódigo: '+data.code+'\nPortal: '+portal+'\nIMPORTANTE: requiere aprobación de administración.';
+ vpPermanentCopy='Visita frecuente · Privada Beteles\nNombre: '+data.visitor+'\nCasa: '+data.house+'\nCódigo: '+data.code+'\nPortal: '+portal+'\nIMPORTANTE: requiere aprobación del Owner.';
  document.getElementById('vpPermanentCode').textContent='Casa '+data.house+' · '+data.visitor+' · Código '+data.code;
  document.getElementById('vpPermanentResult').classList.remove('hidden');
 }
@@ -5803,7 +5803,7 @@ async function solicitarCodigoPermanente(){
   const {data,error}=await sb.rpc('permanent_pass_create',{p_name:nombre});
   if(error)throw error;
   mostrarCodigoPermanente(data);
-  msg.textContent='Solicitud enviada. El código NO está activo hasta que un administrador lo apruebe.';
+  msg.textContent='Solicitud enviada. El código NO está activo hasta que lo apruebe el Owner.';
   document.getElementById('vpPermanentName').value='';
   await cargarCodigosPermanentes();
  }catch(e){msg.textContent='No se pudo solicitar: '+(e.message||'error');}
@@ -5814,13 +5814,13 @@ async function modificarCodigoPermanente(item){
  const nombre=prompt('Nombre o referencia (puede estar vacío). Se generará un NUEVO código y deberá aprobarlo administración:',item.visitor);
  if(nombre===null)return;
  if(nombre.trim().length>100)return alert('El nombre es demasiado largo.');
- if(!confirm('Se invalidará el código anterior y la autorización quedará pendiente hasta nueva aprobación. ¿Continuar?'))return;
+ if(!confirm('Se invalidará el código anterior y necesitará nueva autorización del Owner. ¿Continuar?'))return;
  vpPermanentBusy=true;
  try{
   const {data,error}=await sb.rpc('permanent_pass_edit',{p_id:item.id,p_name:nombre.trim(),p_rotate:true});
   if(error)throw error;
   mostrarCodigoPermanente(data);
-  document.getElementById('vpPermanentMessage').textContent='Código modificado. Nueva autorización pendiente.';
+  document.getElementById('vpPermanentMessage').textContent='Código modificado. Espera una nueva autorización del Owner.';
   await cargarCodigosPermanentes();
  }catch(e){alert('No se pudo modificar: '+(e.message||'error'));}
  finally{vpPermanentBusy=false;}
@@ -5832,7 +5832,7 @@ async function revocarCodigoPermanente(item){
  await cargarCodigosPermanentes();
 }
 async function revisarCodigoPermanente(item,accion){
- if(!isAdminProfileRole(profile?.rol))return;
+ if(profile?.rol!=='owner'||ownerPanelMode!=='owner')return;
  const labels={approve:'APROBAR',reject:'RECHAZAR',revoke:'REVOCAR'};
  if(!confirm('¿'+labels[accion]+' el código permanente de '+item.visitor+' para la Casa '+item.house+'?'))return;
  const {error}=await sb.rpc('permanent_pass_review',{p_id:item.id,p_action:accion});
@@ -5847,7 +5847,8 @@ function ocultarCodigosPermanentes(){
  document.querySelectorAll('.vpPassShow').forEach(btn=>{btn.textContent='👁 Ver código';btn.dataset.open='0';});
 }
 async function revelarCodigoPermanente(item,panel,button){
- if(!['owner','admin','residente'].includes(profile?.rol)||item.revoked)return;
+ if(!['owner','residente'].includes(profile?.rol)||item.revoked||
+   (profile.rol==='owner'&&ownerPanelMode!=='owner'))return;
  if(button.dataset.open==='1'){
   panel.replaceChildren();panel.hidden=true;button.dataset.open='0';button.textContent='👁 Ver código';return;
  }
@@ -5885,11 +5886,12 @@ async function revelarCodigoPermanente(item,panel,button){
  }finally{button.disabled=false;}
 }
 async function regenerarCodigoPermanente(item){
- if(!['owner','admin','residente'].includes(profile?.rol)||item.revoked)return;
- const admin=isAdminProfileRole(profile.rol);
+ if(!['owner','residente'].includes(profile?.rol)||item.revoked||
+   (profile.rol==='owner'&&ownerPanelMode!=='owner'))return;
+ const admin=profile.rol==='owner';
  const warning=admin
-  ?'Se invalidará el código anterior. El nuevo quedará autorizado por administración.'
-  :'Se invalidará el código anterior. El nuevo deberá ser aprobado otra vez por administración.';
+  ?'Se invalidará el código anterior. El nuevo quedará autorizado por Owner.'
+  :'Se invalidará el código anterior. El nuevo deberá ser aprobado otra vez por Owner.';
  if(!confirm('¿Generar otro código para '+item.visitor+' de la Casa '+item.house+'?\n\n'+warning))return;
  try{
   const {data,error}=await sb.rpc('permanent_pass_rotate',{p_id:item.id});
@@ -5898,14 +5900,15 @@ async function regenerarCodigoPermanente(item){
   const row=[...document.querySelectorAll('.vpPermanentEntry')].find(el=>el.dataset.passId===String(item.id));
   const reveal=row?.querySelector('.vpPassShow');
   if(reveal)reveal.click();
-  const message=admin?'Nuevo código generado y autorizado.':'Nuevo código generado; pendiente de autorización administrativa.';
+  const message=admin?'Nuevo código generado y autorizado por Owner.':'Nuevo código generado; pendiente de autorización del Owner.';
   const target=document.getElementById(admin?'adminVisMensaje':'vpPermanentMessage');
   if(target)target.textContent=message;
  }catch(e){alert('No se pudo regenerar el código: '+(e.message||'error'));}
 }
 async function cargarCodigosPermanentes(){
- if(!['owner','admin','residente'].includes(profile?.rol))return;
- const isAdmin=isAdminProfileRole(profile.rol);
+ if(!['owner','residente'].includes(profile?.rol)||
+   (profile.rol==='owner'&&ownerPanelMode!=='owner'))return;
+ const isAdmin=profile.rol==='owner';
  const box=document.getElementById(isAdmin?'vpPermanentAdminList':'vpPermanentList');
  if(!box)return;
  ocultarCodigosPermanentes();
