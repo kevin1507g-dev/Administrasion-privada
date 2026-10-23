@@ -1558,6 +1558,217 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 
 <script>
 
+
+let ownerAccessStats=null;
+let ownerAccessStatsError='';
+let ownerAccessStatsBusy=false;
+let ownerAnalyticsFinanceError=false;
+let ownerAnalyticsControlError=false;
+
+function ownerChartNumber(n){
+ return Math.max(0,Math.round(Number(n)||0)).toLocaleString('es-MX');
+}
+function ownerChartPercent(a,b){
+ return b>0?100*Math.max(0,Math.min(Number(a)||0,Number(b)||0))/b:0;
+}
+function ownerChartLabelPercent(n){
+ return n.toLocaleString('es-MX',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
+}
+function ownerChartSet(id,value){
+ const el=document.getElementById(id);if(el)el.textContent=String(value);
+}
+function ownerChartRing(id,segments,description){
+ const el=document.getElementById(id);if(!el)return;
+ const sum=segments.reduce((a,s)=>a+Math.max(0,Number(s.value)||0),0);
+ let pos=0;
+ if(sum<=0){
+  el.style.background='conic-gradient(#334155 0% 100%)';
+ }else{
+  const stops=[];
+  for(const part of segments){
+   const start=pos;
+   pos+=100*Math.max(0,Number(part.value)||0)/sum;
+   stops.push(part.color+' '+start.toFixed(3)+'% '+pos.toFixed(3)+'%');
+  }
+  el.style.background='conic-gradient('+stops.join(',')+')';
+ }
+ el.setAttribute('aria-label',description);
+}
+
+function renderOwnerAnalytics(){
+ if(profile?.rol!=='owner'||ownerPanelMode!=='owner')return;
+ const root=document.getElementById('ownerAnalyticsDashboard');
+ if(!root)return;
+ if(ownerAnalyticsFinanceError){
+  ownerChartSet('ownerAnalyticCollection','—');
+  ownerChartSet('ownerCollectionPercent','—');
+  ownerChartSet('ownerCollectionPaid','—');
+  ownerChartSet('ownerCollectionPending','—');
+  ownerChartSet('ownerCollectionNote','No se pudieron consultar cuotas o pagos. Pulsa Actualizar gráficas.');
+  ownerChartRing('ownerCollectionRing',[],'Datos de cobranza no disponibles');
+ }else{
+  const paidByQuota=new Map();
+  for(const p of pagos){
+   if(p.cuota_id==null)continue;
+   const id=String(p.cuota_id);
+   paidByQuota.set(id,(paidByQuota.get(id)||0)+Math.max(0,Number(p.monto)||0));
+  }
+  const total=cuotas.reduce((acc,q)=>acc+Math.max(0,Number(q.monto)||0),0);
+  const collected=cuotas.reduce((acc,q)=>acc+Math.min(
+   Math.max(0,Number(q.monto)||0),paidByQuota.get(String(q.id))||0
+  ),0);
+  const pending=Math.max(0,total-collected);
+  const pct=ownerChartPercent(collected,total);
+  ownerChartSet('ownerAnalyticCollection',total>0?ownerChartLabelPercent(pct):'—');
+  ownerChartSet('ownerCollectionPercent',total>0?ownerChartLabelPercent(pct):'—');
+  ownerChartSet('ownerCollectionPaid',money(collected));
+  ownerChartSet('ownerCollectionPending',money(pending));
+  ownerChartSet('ownerCollectionNote',total>0?
+    cuotas.length+' cuotas registradas · importes aplicados sin contar pagos dos veces.':
+    'No hay cuotas registradas todavía.');
+  ownerChartRing('ownerCollectionRing',[
+   {value:collected,color:'#2dd4bf'},{value:pending,color:'#f59e0b'}
+  ],total>0?'Cobrado: '+ownerChartLabelPercent(pct)+'. Pendiente: '+ownerChartLabelPercent(100-pct):
+  'Sin cuotas registradas');
+ }
+ if(houseOccupancyDataError){
+  ownerChartSet('ownerAnalyticOccupied','—');
+  ownerChartSet('ownerAnalyticOccupiedDetail','No se pudieron cargar las casas');
+ }else{
+  const activeHouses=casas.filter(c=>c.activo===true);
+  const houseIds=new Set(profiles.filter(p=>p.rol==='residente'&&p.activo===true&&
+   (p.estado_registro==null||p.estado_registro==='aprobado')&&p.casa_id)
+   .map(p=>String(p.casa_id)));
+  const occupied=activeHouses.filter(h=>houseIds.has(String(h.id))).length;
+  ownerChartSet('ownerAnalyticOccupied',occupied+' / '+activeHouses.length);
+  ownerChartSet('ownerAnalyticOccupiedDetail',
+   activeHouses.length?ownerChartLabelPercent(100*occupied/activeHouses.length)+' de ocupación':'Sin casas activas');
+ }
+ if(ownerAnalyticsControlError){
+  ownerChartSet('ownerAnalyticControls','—');
+  ownerChartSet('ownerAnalyticControlsDetail','No se pudo cargar controles');
+  ownerChartSet('ownerControlsPercent','—');
+  ['ownerControlsActiveCount','ownerControlsSuspendedCount','ownerControlsOtherCount'].forEach(id=>ownerChartSet(id,'—'));
+  ownerChartSet('ownerControlsNote','No se pudo consultar el estado de los controles.');
+  ownerChartRing('ownerControlsRing',[],'Estado de controles no disponible');
+ }else{
+  const total=controles.length;
+  const active=controles.filter(c=>String(c.estado||'').toLowerCase()==='activo').length;
+  const suspended=controles.filter(c=>String(c.estado||'').toLowerCase()==='suspendido').length;
+  const other=Math.max(0,total-active-suspended);
+  const pct=ownerChartPercent(active,total);
+  ownerChartSet('ownerAnalyticControls',ownerChartNumber(active));
+  ownerChartSet('ownerAnalyticControlsDetail',total+' controles registrados');
+  ownerChartSet('ownerControlsPercent',total?ownerChartLabelPercent(pct):'—');
+  ownerChartSet('ownerControlsActiveCount',ownerChartNumber(active));
+  ownerChartSet('ownerControlsSuspendedCount',ownerChartNumber(suspended));
+  ownerChartSet('ownerControlsOtherCount',ownerChartNumber(other));
+  ownerChartSet('ownerControlsNote',total?
+   'Los estados reflejan lo guardado en la plataforma, no una prueba física del control.':
+   'No hay controles registrados.');
+  ownerChartRing('ownerControlsRing',[
+   {value:active,color:'#2dd4bf'},{value:suspended,color:'#fb7185'},
+   {value:other,color:'#64748b'}
+  ],'Activos '+active+', suspendidos '+suspended+', otros '+other);
+ }
+ const chart=document.getElementById('ownerAccessTypeBars');
+ const week=document.getElementById('ownerAccessWeekBars');
+ if(!chart||!week)return;
+ chart.replaceChildren();week.replaceChildren();
+ if(!ownerAccessStats){
+  ownerChartSet('ownerAnalyticAccess','—');
+  ownerChartSet('ownerAccessConfirmed','—');
+  const p=document.createElement('p');p.className='muted';
+  p.textContent=ownerAccessStatsBusy?'Cargando historial del ESP32…':
+   ownerAccessStatsError?'No se pudo consultar el uso: '+ownerAccessStatsError:
+   'Abre este panel para consultar el historial de accesos.';
+  chart.appendChild(p);
+  ownerChartSet('ownerAccessNote','El historial se consulta de forma privada para Owner.');
+  ['ownerPassApproved','ownerPassPending','ownerPassRevoked'].forEach(id=>ownerChartSet(id,'—'));
+  ownerChartSet('ownerAnalyticsUpdated',ownerAccessStatsBusy?'Consultando actividad…':'Pendiente de consulta');
+  return;
+ }
+ const stats=ownerAccessStats;
+ ownerChartSet('ownerAnalyticAccess',ownerChartNumber(stats.confirmed));
+ ownerChartSet('ownerAccessConfirmed',ownerChartNumber(stats.confirmed));
+ const categories=[
+  ['Portón',stats.categories?.porton||0,'#38bdf8'],
+  ['Peatonal',stats.categories?.peatonal||0,'#a78bfa'],
+  ['Visitas con código',stats.categories?.visitas||0,'#34d399'],
+  ['Repartidores',stats.categories?.repartidores||0,'#fb923c'],
+  ['Otros',stats.categories?.otros||0,'#94a3b8']
+ ];
+ const biggest=Math.max(1,...categories.map(c=>c[1]));
+ for(const [label,value,color] of categories){
+  const row=document.createElement('div');row.className='ownerUsageBarItem';
+  const heading=document.createElement('div');heading.className='ownerUsageBarHeading';
+  const name=document.createElement('span');name.textContent=label;
+  const count=document.createElement('strong');count.textContent=ownerChartNumber(value);
+  heading.append(name,count);
+  const track=document.createElement('div');track.className='ownerUsageBarTrack';
+  const fill=document.createElement('div');fill.className='ownerUsageBarFill';
+  fill.style.width=(100*value/biggest)+'%';fill.style.background=color;
+  track.appendChild(fill);row.append(heading,track);chart.appendChild(row);
+ }
+ const days=Array.isArray(stats.daily)?stats.daily:[];
+ const max=Math.max(1,...days.map(d=>Number(d.confirmed)||0));
+ for(const d of days){
+  const item=document.createElement('div');item.className='ownerWeekItem';
+  const n=document.createElement('strong');n.textContent=ownerChartNumber(d.confirmed);
+  const bar=document.createElement('div');bar.className='ownerWeekBar';
+  bar.style.height=Math.max(3,95*(Number(d.confirmed)||0)/max)+'%';
+  const day=document.createElement('small');
+  const local=new Date(String(d.day).slice(0,10)+'T12:00:00');
+  day.textContent=Number.isNaN(local.getTime())?'—':
+   local.toLocaleDateString('es-MX',{weekday:'short'}).replace('.','');
+  item.setAttribute('aria-label',d.day+': '+d.confirmed+' aperturas confirmadas');
+  item.append(n,bar,day);week.appendChild(item);
+ }
+ if(!days.length){week.textContent='No hay actividad en los últimos siete días.';}
+ ownerChartSet('ownerAccessNote',ownerChartNumber(stats.requests)+' solicitudes registradas en 30 días · '+
+  ownerChartNumber(stats.unsuccessful)+' sin confirmar/canceladas · '+
+  ownerChartNumber(stats.processing)+' en proceso. Solo se grafican confirmaciones del ESP32.');
+ ownerChartSet('ownerPassApproved',ownerChartNumber(stats.permanent?.approved));
+ ownerChartSet('ownerPassPending',ownerChartNumber(stats.permanent?.pending));
+ ownerChartSet('ownerPassRevoked',ownerChartNumber(stats.permanent?.revoked));
+ const updated=new Date(stats.updated_at);
+ ownerChartSet('ownerAnalyticsUpdated','Actualizado: '+
+  (Number.isNaN(updated.getTime())?'recientemente':updated.toLocaleString('es-MX',{dateStyle:'medium',timeStyle:'short'})));
+}
+async function cargarMetricasOwnerAccesos(){
+ if(profile?.rol!=='owner'||ownerPanelMode!=='owner'||ownerAccessStatsBusy)return;
+ ownerAccessStatsBusy=true;ownerAccessStatsError='';
+ const actor=user?.id;
+ if(!ownerAccessStats)renderOwnerAnalytics();
+ try{
+  const {data,error}=await sb.rpc('owner_dashboard_access_usage');
+  if(error)throw error;
+  if(actor!==user?.id||profile?.rol!=='owner')return;
+  if(!data||typeof data!=='object'||!data.categories)throw new Error('Datos incompletos del servidor');
+  ownerAccessStats=data;
+ }catch(e){
+  if(actor!==user?.id)return;
+  ownerAccessStatsError=e?.message||String(e);
+  ownerAccessStats=null;
+ }finally{
+  ownerAccessStatsBusy=false;
+  if(actor===user?.id)renderOwnerAnalytics();
+ }
+}
+async function actualizarMetricasOwner(){
+ if(profile?.rol!=='owner'||ownerPanelMode!=='owner'||ownerAccessStatsBusy)return;
+ const btn=document.getElementById('ownerAnalyticsRefresh');
+ if(btn){btn.disabled=true;btn.textContent='Actualizando…';}
+ try{
+  await loadAll();
+  await cargarMetricasOwnerAccesos();
+ }catch(e){
+  ownerChartSet('ownerAnalyticsUpdated','No se pudo actualizar: '+(e?.message||String(e)));
+ }finally{
+  if(btn){btn.disabled=false;btn.textContent='↻ Actualizar gráficas';}
+ }
+}
+
 function renderOwnerPanel(){
  if(profile?.rol!=='owner')return;
  const counts={owner:'ownerCountOwner',admin:'ownerCountAdmins',residente:'ownerCountResidents',guardia:'ownerCountGuards'};
