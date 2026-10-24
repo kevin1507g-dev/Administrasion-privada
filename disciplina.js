@@ -84,19 +84,7 @@ function descargarPDF(casoId){
  for(const a of warn){line('Aviso '+a.numero+' de 3 — '+fecha(a.creado_at),{bold:true});line(a.mensaje);y+=2;}
  if(multa){
   encabezado('MULTA AUTORIZADA');
-  line('Monto: 
- const el=e.target.closest('button[data-warn],button[data-fine],button[data-clarify],button[data-answer],button[data-pdf]');if(!el)return;
- try{
-  if(el.dataset.pdf){descargarPDF(el.dataset.pdf);return;}
-  if(el.dataset.warn){const text=prompt('Describe el aviso. Quedará registrado y visible para la casa.');if(text===null)return;if(text.trim().length<5)return alert('Escribe al menos 5 caracteres.');await runRpc('disciplina_registrar_aviso',{p_caso_id:el.dataset.warn,p_mensaje:text});}
-  if(el.dataset.fine){const monto=prompt('Monto de la multa en pesos (requiere fundamento en el reglamento):');if(monto===null)return;const n=Number(monto);if(!Number.isFinite(n)||n<=0)return alert('Monto inválido.');const fundamento=prompt('Indica el fundamento reglamentario y la razón de la multa:');if(fundamento===null)return;if(fundamento.trim().length<5)return alert('Escribe un fundamento válido.');if(!confirm('¿Autorizar multa de $'+n.toFixed(2)+'? Esta acción quedará registrada.'))return;await runRpc('disciplina_autorizar_multa',{p_caso_id:el.dataset.fine,p_monto:n,p_fundamento:fundamento});}
-  if(el.dataset.clarify){const text=prompt('Escribe tu aclaración para la administración:');if(text===null)return;if(text.trim().length<5)return alert('Escribe al menos 5 caracteres.');const {error}=await sb.from('disciplina_aclaraciones').insert({caso_id:el.dataset.clarify,residente_id:me().id,mensaje:text.trim()});if(error)throw error;await load();}
-  if(el.dataset.answer){const text=prompt('Escribe la respuesta administrativa:');if(text===null)return;if(text.trim().length<5)return alert('Escribe al menos 5 caracteres.');await runRpc('disciplina_responder_aclaracion',{p_id:el.dataset.answer,p_respuesta:text});}
- }catch(err){alert('No se pudo completar la acción: '+err.message);}
-};
-document.addEventListener('click',e=>{if(e.target.closest('#disciplinaLista'))areaHandler(e);});
-window.disciplinaCargar=load;
-})();+Number(multa.monto).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})+' MXN',{bold:true});
+  line('Monto: '+Number(multa.monto).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})+' MXN',{bold:true});
   line('Fecha: '+fecha(multa.creada_at));
   line('Estado: '+multa.estado);
   line('Fundamento y motivo: '+multa.fundamento);
@@ -116,8 +104,9 @@ window.disciplinaCargar=load;
 }
 
 const areaHandler=async function(e){
- const el=e.target.closest('button[data-warn],button[data-fine],button[data-clarify],button[data-answer]');if(!el)return;
+ const el=e.target.closest('button[data-warn],button[data-fine],button[data-clarify],button[data-answer],button[data-pdf]');if(!el)return;
  try{
+  if(el.dataset.pdf){descargarPDF(el.dataset.pdf);return;}
   if(el.dataset.warn){const text=prompt('Describe el aviso. Quedará registrado y visible para la casa.');if(text===null)return;if(text.trim().length<5)return alert('Escribe al menos 5 caracteres.');await runRpc('disciplina_registrar_aviso',{p_caso_id:el.dataset.warn,p_mensaje:text});}
   if(el.dataset.fine){const monto=prompt('Monto de la multa en pesos (requiere fundamento en el reglamento):');if(monto===null)return;const n=Number(monto);if(!Number.isFinite(n)||n<=0)return alert('Monto inválido.');const fundamento=prompt('Indica el fundamento reglamentario y la razón de la multa:');if(fundamento===null)return;if(fundamento.trim().length<5)return alert('Escribe un fundamento válido.');if(!confirm('¿Autorizar multa de $'+n.toFixed(2)+'? Esta acción quedará registrada.'))return;await runRpc('disciplina_autorizar_multa',{p_caso_id:el.dataset.fine,p_monto:n,p_fundamento:fundamento});}
   if(el.dataset.clarify){const text=prompt('Escribe tu aclaración para la administración:');if(text===null)return;if(text.trim().length<5)return alert('Escribe al menos 5 caracteres.');const {error}=await sb.from('disciplina_aclaraciones').insert({caso_id:el.dataset.clarify,residente_id:me().id,mensaje:text.trim()});if(error)throw error;await load();}
