@@ -1056,6 +1056,12 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       <button id="mpLabReject" type="button" onclick="mpSandboxSimulate('rejected')" disabled>✕ Simular rechazado</button>
     </div>
     <p class="mpLabStatus" id="mpLabStatus" role="status">Primero crea un intento de prueba y después simula la respuesta del proveedor.</p>
+    <div class="card" style="margin-top:16px;border-color:#475569">
+      <h4 style="margin:0 0 8px">🔒 Mercado Pago producción · Diagnóstico</h4>
+      <p class="muted">Verifica en el servidor si el Access Token, el ID del vendedor y la firma Webhook están configurados. No se cobra dinero, no se crean enlaces reales y no se cambian cuotas ni pagos.</p>
+      <button type="button" id="mpProdCheckBtn" onclick="mpSandboxCheckProduction()">🔎 Verificar conexión (sin cobros)</button>
+      <p class="muted" id="mpProdCheckStatus" role="status" aria-live="polite" style="margin-top:10px">Sin verificar. Los cobros de producción continúan desactivados.</p>
+    </div>
     <div class="mpLabHeading" style="margin:15px 0 8px">
       <h4 style="margin:0">Historial de operaciones de prueba</h4>
       <button type="button" onclick="mpSandboxLoadHistory()">↻ Actualizar</button>
@@ -6838,6 +6844,6 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizar
 
 
 </script>
-<script src="./mp-sandbox.js?v=mp-checkout-test2"></script>
+<script src="./mp-sandbox.js?v=mp-prod-diagnostic1"></script>
 </body></html>
 
