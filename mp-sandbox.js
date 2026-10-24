@@ -52,6 +52,8 @@ function mpSandboxPreview(){
   'Selecciona una cuota con saldo pendiente; no cambiará su deuda real.');
  const start=document.getElementById('mpLabStart');
  if(start)start.disabled=mpLab.busy||!q||mpLab.current?.status==='pending';
+ const checkout=document.getElementById('mpLabCheckout');
+ if(checkout)checkout.disabled=mpLab.busy||!q;
  mpSandboxUpdateButtons();
 }
 function mpSandboxUpdateButtons(){
@@ -164,4 +166,33 @@ function mpSandboxOpen(){
  if(!mpLabEnabled())return;
  mpSandboxRender();
  mpSandboxLoadHistory();
+}
+
+/** Abre exclusivamente la URL sandbox verificada por la función de Supabase.
+ * No escribe en tablas de pagos/deudas y nunca usa credenciales de producción.
+ */
+async function mpSandboxCheckout(){
+ if(!mpLabEnabled()||mpLab.busy)return;
+ const q=mpLabQuotaOptions().find(x=>String(x.id)===String(document.getElementById('mpLabQuota')?.value));
+ if(!q)return mpLabText('mpLabStatus','Selecciona primero una cuota pendiente.');
+ if(!confirm('Abrir el entorno de PRUEBAS de Mercado Pago para la cuota de '+mpLabMoney(mpLabBalance(q))+
+   '?\\n\\nÚnicamente utiliza una cuenta compradora y medios de pago de prueba. No uses dinero, tarjetas ni cuentas reales.'))return;
+ mpLab.busy=true;mpSandboxPreview();
+ mpLabText('mpLabStatus','Solicitando enlace de prueba a Mercado Pago…');
+ try{
+  const {data,error}=await sb.functions.invoke('mp-crear-preferencia-prueba',{
+   body:{cuota_id:Number(q.id)}
+  });
+  if(error)throw error;
+  if(!data||data.modo!=='prueba'||Number(data.cuota_id)!==Number(q.id))throw new Error('Respuesta de prueba inválida.');
+  const url=new URL(String(data.checkout_url||''));
+  if(url.protocol!=='https:'||url.hostname!=='sandbox.mercadopago.com'){
+   throw new Error('El enlace no pertenece al entorno sandbox autorizado.');
+  }
+  mpLabText('mpLabStatus','Redirigiendo al checkout SANDBOX. La deuda real no cambiará.');
+  window.location.assign(url.href);
+ }catch(e){
+  mpLabText('mpLabStatus','No se pudo abrir Mercado Pago de prueba: '+(e?.message||String(e))+
+    '. Verifica que el Access Token TEST- esté guardado en Supabase.');
+ }finally{mpLab.busy=false;mpSandboxPreview();}
 }
