@@ -1,0 +1,20 @@
+
+/* Mercado Pago: secure first-stage Owner-only test lab. */
+.mpLab{border:1px solid #2b88a1;background:linear-gradient(150deg,rgba(56,189,248,.1),rgba(15,23,42,.12));margin:14px 0;}
+.mpLabHeading{display:flex;align-items:start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.mpLabHeading h3{margin:0}
+.mpLabBadge{font-size:.78rem;font-weight:800;background:rgba(56,189,248,.13);border:1px solid #38bdf8;color:#bae6fd;border-radius:14px;padding:5px 10px}
+.mpLabGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0}
+.mpLabGrid label{margin:0 0 5px}
+.mpLabAmount{font-variant-numeric:tabular-nums;font-size:clamp(1.6rem,4vw,2.3rem);font-weight:850;overflow-wrap:anywhere}
+.mpLabActions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0}
+.mpLabActions button{min-height:44px}
+.mpLabStatus{font-size:.88rem;padding:10px 12px;border:1px solid rgba(148,163,184,.3);border-radius:12px;overflow-wrap:anywhere}
+.mpLab .table{overflow-x:auto}
+.mpLab table{min-width:560px}
+.mpLabFooter{font-size:.83rem;line-height:1.5}
+@media(max-width:630px){
+ .mpLabGrid{grid-template-columns:1fr}
+ .mpLabActions button{flex:1 1 100%}
+ .mpLab{padding:15px}
+}

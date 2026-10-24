@@ -1,8 +1,10 @@
-const APP_CACHE = "privada-beteles-v22-svg-circulos";
+const APP_CACHE = "privada-beteles-v23-mp-laboratorio";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./ui-modern.css",
+  "./mp-sandbox.js",
+  "./mp-sandbox.css",
   "./manifest.webmanifest",
   "./pwa-icon.svg",
   "./logo-beteles.svg"

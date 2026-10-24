@@ -167,6 +167,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 
 </style>
 <link rel="stylesheet" href="./ui-modern.css?v=owner-circular22" />
+<link rel="stylesheet" href="./mp-sandbox.css?v=mp-lab1" />
 </head>
 <body>
 <div id="login" class="login"><div class="card">
@@ -1020,6 +1021,52 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       <div><div class="muted">Total pagado</div><div id="rPaidTotal" class="kpi">$0.00</div></div>
     </div>
     <div class="muted" style="margin-top:10px">Aquí puedes ver cuánto debes actualmente y el saldo restante de cada cuota.</div>
+  </div>
+
+  <div id="mpLabCard" class="card ownerOnly hidden mpLab">
+    <div class="mpLabHeading">
+      <h3>💳 Mercado Pago · Laboratorio de pruebas</h3>
+      <span class="mpLabBadge">🧪 SIN COBROS REALES</span>
+    </div>
+    <p class="muted">Prueba cómo se comportaría el cobro automático con tarjeta o transferencia SPEI. Este simulador <strong>todavía no está conectado a Mercado Pago</strong>: no pide tarjetas, no cobra dinero, no registra pagos reales ni elimina deudas.</p>
+    <div class="mpLabGrid">
+      <div>
+        <label for="mpLabQuota">Cuota pendiente para la prueba</label>
+        <select id="mpLabQuota" onchange="mpSandboxPreview()"><option value="">Selecciona una cuota</option></select>
+      </div>
+      <div>
+        <label for="mpLabMethod">Método a simular</label>
+        <select id="mpLabMethod">
+          <option value="card">💳 Tarjeta de prueba</option>
+          <option value="spei">🏦 Transferencia SPEI de prueba</option>
+        </select>
+      </div>
+    </div>
+    <div class="mpLabHeading">
+      <div>
+        <div class="muted">Importe de referencia</div>
+        <div class="mpLabAmount" id="mpLabAmount">—</div>
+      </div>
+      <div class="muted" id="mpLabSummary">Selecciona una cuota; esta prueba no cambiará su deuda.</div>
+    </div>
+    <div class="mpLabActions">
+      <button id="mpLabStart" class="primary" type="button" onclick="mpSandboxStart()">🧪 Crear pago de prueba</button>
+      <button id="mpLabApprove" type="button" onclick="mpSandboxSimulate('approved')" disabled>✓ Simular aprobado</button>
+      <button id="mpLabReject" type="button" onclick="mpSandboxSimulate('rejected')" disabled>✕ Simular rechazado</button>
+    </div>
+    <p class="mpLabStatus" id="mpLabStatus" role="status">Primero crea un intento de prueba y después simula la respuesta del proveedor.</p>
+    <div class="mpLabHeading" style="margin:15px 0 8px">
+      <h4 style="margin:0">Historial de operaciones de prueba</h4>
+      <button type="button" onclick="mpSandboxLoadHistory()">↻ Actualizar</button>
+    </div>
+    <p class="muted" id="mpLabHistoryStatus">Sin consultar.</p>
+    <div class="table">
+      <table>
+        <thead><tr><th>Fecha</th><th>Casa</th><th>Importe ficticio</th><th>Método</th><th>Resultado de prueba</th></tr></thead>
+        <tbody id="mpLabRows"><tr><td colspan="5">Sin consultar.</td></tr></tbody>
+      </table>
+    </div>
+    <p class="muted mpLabFooter">🔒 Exclusivo Owner. Esta etapa solo simula movimientos. Para probar el checkout oficial de Mercado Pago sin dinero real se deben configurar las credenciales de prueba en el servidor, nunca en la página.</p>
   </div>
 
   <div class="card adminOnly" style="margin-top:14px">
@@ -2737,6 +2784,8 @@ function show(id){
   if(id==='camaras'){
     cargarCamara();
   }
+
+  if(id==='pagos'&&isOwnerPanelActive()&&typeof mpSandboxOpen==='function')mpSandboxOpen();
 
   if(id==='cuotas' && isAdminProfileRole(profile?.rol)){
     cargarConfigCobroAutomatico();
@@ -5001,6 +5050,7 @@ function renderHouseOccupancy(){
 }
 
 function render(){
+ if(typeof mpSandboxRender==='function')mpSandboxRender();
  renderOwnerAnalytics();
  renderDuplicateDuesWarning();
  renderOwnerResidentPreview();
@@ -6787,5 +6837,6 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizar
 
 
 </script>
+<script src="./mp-sandbox.js?v=mp-lab1"></script>
 </body></html>
 
