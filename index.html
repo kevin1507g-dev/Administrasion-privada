@@ -1125,9 +1125,18 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       <tbody id="residentBalanceRows"></tbody>
     </table>
   </div>
+
+  <div class="adminOnly card" style="margin-top:18px">
+    <h3>📦 Cuotas archivadas</h3>
+    <p class="muted">Aquí se conservan las cuotas retiradas de las listas habituales. Sus pagos y movimientos de Mercado Pago permanecen en el historial, y puedes restaurarlas.</p>
+    <div class="table"><table>
+      <thead><tr><th>Casa</th><th>Concepto</th><th>Importe</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody id="cuotasArchivadasRows"><tr><td colspan="5">Sin cuotas archivadas.</td></tr></tbody>
+    </table></div>
+  </div>
 </section>
 
-<section id="metodosPago" class="paymentMethodsOnly"><h2>💵 Métodos de pago</h2>
+<section id="metodosPago" class="paymentMethodsOnly'><h2>💵 Métodos de pago</h2>
 <div class="adminOnly card">
   <h3>Administrar métodos de pago</h3>
   <p class="muted">Agrega las formas de pago que podrán consultar los residentes. Puedes incluir instrucciones para efectivo o datos bancarios para transferencias.</p>
@@ -2436,7 +2445,7 @@ function renderOwnerResidentPreview(){
    ]),'No hay eventos próximos.',4);
 }
 
-let user=null, profile=null, casas=[], profiles=[], cuotas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], incidentes=[], incidenteMensajes=[], entregas=[], solicitudesContacto=[], mensajesContacto=[], notificaciones=[], notificacionLecturas=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
+let user=null, profile=null, casas=[], profiles=[], cuotas=[], cuotasArchivadas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], incidentes=[], incidenteMensajes=[], entregas=[], solicitudesContacto=[], mensajesContacto=[], notificaciones=[], notificacionLecturas=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
 let incidenteActualId=null;
 let chatConversaciones=[], chatMensajes=[], chatLecturas=[];
 let chatConversacionActual=null, chatPolling=null, chatDragMovio=false;
@@ -3175,7 +3184,7 @@ async function loadAll(){
  houseOccupancyDataError=!!(ca.error||pr.error);
  ownerAnalyticsFinanceError=!!(cu.error||pa.error);
  ownerAnalyticsControlError=!!ct.error;
- casas=ca.data||[]; profiles=pr.data||[]; cuotas=cu.data||[]; pagos=pa.data||[]; visitas=vi.data||[]; accesos=ac.data||[];
+ casas=ca.data||[]; profiles=pr.data||[]; cuotas=(cu.data||[]).filter(q=>q.archivada!==true); cuotasArchivadas=(cu.data||[]).filter(q=>q.archivada===true); pagos=pa.data||[]; visitas=vi.data||[]; accesos=ac.data||[];
  eventos=ev.data||[]; controles=ct.data||[]; gastos=ga.data||[]; metodosPago=mp.data||[];
  avisos=av.data||[]; reportes=rp.data||[]; incidentes=inc.data||[]; incidenteMensajes=im.data||[]; entregas=en.data||[]; solicitudesContacto=cs.data||[]; mensajesContacto=cm.data||[]; notificaciones=nt.data||[]; notificacionLecturas=nl.data||[]; paquetes=pk.data||[]; reservas=rs.data||[]; documentos=dc.data||[]; contactosEmergencia=em.data||[];
  [ca,av,rp,inc,im,en,cs,cm,nt,nl,pk,rs,dc,em].forEach((r,i)=>{if(r?.error) console.warn(['Casas','Avisos','Reportes','Incidentes','Mensajes de incidentes','Entregas','Solicitudes de contacto','Mensajes entre residentes','Notificaciones','Lecturas de notificaciones','Paquetes','Reservaciones','Documentos','Emergencia'][i]+':',r.error)});
@@ -3424,30 +3433,50 @@ async function editarVencimientoCuota(id, fechaActual){
  alert('Fecha de vencimiento actualizada.');
 }
 
-async function eliminarCuota(id){
- if(!isAdminProfileRole(profile?.rol)) return;
- const cuota=cuotas.find(q=>String(q.id)===String(id));
- if(!cuota) return alert('No se encontró la cuota.');
-
- const pagosAsociados=pagos.filter(p=>String(p.cuota_id)===String(id));
- if(pagosAsociados.length>0){
-   return alert('No se puede eliminar esta cuota porque ya tiene pagos registrados.');
+async function archivarCuota(id, archivar=true){
+ if(!isAdminProfileRole(profile?.rol))return;
+ const {data,error}=await sb.rpc('gestionar_archivo_cuota',{p_cuota_id:Number(id),p_archivar:archivar});
+ if(error)return alert('No se pudo modificar la cuota: '+error.message);
+ if(data?.ok!==true){
+  const msg=data?.reason==='active_or_unreconciled_checkout'
+    ? 'La cuota tiene un enlace de pago de Mercado Pago activo o en revisión. Por seguridad no se puede borrar ni archivar todavía. Primero debe anularse el enlace y verificarse que no haya un pago pendiente.'
+    : 'No se pudo archivar o restaurar esta cuota. Actualiza la página.';
+  return alert(msg);
  }
-
+ await loadAll();
+ alert(archivar?'📦 Cuota archivada. Se conserva el historial de pagos.':'✅ Cuota restaurada en la lista.');
+}
+function renderCuotasArchivadas(){
+ const body=document.getElementById('cuotasArchivadasRows');
+ if(!body||!isAdminProfileRole(profile?.rol))return;
+ body.innerHTML=cuotasArchivadas.map(q=>'<tr><td>Casa '+esc(casaNumero(casaIdDeRegistro(q)))+
+ '</td><td>'+esc(q.concepto||'Cuota')+'</td><td>'+money(q.monto)+
+ '</td><td>'+esc(q.estado||'')+'</td><td><button type="button" onclick="archivarCuota('+Number(q.id)+',false)">↩️ Restaurar</button></td></tr>'
+ ).join('')||'<tr><td colspan="5">No hay cuotas archivadas.</td></tr>';
+}
+async function eliminarCuota(id){
+ if(!isAdminProfileRole(profile?.rol))return;
+ const cuota=cuotas.find(q=>String(q.id)===String(id));
+ if(!cuota)return alert('No se encontró la cuota.');
+ const tienePagos=pagos.some(p=>String(p.cuota_id)===String(id));
  const residente='Casa '+(casaNumero(casaIdDeRegistro(cuota))||'');
  const concepto=cuota.concepto||'Cuota';
- const ok=confirm(
-   `¿Eliminar esta cuota?\n\n`+
-   `${residente}\n${concepto} · ${money(cuota.monto)}\n\n`+
-   'Esta acción no se puede deshacer.'
- );
- if(!ok) return;
-
+ if(tienePagos){
+  if(!confirm('Esta cuota ya tiene pagos registrados.\n\n'+residente+'\n'+concepto+
+   ' · '+money(cuota.monto)+'\n\nPara conservar los comprobantes, se archivará en vez de eliminarla. ¿Continuar?'))return;
+  return archivarCuota(id,true);
+ }
+ if(!confirm('¿Eliminar esta cuota?\n\n'+residente+'\n'+concepto+' · '+money(cuota.monto)+
+    '\n\nSolo se permite borrar cuotas sin pagos ni enlaces de Mercado Pago activos.'))return;
  const {error}=await sb.from('cuotas').delete().eq('id',id);
- if(error) return alert('No se pudo eliminar la cuota: '+error.message);
-
+ if(error){
+   if(error.code==='23503'||String(error.message||'').includes('intents_cuota_id_fkey')){
+      return alert('Esta cuota está relacionada con Mercado Pago. Si hay un enlace de pago activo, primero debe anularse y verificarse su estado antes de eliminarla. No se borraron pagos.');
+   }
+   return alert('No se pudo eliminar la cuota: '+error.message);
+ }
  await loadAll();
- alert('Cuota eliminada correctamente.');
+ alert('✅ Cuota sin pagos eliminada correctamente.');
 }
 
 function fechaHora(v){
@@ -5141,7 +5170,7 @@ function render(){
       : 'Sin adelanto registrado';
   }
 
-  cuotasRows.innerHTML=cuotas.map(x=>'<tr><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td>'+esc(x.concepto)+'</td><td>'+money(x.monto)+'</td><td>'+esc(x.vencimiento)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td><td class="adminOnly">'+(isAdminProfileRole(profile?.rol)?'<button onclick="editarVencimientoCuota('+x.id+', \''+esc(x.vencimiento||'')+'\')">Editar vencimiento</button> <button class="danger" onclick="eliminarCuota('+x.id+')">🗑️ Eliminar</button>':'')+'</td></tr>').join('');
+  cuotasRows.innerHTML=cuotas.map(x=>'<tr><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td>'+esc(x.concepto)+'</td><td>'+money(x.monto)+'</td><td>'+esc(x.vencimiento)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td><td class="adminOnly">'+(isAdminProfileRole(profile?.rol)?'<button onclick="editarVencimientoCuota('+x.id+', \''+esc(x.vencimiento||'')+'\')">Editar vencimiento</button> <button class="danger" onclick="eliminarCuota('+x.id+')">'+(pagos.some(p=>String(p.cuota_id)===String(x.id))?'📦 Archivar':'🗑️ Eliminar')+'</button>':'')+'</td></tr>').join('');
   const previouslySelectedQuota=pCuota.value;
   pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>{
     const pagado=pagos.filter(p=>String(p.cuota_id)===String(x.id)).reduce((total,p)=>total+Number(p.monto||0),0);
@@ -5164,6 +5193,7 @@ function render(){
  renderEventos();
  renderGastos();
  renderMetodosPago();
+ renderCuotasArchivadas();
 }
 
 
