@@ -14,7 +14,8 @@ async function verify(req:Request,id:string,secret:string){
 }
 Deno.serve(async(req:Request)=>{
  if(req.method!=="POST")return answer(405,{error:"Método no permitido"});
- const enabled=Deno.env.get("MP_PROD_PILOT_ENABLED")==="authorized-owner-pilot-63";
+ const enabled=Deno.env.get("MP_PROD_PILOT_ENABLED")==="authorized-owner-pilot-63" ||
+   Deno.env.get("MP_RESIDENT_PAYMENTS_ENABLED")==="adult-owner-reviewed";
  const token=Deno.env.get("MP_PROD_ACCESS_TOKEN")||"",webhookSecret=Deno.env.get("MP_PROD_WEBHOOK_SECRET")||"",sellerId=Deno.env.get("MP_PROD_SELLER_ID")||"";
  if(!webhookSecret)return answer(503,{error:"Falta firma secreta del Webhook"});
  // La verificación HMAC puede probarse aun con el piloto real desactivado.
@@ -38,7 +39,7 @@ Deno.serve(async(req:Request)=>{
   if(String(payment.id)!==id||String(payment.collector_id)!==sellerId||payment.live_mode!==true)return answer(403,{error:"Pago no pertenece al vendedor real autorizado"});
   if(payment.status!=="approved")return answer(200,{ignored:true,status:String(payment.status)});
   const reference=String(payment.external_reference||"");
-  if(!/^beteles-prod-[0-9a-f-]{36}$/.test(reference))return answer(200,{ignored:true,reason:"Pago ajeno al piloto"});
+  if(!/^beteles-(?:prod|res)-[0-9a-f-]{36}$/.test(reference))return answer(200,{ignored:true,reason:"Pago ajeno al piloto"});
   const k=keys();if(!k.url||!k.secret)return answer(503,{error:"Sin acceso a conciliación"});
   const response=await fetch(k.url+"/rest/v1/rpc/mp_real_finalize_verified",{
    method:"POST",headers:adminHeaders(k.secret),
