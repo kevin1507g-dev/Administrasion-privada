@@ -14,9 +14,11 @@ async function verify(req:Request,id:string,secret:string){
 }
 Deno.serve(async(req:Request)=>{
  if(req.method!=="POST")return answer(405,{error:"Método no permitido"});
- if(Deno.env.get("MP_PROD_PILOT_ENABLED")!=="authorized-owner-pilot-63")return answer(503,{error:"Cobros reales DESACTIVADOS"});
+ const enabled=Deno.env.get("MP_PROD_PILOT_ENABLED")==="authorized-owner-pilot-63";
  const token=Deno.env.get("MP_PROD_ACCESS_TOKEN")||"",webhookSecret=Deno.env.get("MP_PROD_WEBHOOK_SECRET")||"",sellerId=Deno.env.get("MP_PROD_SELLER_ID")||"";
- if(!token.startsWith("APP_USR-")||!webhookSecret||!/^[0-9]+$/.test(sellerId))return answer(503,{error:"Configuración incompleta"});
+ if(!webhookSecret)return answer(503,{error:"Falta firma secreta del Webhook"});
+ // La verificación HMAC puede probarse aun con el piloto real desactivado.
+ if(enabled&&(!token.startsWith("APP_USR-")||!/^[0-9]+$/.test(sellerId)))return answer(503,{error:"Configuración de producción incompleta"});
  try{
   const payload=await req.json();
   if(payload.type!=="payment")return answer(200,{ignored:true});
@@ -24,6 +26,12 @@ Deno.serve(async(req:Request)=>{
   const queryId=new URL(req.url).searchParams.get("data.id")||new URL(req.url).searchParams.get("data_id")||"";
   if(!/^[0-9]+$/.test(id)||queryId!==id)return answer(400,{error:"ID de webhook inconsistente"});
   if(!await verify(req,queryId,webhookSecret))return answer(401,{error:"Firma inválida"});
+  if(!enabled){
+    // Sin crear pagos ni modificar cuotas. La prueba del simulador acredita
+    // únicamente transporte HTTP y firma; no conciliación financiera.
+    console.info("MP_WEBHOOK_PROBE_VERIFIED_READ_ONLY");
+    return answer(200,{ok:true,mode:"read_only",firma_verificada:true,pago_aplicado:false});
+  }
   const provider=await fetch("https://api.mercadopago.com/v1/payments/"+id,{headers:{"Authorization":"Bearer "+token}});
   if(!provider.ok)return answer(502,{error:"Proveedor no disponible"});
   const payment=await provider.json();
