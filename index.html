@@ -5632,10 +5632,22 @@ function renderMetodosPago(){
  if(!caja || !['owner','admin','residente'].includes(profile?.rol)) return;
  const lista=profile.rol==='residente'?metodosPago.filter(x=>x.activo!==false):metodosPago;
  caja.innerHTML=lista.map(m=>{
+   const esMercadoPago=String(m.nombre||'').trim().toLowerCase()==='mercado pago';
+   const extrasMercadoPago=!esMercadoPago?'':(profile.rol==='residente'
+     ? `<div style="padding:13px;border-radius:12px;background:#0b2541;margin-top:12px">
+          <div class="badge">⏳ Integración para residentes en preparación</div>
+          <p style="margin-top:10px">Saldo pendiente de tu casa: <strong>${money(resumenDeudaCasa(profile.casa_id).deuda)}</strong></p>
+          <p class="muted">Para evitar cobros duplicados, el pago en línea desde cuentas de residentes se habilitará después de validar esta etapa. Por ahora no se generará ningún cobro desde aquí.</p>
+          <button type="button" onclick="show('cuotas')">🧾 Consultar mis cuotas</button>
+        </div>`
+     : `<div style="padding:13px;border-radius:12px;background:#0b2541;margin-top:12px">
+          <p class="muted">El piloto de Mercado Pago se administra exclusivamente desde el panel Owner. No se habilitan cobros generales a residentes todavía.</p>
+          ${profile.rol==='owner'?`<button type="button" onclick="show('pagos')">🔎 Ir al piloto de Mercado Pago</button>`:''}
+        </div>`);
    const cuentaCodificada=encodeURIComponent(m.numero_cuenta||'');
    const cuenta=m.numero_cuenta?`<div style="margin-top:10px"><strong>Cuenta / CLABE:</strong><br><span style="font-size:1.08em">${esc(m.numero_cuenta)}</span><br><button style="margin-top:8px" onclick="copiarCuenta(decodeURIComponent('${cuentaCodificada}'))">📋 Copiar cuenta</button></div>`:'';
    const acciones=isAdminProfileRole(profile.rol)?`<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button onclick="editarMetodoPago(${m.id})">✏️ Editar</button>${m.activo!==false?`<button class="danger" onclick="cambiarEstadoMetodoPago(${m.id},false)">Suspender</button>`:`<button class="primary" onclick="cambiarEstadoMetodoPago(${m.id},true)">Activar</button>`}<button class="danger" onclick="eliminarMetodoPago(${m.id})">🗑️ Eliminar</button></div>`:'';
-   return `<div class="card" style="margin-bottom:14px"><h3>💳 ${esc(m.nombre||'Método de pago')}</h3>${isAdminProfileRole(profile.rol)?`<div class="badge">${m.activo!==false?'✅ Activo':'⛔ Suspendido'}</div>`:''}${m.descripcion?`<p>${esc(m.descripcion)}</p>`:''}${m.banco?`<p><strong>Banco:</strong> ${esc(m.banco)}</p>`:''}${m.beneficiario?`<p><strong>Beneficiario:</strong> ${esc(m.beneficiario)}</p>`:''}${cuenta}${m.instrucciones?`<p style="margin-top:12px"><strong>Instrucciones:</strong><br>${esc(m.instrucciones)}</p>`:''}${acciones}</div>`;
+   return `<div class="card" style="margin-bottom:14px"><h3>💳 ${esc(m.nombre||'Método de pago')}</h3>${isAdminProfileRole(profile.rol)?`<div class="badge">${m.activo!==false?'✅ Activo':'⛔ Suspendido'}</div>`:''}${m.descripcion?`<p>${esc(m.descripcion)}</p>`:''}${m.banco?`<p><strong>Banco:</strong> ${esc(m.banco)}</p>`:''}${m.beneficiario?`<p><strong>Beneficiario:</strong> ${esc(m.beneficiario)}</p>`:''}${cuenta}${m.instrucciones?`<p style="margin-top:12px"><strong>Instrucciones:</strong><br>${esc(m.instrucciones)}</p>`:''}${extrasMercadoPago}${acciones}</div>`;
  }).join('')||'<div class="card muted">No hay métodos de pago disponibles.</div>';
 }
 
