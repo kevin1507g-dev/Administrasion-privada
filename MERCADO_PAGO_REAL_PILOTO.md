@@ -36,3 +36,15 @@ Documentación:
 - Los cobros reales todavía están **desactivados**. Solo el adulto titular de la cuenta debe decidir y habilitar el secreto `MP_PROD_PILOT_ENABLED`, tras revisar comisiones y condiciones; su valor previsto para el piloto es `authorized-owner-pilot-63`.
 - Para preparar el enlace, tras ese paso, el Owner debe entrar a Pagos, seleccionar la cuota de $15 de la Casa 63, ejecutar **Verificar conexión (sin cobros)** y utilizar el botón del piloto. El dinero solo se mueve si el adulto completa el checkout oficial.
 - Si el enlace o el checkout muestra error, antes de reintentar revisa el historial de Mercado Pago y el estado de Supabase para evitar duplicados.
+
+
+## Integración de cuotas desde cuentas de residentes (fase preparada)
+- La sección **Métodos de pago** incluye Mercado Pago, selección de la cuota pendiente de la propia casa, total adeudado y botón de checkout.
+- `mp-resident-create-checkout` valida la sesión JWT, residente activo/aprobado y casa asignada antes de aceptar solicitudes.
+- `public.mp_resident_create_intent` verifica en Postgres que la cuota pertenece a esa casa, que tiene saldo y que no existe otro checkout abierto. No confía en montos ni casas enviados por el navegador.
+- Las solicitudes llevan la referencia `beteles-res-<uuid>`; el Webhook de Mercado Pago concilia esas referencias solo después de validar la firma, el pago en la API del proveedor y el identificador de vendedor.
+- El registro automático conserva el monto íntegro de la cuota y lleva por separado los cargos de procesamiento verificados.
+- **Estado:** `MP_RESIDENT_PAYMENTS_ENABLED` todavía no se ha establecido. El valor de habilitación, reservado al titular adulto después de revisión operativa, es `adult-owner-reviewed`. Sin esa autorización, el botón de los residentes permanece desactivado.
+- No se han iniciado ni aprobado nuevos cobros de residentes durante la instalación. Las pruebas de preparación en Postgres se efectuaron dentro de transacciones con ROLLBACK.
+- Antes de habilitar pagos generales, comprobar una cuota de un residente autorizado y confirmar que la conciliación, notificaciones y gastos funcionan. Registrar una política acordada de comisiones, sin recargos inesperados.
+- Observación histórica: el checkout piloto de Casa 63 figura aprobado, pero el registro que hoy abona su cuota aparece como `Tarjeta` y no mantiene la referencia vinculada en `mp_private.intents`. **No** se debe recrear automáticamente ese abono: conciliar manualmente el comprobante de Mercado Pago con la edición de pagos antes de hacer ajustes en ese movimiento.
