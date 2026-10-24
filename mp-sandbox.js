@@ -183,10 +183,19 @@ async function mpSandboxCheckout(){
   const {data,error}=await sb.functions.invoke('mp-crear-preferencia-prueba',{
    body:{cuota_id:Number(q.id)}
   });
-  if(error)throw error;
+  if(error){
+   let message=error.message||'Error del servidor';
+   if(error.context && typeof error.context.json==='function'){
+    try{
+     const details=await error.context.json();
+     if(typeof details?.error==='string')message=details.error;
+    }catch(_){}
+   }
+   throw new Error(message);
+  }
   if(!data||data.modo!=='prueba'||Number(data.cuota_id)!==Number(q.id))throw new Error('Respuesta de prueba inválida.');
   const url=new URL(String(data.checkout_url||''));
-  if(url.protocol!=='https:'||url.hostname!=='sandbox.mercadopago.com'){
+  if(url.protocol!=='https:'||!['sandbox.mercadopago.com','sandbox.mercadopago.com.mx'].includes(url.hostname)){
    throw new Error('El enlace no pertenece al entorno sandbox autorizado.');
   }
   mpLabText('mpLabStatus','Redirigiendo al checkout SANDBOX. La deuda real no cambiará.');
