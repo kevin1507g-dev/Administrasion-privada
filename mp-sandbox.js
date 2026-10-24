@@ -212,6 +212,10 @@ async function mpSandboxCheckProduction(){
  if(!mpLabEnabled())return;
  const btn=document.getElementById('mpProdCheckBtn');
  if(btn)btn.disabled=true;
+ const previousId=document.getElementById('mpProdDetectedSellerId');
+ const detectedWrap=document.getElementById('mpProdDetectedSellerWrap');
+ if(previousId)previousId.textContent='';
+ if(detectedWrap)detectedWrap.classList.add('hidden');
  mpLabText('mpProdCheckStatus','Comprobando configuración de producción sin cobrar…');
  try{
   const {data,error}=await sb.functions.invoke('mp-prod-diagnostico',{body:{}});
@@ -223,6 +227,14 @@ async function mpSandboxCheckProduction(){
    throw new Error(details);
   }
   if(data?.checked!==true)throw new Error('Respuesta de verificación desconocida.');
+  const detected=String(data.id_vendedor_detectado??'');
+  const wrap=document.getElementById('mpProdDetectedSellerWrap');
+  const value=document.getElementById('mpProdDetectedSellerId');
+  if(wrap&&value){
+   const show=/^[0-9]+$/.test(detected)&&!data.vendedor_verificado;
+   value.textContent=show?detected:'';
+   wrap.classList.toggle('hidden',!show);
+  }
   const parts=[
     'Access Token: '+(data.token_configurado?'configurado':'falta o tiene formato incorrecto'),
     'ID vendedor: '+(data.vendedor_configurado?'configurado':'falta o es inválido'),
@@ -236,4 +248,17 @@ async function mpSandboxCheckProduction(){
   mpLabText('mpProdCheckStatus','No se completó la verificación: '+(e?.message||String(e))+
     '. Revisa los secretos guardados en Supabase, sin compartir sus valores.');
  }finally{if(btn)btn.disabled=false;}
+}
+
+/** Solo copia el ID público que devuelve la función autorizada; jamás copia credenciales. */
+async function mpCopyDetectedSellerId(){
+ if(!mpLabEnabled())return;
+ const id=document.getElementById('mpProdDetectedSellerId')?.textContent?.trim()||'';
+ if(!/^[0-9]+$/.test(id))return;
+ try{
+  await navigator.clipboard.writeText(id);
+  mpLabText('mpProdCopyStatus','ID de vendedor copiado. En Supabase, edita solo el VALUE de MP_PROD_SELLER_ID.');
+ }catch(_){
+  mpLabText('mpProdCopyStatus','Selecciona el número que aparece arriba y cópialo manualmente.');
+ }
 }
