@@ -35,6 +35,7 @@ function render(){
  (admin()&&c.estado==='abierto'&&warns.length<3?'<button class="mini primary" data-warn="'+esc(c.id)+'">Registrar aviso '+(warns.length+1)+'/3</button> ':'')+
  (admin()&&c.estado==='abierto'&&warns.length===3&&!fine?'<button class="mini danger" data-fine="'+esc(c.id)+'">Autorizar multa</button> ':'')+
  (!admin()?'<button class="mini" data-clarify="'+esc(c.id)+'">Presentar aclaración</button> ':'')+
+ (admin()?'<button class="mini" data-pdf="'+esc(c.id)+'">📄 Descargar PDF</button> ':'')+
  (notes.length?'<h4>Aclaraciones</h4>'+questions:'')+'</article>';
  }).join('');
 }
@@ -45,6 +46,75 @@ window.disciplinaCrearCaso=async function(){
  if(!casa||motivo.length<5)return alert('Selecciona una casa y escribe un motivo de al menos 5 caracteres.');
  try{await runRpc('disciplina_crear_caso',{p_casa_id:casa,p_motivo:motivo,p_descripcion:descripcion});byId('disciplinaMotivo').value='';byId('disciplinaDescripcion').value='';}catch(e){alert(e.message);}
 };
+
+function descargarPDF(casoId){
+ if(!admin())return alert('Solo administración puede generar el documento.');
+ const c=casos.find(x=>x.id===casoId);
+ if(!c)return alert('No se encontró el expediente.');
+ const jspdf=window.jspdf?.jsPDF;
+ if(!jspdf)return alert('La herramienta PDF no se cargó. Actualiza la página e inténtalo de nuevo.');
+ const doc=new jspdf({unit:'mm',format:'a4'});
+ const casa=(typeof casas!=='undefined'?casas:[]).find(h=>h.id===c.casa_id);
+ const warn=avisos.filter(a=>a.caso_id===c.id).sort((a,b)=>a.numero-b.numero);
+ const multa=multas.find(m=>m.caso_id===c.id);
+ const notes=aclaraciones.filter(a=>a.caso_id===c.id).sort((a,b)=>a.creada_at.localeCompare(b.creada_at));
+ const fecha=v=>v?new Date(v).toLocaleDateString('es-MX'):'Sin fecha';
+ const titulo=multa?'NOTIFICACIÓN DE MULTA':'NOTIFICACIÓN DE AVISO';
+ let y=23;
+ const salto=(height=7)=>{if(y+height>270){doc.addPage();y=22;}};
+ function line(text,opts={}){
+  const {bold=false,size=10,space=6}=opts;
+  doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(size);
+  const parts=doc.splitTextToSize(String(text??''),174);
+  for(const item of parts){salto(space);doc.text(item,18,y);y+=space;}
+ }
+ function encabezado(text){y+=4;salto(13);doc.setDrawColor(160,170,185);doc.line(18,y,192,y);y+=7;line(text,{bold:true,size:11});}
+ doc.setFillColor(15,23,42);doc.rect(0,0,210,14,'F');
+ doc.setTextColor(255,255,255);doc.setFontSize(11);doc.setFont('helvetica','bold');doc.text('PRIVADA VALLE DE LOS BETELES',18,9);
+ doc.setTextColor(15,23,42);
+ line(titulo,{bold:true,size:17,space:9});
+ line('Fecha de emisión: '+new Date().toLocaleDateString('es-MX'));
+ line('Casa: '+(casa?.numero||casa?.nombre||'Sin asignar'));
+ line('Folio del expediente: '+c.id);
+ line('Motivo: '+c.motivo,{bold:true});
+ line('Descripción: '+(c.descripcion||'Sin descripción'));
+ line('Estado del expediente: '+c.estado+'  |  Avisos registrados: '+warn.length+' de 3');
+ encabezado('HISTORIAL DE AVISOS');
+ if(!warn.length)line('No se han registrado avisos.');
+ for(const a of warn){line('Aviso '+a.numero+' de 3 — '+fecha(a.creado_at),{bold:true});line(a.mensaje);y+=2;}
+ if(multa){
+  encabezado('MULTA AUTORIZADA');
+  line('Monto: 
+ const el=e.target.closest('button[data-warn],button[data-fine],button[data-clarify],button[data-answer],button[data-pdf]');if(!el)return;
+ try{
+  if(el.dataset.pdf){descargarPDF(el.dataset.pdf);return;}
+  if(el.dataset.warn){const text=prompt('Describe el aviso. Quedará registrado y visible para la casa.');if(text===null)return;if(text.trim().length<5)return alert('Escribe al menos 5 caracteres.');await runRpc('disciplina_registrar_aviso',{p_caso_id:el.dataset.warn,p_mensaje:text});}
+  if(el.dataset.fine){const monto=prompt('Monto de la multa en pesos (requiere fundamento en el reglamento):');if(monto===null)return;const n=Number(monto);if(!Number.isFinite(n)||n<=0)return alert('Monto inválido.');const fundamento=prompt('Indica el fundamento reglamentario y la razón de la multa:');if(fundamento===null)return;if(fundamento.trim().length<5)return alert('Escribe un fundamento válido.');if(!confirm('¿Autorizar multa de $'+n.toFixed(2)+'? Esta acción quedará registrada.'))return;await runRpc('disciplina_autorizar_multa',{p_caso_id:el.dataset.fine,p_monto:n,p_fundamento:fundamento});}
+  if(el.dataset.clarify){const text=prompt('Escribe tu aclaración para la administración:');if(text===null)return;if(text.trim().length<5)return alert('Escribe al menos 5 caracteres.');const {error}=await sb.from('disciplina_aclaraciones').insert({caso_id:el.dataset.clarify,residente_id:me().id,mensaje:text.trim()});if(error)throw error;await load();}
+  if(el.dataset.answer){const text=prompt('Escribe la respuesta administrativa:');if(text===null)return;if(text.trim().length<5)return alert('Escribe al menos 5 caracteres.');await runRpc('disciplina_responder_aclaracion',{p_id:el.dataset.answer,p_respuesta:text});}
+ }catch(err){alert('No se pudo completar la acción: '+err.message);}
+};
+document.addEventListener('click',e=>{if(e.target.closest('#disciplinaLista'))areaHandler(e);});
+window.disciplinaCargar=load;
+})();+Number(multa.monto).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})+' MXN',{bold:true});
+  line('Fecha: '+fecha(multa.creada_at));
+  line('Estado: '+multa.estado);
+  line('Fundamento y motivo: '+multa.fundamento);
+ }else{
+  encabezado('SITUACIÓN ACTUAL');
+  line('Este documento es informativo. No se ha autorizado una multa en este expediente.');
+ }
+ encabezado('ACLARACIONES DEL RESIDENTE');
+ if(!notes.length)line('No hay aclaraciones registradas.');
+ for(const a of notes){line('Presentada el '+fecha(a.creada_at),{bold:true});line(a.mensaje);line('Respuesta: '+(a.respuesta||'Pendiente de respuesta'));y+=2;}
+ encabezado('INFORMACIÓN IMPORTANTE');
+ line('Puede presentar una aclaración desde el apartado Avisos y multas de Administración Residencial. La aplicación de sanciones debe ajustarse al reglamento y a los acuerdos aplicables.');
+ const pages=doc.getNumberOfPages();
+ for(let i=1;i<=pages;i++){doc.setPage(i);doc.setTextColor(100,116,139);doc.setFontSize(8);doc.text('Documento generado desde Administración Residencial · Página '+i+' de '+pages,18,289);}
+ const houseName=String(casa?.numero||'casa').replace(/[^a-zA-Z0-9_-]/g,'-');
+ doc.save('Avisos-Multas-Casa-'+houseName+'-'+c.id.slice(0,8)+'.pdf');
+}
+
 const areaHandler=async function(e){
  const el=e.target.closest('button[data-warn],button[data-fine],button[data-clarify],button[data-answer]');if(!el)return;
  try{
