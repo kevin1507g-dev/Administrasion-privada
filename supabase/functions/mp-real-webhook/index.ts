@@ -46,7 +46,33 @@ Deno.serve(async(req:Request)=>{
   });
   if(!response.ok)return answer(502,{error:"No se pudo conciliar; reintento requerido"});
   const result=await response.json();
-  if(!result.applied)console.warn("Pago real pendiente de revisión",result.reason);
-  return answer(200,{ok:true,applied:!!result.applied,duplicate:!!result.duplicate});
+  if(!result.applied){
+    console.warn("Pago real pendiente de revisión",result.reason);
+    return answer(200,{ok:true,applied:false,reason:result.reason});
+  }
+  // Registra POR SEPARADO el ingreso neto y la comisión real informada
+  // por Mercado Pago; la cuota ya fue abonada por su importe bruto.
+  // No inventar costos ni usar estimaciones cuando el proveedor no los entrega.
+  const net=payment?.transaction_details?.net_received_amount;
+  const gross=payment?.transaction_amount;
+  if(typeof net==="number" && Number.isFinite(net) && net>0 &&
+     typeof gross==="number" && Number.isFinite(gross) && gross>=net) {
+    const feeResp=await fetch(k.url+"/rest/v1/rpc/mp_record_verified_settlement",{
+      method:"POST",headers:adminHeaders(k.secret),
+      body:JSON.stringify({p_reference:reference,p_provider_payment_id:id,p_gross:gross,p_net:net})
+    });
+    if(!feeResp.ok) {
+      console.warn("Comisión de Mercado Pago sin conciliar: respuesta RPC "+feeResp.status);
+      return answer(502,{error:"Pago registrado. Comisión por conciliar; se requiere un nuevo intento de notificación."});
+    }
+    const feeResult=await feeResp.json();
+    if(feeResult.ok!==true) {
+      console.warn("Comisión pendiente de revisión:",feeResult.reason);
+      return answer(200,{ok:true,applied:true,commission_review:true});
+    }
+  } else {
+    console.info("MP_NET_NOT_YET_AVAILABLE: payment is registered; fee pending verified settlement");
+  }
+  return answer(200,{ok:true,applied:true,duplicate:!!result.duplicate});
  }catch(_){return answer(500,{error:"Error al procesar notificación"})}
 });
