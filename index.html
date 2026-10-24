@@ -1023,73 +1023,6 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     <div class="muted" style="margin-top:10px">Aquí puedes ver cuánto debes actualmente y el saldo restante de cada cuota.</div>
   </div>
 
-  <div id="mpLabCard" class="card ownerOnly hidden mpLab">
-    <div class="mpLabHeading">
-      <h3>💳 Mercado Pago · Laboratorio de pruebas</h3>
-      <span class="mpLabBadge">🧪 SIN COBROS REALES</span>
-    </div>
-    <p class="muted">Prueba cómo se comportaría el cobro automático con tarjeta o transferencia SPEI. El simulador interno no pide tarjetas ni modifica pagos reales. El botón «Abrir Mercado Pago (PRUEBA)» permite utilizar exclusivamente el checkout de pruebas del proveedor con una cuenta compradora de prueba; tampoco modifica la deuda ni registra pagos reales. No uses cuentas ni tarjetas reales.</p>
-    <div class="mpLabGrid">
-      <div>
-        <label for="mpLabQuota">Cuota pendiente para la prueba</label>
-        <select id="mpLabQuota" onchange="mpSandboxPreview()"><option value="">Selecciona una cuota</option></select>
-      </div>
-      <div>
-        <label for="mpLabMethod">Método a simular</label>
-        <select id="mpLabMethod">
-          <option value="card">💳 Tarjeta de prueba</option>
-          <option value="spei">🏦 Transferencia SPEI de prueba</option>
-        </select>
-      </div>
-    </div>
-    <div class="mpLabHeading">
-      <div>
-        <div class="muted">Importe de referencia</div>
-        <div class="mpLabAmount" id="mpLabAmount">—</div>
-      </div>
-      <div class="muted" id="mpLabSummary">Selecciona una cuota; esta prueba no cambiará su deuda.</div>
-    </div>
-    <div class="mpLabActions">
-      <button id="mpLabStart" class="primary" type="button" onclick="mpSandboxStart()">🧪 Crear pago de prueba</button>
-      <button id="mpLabCheckout" type="button" onclick="mpSandboxCheckout()" disabled>🛒 Abrir Mercado Pago (PRUEBA)</button>
-      <button id="mpLabApprove" type="button" onclick="mpSandboxSimulate('approved')" disabled>✓ Simular aprobado</button>
-      <button id="mpLabReject" type="button" onclick="mpSandboxSimulate('rejected')" disabled>✕ Simular rechazado</button>
-    </div>
-    <p class="mpLabStatus" id="mpLabStatus" role="status">Primero crea un intento de prueba y después simula la respuesta del proveedor.</p>
-    <div class="card" style="margin-top:16px;border-color:#475569">
-      <h4 style="margin:0 0 8px">🔒 Mercado Pago producción · Diagnóstico</h4>
-      <p class="muted">Verifica en el servidor si el Access Token, el ID del vendedor y la firma Webhook están configurados. No se cobra dinero, no se crean enlaces reales y no se cambian cuotas ni pagos.</p>
-      <button type="button" id="mpProdCheckBtn" onclick="mpSandboxCheckProduction()">🔎 Verificar conexión (sin cobros)</button>
-      <p class="muted" id="mpProdCheckStatus" role="status" aria-live="polite" style="margin-top:10px">Sin verificar. Los cobros de producción continúan desactivados.</p>
-      <div id="mpProdDetectedSellerWrap" class="hidden" style="margin-top:12px">
-        <p class="muted">ID correcto del vendedor detectado directamente con el Access Token de producción. Este número NO es el Client ID. Solo el Owner puede verlo aquí.</p>
-        <div class="actions" style="align-items:center">
-          <strong id="mpProdDetectedSellerId" style="font-family:monospace;letter-spacing:1px;user-select:all"></strong>
-          <button type="button" onclick="mpCopyDetectedSellerId()">📋 Copiar ID correcto</button>
-        </div>
-        <p class="muted" id="mpProdCopyStatus" role="status">Después, guarda ese número en Supabase → Secrets → MP_PROD_SELLER_ID y vuelve a verificar.</p>
-      </div>
-    </div>
-    <div class="card" style="margin-top:16px;border-color:#475569">
-      <h4 style="margin:0 0 8px">💳 Piloto real $15 · Casa 63</h4>
-      <p class="muted">Solo el titular adulto autorizado puede realizar esta compra. El enlace de pago permanecerá bloqueado hasta que el titular habilite expresamente el piloto en Supabase y el diagnóstico confirme la cuenta real. Usa la cuota de $15 seleccionada arriba.</p>
-      <button type="button" id="mpRealPilotBtn" disabled onclick="mpRealPilotCheckout()">🔒 Preparar pago real de $15</button>
-      <p class="muted" role="status" id="mpRealPilotStatus" style="margin-top:10px">Cobros reales desactivados. El regreso de Mercado Pago no confirma un pago; solo la notificación firmada del servidor puede registrarlo.</p>
-    </div>
-    <div class="mpLabHeading" style="margin:15px 0 8px">
-      <h4 style="margin:0">Historial de operaciones de prueba</h4>
-      <button type="button" onclick="mpSandboxLoadHistory()">↻ Actualizar</button>
-    </div>
-    <p class="muted" id="mpLabHistoryStatus">Sin consultar.</p>
-    <div class="table">
-      <table>
-        <thead><tr><th>Fecha</th><th>Casa</th><th>Importe ficticio</th><th>Método</th><th>Resultado de prueba</th></tr></thead>
-        <tbody id="mpLabRows"><tr><td colspan="5">Sin consultar.</td></tr></tbody>
-      </table>
-    </div>
-    <p class="muted mpLabFooter">🔒 Exclusivo Owner. Esta etapa solo simula movimientos. Para probar el checkout oficial de Mercado Pago sin dinero real se deben configurar las credenciales de prueba en el servidor, nunca en la página.</p>
-  </div>
-
   <div class="card adminOnly" style="margin-top:14px">
     <div class="form">
       <div><label>Cuota</label><select id="pCuota"></select></div>
@@ -1128,7 +1061,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 
   <div class="adminOnly card" style="margin-top:18px">
     <h3>📦 Cuotas archivadas</h3>
-    <p class="muted">Aquí se conservan las cuotas retiradas de las listas habituales. Sus pagos y movimientos de Mercado Pago permanecen en el historial, y puedes restaurarlas.</p>
+    <p class="muted">Aquí se conservan las cuotas retiradas de las listas habituales. Los pagos registrados se conservan para auditoría y puedes restaurar las cuotas.</p>
     <div class="table"><table>
       <thead><tr><th>Casa</th><th>Concepto</th><th>Importe</th><th>Estado</th><th>Acciones</th></tr></thead>
       <tbody id="cuotasArchivadasRows"><tr><td colspan="5">Sin cuotas archivadas.</td></tr></tbody>
@@ -2795,7 +2728,6 @@ function show(id){
     else btn.removeAttribute('aria-current');
   });
 
-  if(id==='metodosPago'&&profile?.rol==='residente')mpResCheckAvailability();
   if(id==='controlDigital'){
     digitalButtonsDisabled(true);
     refreshDigitalAccess();
@@ -2816,7 +2748,6 @@ function show(id){
     cargarCamara();
   }
 
-  if(id==='pagos'&&isOwnerPanelActive()&&typeof mpSandboxOpen==='function')mpSandboxOpen();
 
   if(id==='cuotas' && isAdminProfileRole(profile?.rol)){
     cargarConfigCobroAutomatico();
@@ -3184,7 +3115,7 @@ async function loadAll(){
  houseOccupancyDataError=!!(ca.error||pr.error);
  ownerAnalyticsFinanceError=!!(cu.error||pa.error);
  ownerAnalyticsControlError=!!ct.error;
- casas=ca.data||[]; profiles=pr.data||[]; cuotas=(cu.data||[]).filter(q=>q.archivada!==true); cuotasArchivadas=(cu.data||[]).filter(q=>q.archivada===true); pagos=pa.data||[]; visitas=vi.data||[]; accesos=ac.data||[];
+ casas=ca.data||[]; profiles=pr.data||[]; cuotas=(cu.data||[]).filter(q=>q.archivada!==true); cuotasArchivadas=(cu.data||[]).filter(q=>q.archivada===true && q.oculta_por_retiro_integracion!==true); pagos=pa.data||[]; visitas=vi.data||[]; accesos=ac.data||[];
  eventos=ev.data||[]; controles=ct.data||[]; gastos=ga.data||[]; metodosPago=mp.data||[];
  avisos=av.data||[]; reportes=rp.data||[]; incidentes=inc.data||[]; incidenteMensajes=im.data||[]; entregas=en.data||[]; solicitudesContacto=cs.data||[]; mensajesContacto=cm.data||[]; notificaciones=nt.data||[]; notificacionLecturas=nl.data||[]; paquetes=pk.data||[]; reservas=rs.data||[]; documentos=dc.data||[]; contactosEmergencia=em.data||[];
  [ca,av,rp,inc,im,en,cs,cm,nt,nl,pk,rs,dc,em].forEach((r,i)=>{if(r?.error) console.warn(['Casas','Avisos','Reportes','Incidentes','Mensajes de incidentes','Entregas','Solicitudes de contacto','Mensajes entre residentes','Notificaciones','Lecturas de notificaciones','Paquetes','Reservaciones','Documentos','Emergencia'][i]+':',r.error)});
@@ -5103,7 +5034,6 @@ function renderHouseOccupancy(){
 }
 
 function render(){
- if(typeof mpSandboxRender==='function')mpSandboxRender();
  renderOwnerAnalytics();
  renderDuplicateDuesWarning();
  renderOwnerResidentPreview();
@@ -5661,98 +5591,16 @@ async function copiarCuenta(texto){
 }
 
 
-/** Resident checkout state is read from server and never enables production itself. */
-let mpResPaymentEnabled=false;
-let mpResCheckoutBusy=false;
-let mpResCheckMessage='Pagos para residentes pendientes de habilitación por el titular.';
-let mpResFeedback='';
-
-function mpResidentCard(){
- if(profile?.rol!=='residente'){
-  return '<div style="padding:13px;border-radius:12px;background:#0b2541;margin-top:12px">'+
-   '<p class="muted">Mercado Pago está preparado para residentes, pero los cobros generales requieren autorización del titular. El piloto anterior permanece separado.</p>'+
-   (profile?.rol==='owner'?'<button type="button" onclick="show(\'pagos\')">🔎 Ver piloto Owner</button>':'')+'</div>';
- }
- const own=profile.casa_id;
- const due=resumenDeudaCasa(own).detalle.filter(q=>q.saldo>0.009);
- const options=due.map(q=>'<option value="'+Number(q.id)+'">'+esc(q.concepto||'Cuota')+
-     ' · '+money(q.saldo)+' pendiente</option>').join('');
- const disabled=(!mpResPaymentEnabled||mpResCheckoutBusy||!due.length)?' disabled':'';
- const state=mpResPaymentEnabled?'✅ Disponible para residentes aprobados':mpResCheckMessage;
- return '<div class="card" style="margin-top:12px;background:#0b2541;border-radius:12px">'+
-  '<h4>Pago en línea de cuotas</h4>'+
-  '<p>Deuda pendiente de tu casa: <strong>'+money(resumenDeudaCasa(own).deuda)+'</strong></p>'+
-  '<p class="muted">'+esc(state)+'</p>'+
-  (due.length?'<label for="mpResCuotaSelect">Selecciona una cuota pendiente</label>'+
-    '<select id="mpResCuotaSelect" style="margin-top:8px">'+options+'</select>':
-    '<p class="muted">Tu casa no tiene cuotas pendientes.</p>')+
-  '<p class="muted" style="margin-top:10px">Solo se paga el saldo de la cuota elegida; la comisión de la plataforma se registra por separado. No se añaden recargos por tarjeta.</p>'+
-  '<button class="primary" type="button" id="mpResCheckoutBtn" style="margin-top:10px"'+disabled+
-    ' onclick="mpResStartCheckout()">💳 Pagar cuota con Mercado Pago</button>'+
-  '<p class="muted" id="mpResCheckoutStatus" role="status" style="margin-top:8px">'+esc(mpResFeedback)+'</p>'+
-  '<p class="muted">Tu pago solo se acreditará cuando Mercado Pago lo confirme al servidor. Volver de la página de pago no constituye comprobante.</p>'+
- '</div>';
-}
-async function mpResCheckAvailability(){
- if(profile?.rol!=='residente')return;
- mpResPaymentEnabled=false;
- mpResCheckMessage='Verificando si están habilitados los cobros para residentes…';
- renderMetodosPago();
- try{
-  const {data,error}=await sb.functions.invoke('mp-resident-create-checkout',{body:{status_only:true}});
-  if(error||data?.checked!==true)throw Error('No se pudo consultar la disponibilidad');
-  mpResPaymentEnabled=data.enabled===true;
-  mpResCheckMessage=mpResPaymentEnabled?'Disponible':'Pendiente de habilitación por el titular';
- }catch(_){
-  mpResPaymentEnabled=false;
-  mpResCheckMessage='No se pudo confirmar la disponibilidad; no se permite pagar.';
- }finally{if(profile?.rol==='residente')renderMetodosPago();}
-}
-async function mpResStartCheckout(){
- if(profile?.rol!=='residente'||!mpResPaymentEnabled||mpResCheckoutBusy)return;
- const id=Number(document.getElementById('mpResCuotaSelect')?.value);
- const due=resumenDeudaCasa(profile.casa_id).detalle.find(q=>Number(q.id)===id && q.saldo>0.009);
- if(!due||!Number.isSafeInteger(id))return;
- const localAmount=Math.round(due.saldo*100)/100;
- if(!confirm('Vas a abrir Mercado Pago para un pago REAL por '+money(localAmount)+
-  ' de la cuota seleccionada. Solo el titular adulto autorizado debe confirmar el pago en Mercado Pago. ¿Abrir checkout?'))return;
- mpResCheckoutBusy=true;
- mpResFeedback='Preparando enlace de pago seguro…';
- const selected=id;
- renderMetodosPago();
- try{
-  const {data,error}=await sb.functions.invoke('mp-resident-create-checkout',{body:{cuota_id:selected}});
-  if(error){
-   let msg=error.message||'El servidor rechazó el checkout.';
-   if(error.context&&typeof error.context.json==='function'){
-    try{const details=await error.context.json();if(typeof details?.error==='string')msg=details.error;}catch(_){}
-   }
-   throw Error(msg);
-  }
-  if(data?.ready!==true||Math.abs(Number(data.amount)-localAmount)>0.009)
-    throw Error('El importe ya cambió. Actualiza tus cuotas antes de volver a pagar.');
-  const u=new URL(String(data.checkout_url||''));
-  if(u.protocol!=='https:'||!['www.mercadopago.com.mx','www.mercadopago.com'].includes(u.hostname))
-    throw Error('Mercado Pago no devolvió un enlace confiable');
-  mpResFeedback='Abriendo el checkout de Mercado Pago…';
-  window.location.assign(u.href);
- }catch(e){
-  mpResFeedback='No se pudo iniciar el pago: '+(e?.message||String(e))+
-   '. Si ya pagaste, no lo repitas. Verifica tu historial y el estado de tu cuota.';
- }finally{mpResCheckoutBusy=false;renderMetodosPago();}
-}
-
 function renderMetodosPago(){
  const caja=document.getElementById('metodosPagoLista');
  if(!caja || !['owner','admin','residente'].includes(profile?.rol)) return;
- const lista=profile.rol==='residente'?metodosPago.filter(x=>x.activo!==false):metodosPago;
+ const disponibles=metodosPago.filter(x=>String(x.nombre||'').trim().toLowerCase()!=='mercado pago');
+ const lista=profile.rol==='residente'?disponibles.filter(x=>x.activo!==false):disponibles;
  caja.innerHTML=lista.map(m=>{
-   const esMercadoPago=String(m.nombre||'').trim().toLowerCase()==='mercado pago';
-   const extrasMercadoPago=esMercadoPago?mpResidentCard():'';
    const cuentaCodificada=encodeURIComponent(m.numero_cuenta||'');
    const cuenta=m.numero_cuenta?`<div style="margin-top:10px"><strong>Cuenta / CLABE:</strong><br><span style="font-size:1.08em">${esc(m.numero_cuenta)}</span><br><button style="margin-top:8px" onclick="copiarCuenta(decodeURIComponent('${cuentaCodificada}'))">📋 Copiar cuenta</button></div>`:'';
    const acciones=isAdminProfileRole(profile.rol)?`<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button onclick="editarMetodoPago(${m.id})">✏️ Editar</button>${m.activo!==false?`<button class="danger" onclick="cambiarEstadoMetodoPago(${m.id},false)">Suspender</button>`:`<button class="primary" onclick="cambiarEstadoMetodoPago(${m.id},true)">Activar</button>`}<button class="danger" onclick="eliminarMetodoPago(${m.id})">🗑️ Eliminar</button></div>`:'';
-   return `<div class="card" style="margin-bottom:14px"><h3>💳 ${esc(m.nombre||'Método de pago')}</h3>${isAdminProfileRole(profile.rol)?`<div class="badge">${m.activo!==false?'✅ Activo':'⛔ Suspendido'}</div>`:''}${m.descripcion?`<p>${esc(m.descripcion)}</p>`:''}${m.banco?`<p><strong>Banco:</strong> ${esc(m.banco)}</p>`:''}${m.beneficiario?`<p><strong>Beneficiario:</strong> ${esc(m.beneficiario)}</p>`:''}${cuenta}${m.instrucciones?`<p style="margin-top:12px"><strong>Instrucciones:</strong><br>${esc(m.instrucciones)}</p>`:''}${extrasMercadoPago}${acciones}</div>`;
+   return `<div class="card" style="margin-bottom:14px"><h3>💳 ${esc(m.nombre||'Método de pago')}</h3>${isAdminProfileRole(profile.rol)?`<div class="badge">${m.activo!==false?'✅ Activo':'⛔ Suspendido'}</div>`:''}${m.descripcion?`<p>${esc(m.descripcion)}</p>`:''}${m.banco?`<p><strong>Banco:</strong> ${esc(m.banco)}</p>`:''}${m.beneficiario?`<p><strong>Beneficiario:</strong> ${esc(m.beneficiario)}</p>`:''}${cuenta}${m.instrucciones?`<p style="margin-top:12px"><strong>Instrucciones:</strong><br>${esc(m.instrucciones)}</p>`:''}${acciones}</div>`;
  }).join('')||'<div class="card muted">No hay métodos de pago disponibles.</div>';
 }
 
@@ -6975,6 +6823,5 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizar
 
 
 </script>
-<script src="./mp-sandbox.js?v=mp-residents-check1"></script>
 </body></html>
 
