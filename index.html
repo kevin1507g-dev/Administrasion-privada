@@ -3471,7 +3471,9 @@ async function eliminarCuota(id){
  const {error}=await sb.from('cuotas').delete().eq('id',id);
  if(error){
    if(error.code==='23503'||String(error.message||'').includes('intents_cuota_id_fkey')){
-      return alert('Esta cuota está relacionada con Mercado Pago. Si hay un enlace de pago activo, primero debe anularse y verificarse su estado antes de eliminarla. No se borraron pagos.');
+      const aceptado=confirm('Esta cuota tiene un registro o enlace de Mercado Pago.\\n\\n¿QUITARLA DE LA LISTA de cuotas aunque el enlace anterior pudiera seguir activo?\\n\\nSe conservará internamente la cuota y su historial para poder reconocer pagos que lleguen después. No se cancela automáticamente el enlace.');
+      if(aceptado)return archivarCuota(id,true);
+      return;
    }
    return alert('No se pudo eliminar la cuota: '+error.message);
  }
