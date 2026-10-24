@@ -12,6 +12,7 @@
 <link rel="icon" href="./pwa-icon.svg?v=beteles" type="image/svg+xml">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
 :root{--bg:#0f172a;--p:#111827;--p2:#1e293b;--t:#f8fafc;--m:#94a3b8;--g:#22c55e;--r:#ef4444;--b:#38bdf8}
@@ -1370,6 +1371,19 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
       <div><h3 id="incDetalleTitulo">Seguimiento</h3><div id="incDetalleMeta" class="muted"></div></div>
       <button onclick="cerrarIncidenteDetalle()">Cerrar</button>
+    </div>
+
+    <div class="adminOnly card" style="margin-top:14px;background:#0c1b2c">
+      <h4 style="margin:0 0 8px">📄 Formato PDF para el residente</h4>
+      <label for="incPdfDestinatario">Destinatario</label>
+      <select id="incPdfDestinatario">
+        <option value="">Residentes de la casa relacionada</option>
+      </select>
+      <p class="muted" style="font-size:.9em">El PDF incluirá solamente los datos del incidente que se pueden compartir con el destinatario. No incluye el nombre del denunciante ni mensajes internos. Compartir no envía nada automáticamente.</p>
+      <div class="actions" style="margin-top:10px">
+        <button type="button" class="primary" onclick="descargarPDFIncidenteActual()">📄 Descargar PDF</button>
+        <button type="button" onclick="compartirPDFIncidenteActual()">📤 Compartir PDF</button>
+      </div>
     </div>
 
     <div class="adminOnly" style="margin-top:14px">
@@ -3631,9 +3645,162 @@ function renderIncidentes(){
       '<td>'+esc(textoPrioridadIncidente(i.prioridad))+'</td>'+
       '<td><strong>'+esc(i.titulo||'')+'</strong></td>'+
       '<td><span class="badge">'+esc(textoEstadoIncidente(i.estado))+'</span></td>'+
-      '<td><button onclick="abrirIncidente(\''+i.id+'\')">Ver / seguimiento</button></td>'+
+      '<td><button onclick="abrirIncidente(\''+i.id+'\')">Ver / seguimiento</button>'+
+      (isAdminProfileRole(profile?.rol)?'<button type="button" class="mini" style="margin-left:6px" onclick="descargarPDFIncidente(\''+i.id+'\')">📄 PDF</button>':'')+'</td>'+
     '</tr>';
   }).join('')||'<tr><td colspan="8" class="muted">No hay reportes de incidentes.</td></tr>';
+}
+
+
+// Formato PDF de notificación de incidente para entrega voluntaria por Admin/Owner.
+// Se genera en el navegador y no sube documentos a servidores externos.
+function prepararDestinatariosPDFIncidente(inc){
+ const select=document.getElementById('incPdfDestinatario');
+ if(!select||!isAdminProfileRole(profile?.rol)||!inc)return;
+ const seleccionado=select.value;
+ const numero=casaNumero(inc.casa_id)||'';
+ const residentes=profiles.filter(p=>p.rol==='residente' &&
+   String(p.casa_id)===String(inc.casa_id) &&
+   p.activo===true && p.estado_registro==='aprobado')
+   .sort((a,b)=>String(a.nombre||'').localeCompare(String(b.nombre||''),'es'));
+ select.innerHTML='<option value="">Residentes de Casa '+esc(numero)+'</option>'+
+  residentes.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.nombre||'Residente')+'</option>').join('');
+ if(residentes.some(p=>String(p.id)===seleccionado))select.value=seleccionado;
+}
+
+function documentoPDFDeIncidente(id){
+ if(!isAdminProfileRole(profile?.rol))throw Error('Solo Admin y Owner pueden preparar el PDF.');
+ if(!window.jspdf?.jsPDF)throw Error('No se cargó el generador PDF. Revisa tu conexión y actualiza la página.');
+ const inc=incidentes.find(x=>String(x.id)===String(id));
+ if(!inc)throw Error('Este incidente no está disponible. Actualiza la página.');
+ const casa=casas.find(c=>String(c.id)===String(inc.casa_id));
+ if(!casa)throw Error('No se encontró la casa relacionada con el incidente.');
+ const numero=String(casa.numero||'');
+ const select=document.getElementById('incPdfDestinatario');
+ const seleccionado=(String(incidenteActualId)===String(id))?String(select?.value||''):'';
+ const receptor=profiles.find(p=>p.rol==='residente' && String(p.id)===seleccionado &&
+   String(p.casa_id)===String(inc.casa_id) && p.activo===true && p.estado_registro==='aprobado');
+ const nombreDestino=receptor?.nombre||('Residentes de la Casa '+numero);
+ const {jsPDF}=window.jspdf;
+ const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
+ const pageW=210,margin=19,maxW=pageW-2*margin,pageH=297;
+ const azul=[14,35,58],verde=[24,123,93],gris=[77,91,108];
+ const folio='INC-'+String(inc.id||'').slice(0,8).toUpperCase();
+ const fh=v=>v?new Date(v).toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'}):'Sin fecha';
+ const fechaCreacion=fh(inc.created_at),fechaHoy=fh(new Date());
+ const archivo='Incidente_'+String(numero).replace(/[^0-9A-Za-z_-]/g,'_')+'_'+folio+'.pdf';
+ let y=58;
+
+ function encabezado(segunda){
+  doc.setFillColor(...azul);doc.rect(0,0,pageW,43,'F');
+  doc.setFillColor(...verde);doc.rect(0,40,pageW,3,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFont('helvetica','bold');doc.setFontSize(16);
+  doc.text('PRIVADA VALLE DE LOS BETELES',margin,17);
+  doc.setFont('helvetica','normal');doc.setFontSize(10);
+  doc.text('ADMINISTRACIÓN RESIDENCIAL',margin,25);
+  doc.text('NOTIFICACIÓN DE INCIDENTE',margin,33);
+  doc.setTextColor(...azul);
+  if(segunda){
+   doc.setFont('helvetica','italic');doc.setFontSize(9);
+   doc.text('Continuación de la notificación  ·  '+folio,margin,52);
+  }
+ }
+ function salto(siNecesita){
+  if(y+siNecesita>pageH-30){doc.addPage();encabezado(true);y=63;}
+ }
+ function bloque(titulo,contenido){
+  const texto=String(contenido??'').trim()||'No especificado';
+  doc.setFont('helvetica','normal');doc.setFontSize(10.5);
+  const lineas=doc.splitTextToSize(texto,maxW);
+  salto(13);
+  doc.setFont('helvetica','bold');doc.setFontSize(9);
+  doc.setTextColor(...verde);doc.text(String(titulo).toUpperCase(),margin,y);
+  y+=7;
+  doc.setTextColor(...azul);doc.setFont('helvetica','normal');doc.setFontSize(10.5);
+  for(const linea of lineas){
+   salto(6);
+   doc.text(String(linea),margin,y);
+   y+=5.7;
+  }
+  y+=7;
+ }
+ encabezado(false);
+ doc.setFont('helvetica','bold');doc.setFontSize(10.5);
+ doc.text('Comunicación dirigida al residente',margin,y);
+ y+=9;
+ doc.setFillColor(241,247,246);doc.roundedRect(margin,y-2,maxW,34,3,3,'F');
+ doc.setTextColor(...azul);
+ doc.setFont('helvetica','bold');doc.setFontSize(9);
+ doc.text('DESTINATARIO',margin+5,y+5);
+ doc.setFont('helvetica','normal');doc.setFontSize(11);
+ const receptorLineas=doc.splitTextToSize(nombreDestino,maxW-10);
+ receptorLineas.slice(0,2).forEach((line,i)=>doc.text(line,margin+5,y+13+i*5));
+ doc.setFontSize(9);doc.text('Casa '+numero,margin+5,y+25);
+ y+=44;
+ bloque('Folio de seguimiento',folio);
+ bloque('Fecha del reporte',fechaCreacion);
+ bloque('Fecha de emisión',fechaHoy);
+ bloque('Asunto',inc.titulo||'Reporte de incidente');
+ bloque('Categoría',inc.categoria||'Otro');
+ bloque('Prioridad',String(inc.prioridad||'normal').toUpperCase());
+ bloque('Estado actual',String(inc.estado||'nuevo').replace(/_/g,' '));
+ bloque('Descripción registrada',inc.descripcion||'Sin descripción');
+ bloque('Mensaje de administración',
+   'La presente comunicación informa de un reporte registrado en la privada. Se solicita revisar los hechos descritos y, en su caso, contactar a la administración mediante los canales habituales para cualquier aclaración.');
+ salto(35);
+ doc.setDrawColor(190,203,213);
+ doc.line(margin,y,margin+70,y);y+=6;
+ doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(...azul);
+ doc.text('Administración de la privada',margin,y);
+ y+=7;
+ doc.setFont('helvetica','italic');doc.setFontSize(8.5);doc.setTextColor(...gris);
+ const nota=doc.splitTextToSize('Este documento informa sobre un reporte registrado; no determina responsabilidades. No se incluyen datos del denunciante ni conversaciones internas.',maxW);
+ for(const linea of nota){salto(5);doc.text(String(linea),margin,y);y+=4.6;}
+ const paginas=doc.getNumberOfPages();
+ for(let pagina=1;pagina<=paginas;pagina++){
+  doc.setPage(pagina);
+  doc.setDrawColor(208,215,222);doc.line(margin,pageH-19,pageW-margin,pageH-19);
+  doc.setTextColor(...gris);doc.setFont('helvetica','normal');doc.setFontSize(8);
+  doc.text('DOCUMENTO PARA EL DESTINATARIO  ·  '+folio,margin,pageH-13);
+  doc.text('Página '+pagina+' de '+paginas,pageW-margin,pageH-13,{align:'right'});
+ }
+ return {doc,archivo,folio,casa:numero};
+}
+
+function descargarPDFIncidente(id){
+ try{
+  const docu=documentoPDFDeIncidente(id);
+  docu.doc.save(docu.archivo);
+ }catch(error){
+  alert('No se pudo generar el PDF: '+(error?.message||String(error)));
+ }
+}
+function descargarPDFIncidenteActual(){
+ if(!incidenteActualId)return alert('Selecciona un incidente primero.');
+ descargarPDFIncidente(incidenteActualId);
+}
+async function compartirPDFIncidenteActual(){
+ if(!incidenteActualId)return alert('Selecciona un incidente primero.');
+ let pdf;
+ try{pdf=documentoPDFDeIncidente(incidenteActualId);}
+ catch(error){return alert('No se pudo generar el PDF: '+(error?.message||String(error)));}
+ try{
+  const blob=pdf.doc.output('blob');
+  const archivo=new File([blob],pdf.archivo,{type:'application/pdf'});
+  const payload={files:[archivo],title:'Notificación de incidente '+pdf.folio,
+    text:'Notificación de Administración Residencial dirigida a Casa '+pdf.casa};
+  if(navigator.share && navigator.canShare && navigator.canShare({files:[archivo]})){
+   await navigator.share(payload);
+  }else{
+   pdf.doc.save(pdf.archivo);
+   alert('Se descargó el PDF. Adjunta el archivo en el correo o aplicación que utilices para comunicarte con el residente.');
+  }
+ }catch(error){
+  if(error?.name==='AbortError')return;
+  pdf.doc.save(pdf.archivo);
+  alert('No se pudo abrir Compartir. El PDF se descargó para que puedas enviarlo manualmente.');
+ }
 }
 
 function abrirIncidente(id){
@@ -3669,6 +3836,7 @@ function abrirIncidente(id){
   }
 
   if(estado)estado.value=inc.estado||'nuevo';
+  prepararDestinatariosPDFIncidente(inc);
 
   renderMensajesIncidente();
   detalle?.scrollIntoView({behavior:'smooth',block:'start'});
