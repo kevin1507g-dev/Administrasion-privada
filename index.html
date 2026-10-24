@@ -1379,7 +1379,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       <select id="incPdfDestinatario">
         <option value="">Residentes de la casa relacionada</option>
       </select>
-      <p class="muted" style="font-size:.9em">El PDF incluirá solamente los datos del incidente que se pueden compartir con el destinatario. No incluye el nombre del denunciante ni mensajes internos. Compartir no envía nada automáticamente.</p>
+      <p class="muted" style="font-size:.9em">El PDF no agrega la identidad de quien reportó ni los mensajes internos. Revisa la descripción antes de compartirla por si contiene información personal. Compartir no envía nada automáticamente.</p>
       <div class="actions" style="margin-top:10px">
         <button type="button" class="primary" onclick="descargarPDFIncidenteActual()">📄 Descargar PDF</button>
         <button type="button" onclick="compartirPDFIncidenteActual()">📤 Compartir PDF</button>
@@ -3755,7 +3755,7 @@ function documentoPDFDeIncidente(id){
  doc.text('Administración de la privada',margin,y);
  y+=7;
  doc.setFont('helvetica','italic');doc.setFontSize(8.5);doc.setTextColor(...gris);
- const nota=doc.splitTextToSize('Este documento informa sobre un reporte registrado; no determina responsabilidades. No se incluyen datos del denunciante ni conversaciones internas.',maxW);
+ const nota=doc.splitTextToSize('Este documento comunica un reporte sin determinar responsabilidades. La identidad de quien reportó y los mensajes internos no se agregan automáticamente; revisa la descripción antes de compartirla.',maxW);
  for(const linea of nota){salto(5);doc.text(String(linea),margin,y);y+=4.6;}
  const paginas=doc.getNumberOfPages();
  for(let pagina=1;pagina<=paginas;pagina++){
