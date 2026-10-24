@@ -2786,6 +2786,7 @@ function show(id){
     else btn.removeAttribute('aria-current');
   });
 
+  if(id==='metodosPago'&&profile?.rol==='residente')mpResCheckAvailability();
   if(id==='controlDigital'){
     digitalButtonsDisabled(true);
     refreshDigitalAccess();
@@ -5627,23 +5628,95 @@ async function copiarCuenta(texto){
  }
 }
 
+
+/** Resident checkout state is read from server and never enables production itself. */
+let mpResPaymentEnabled=false;
+let mpResCheckoutBusy=false;
+let mpResCheckMessage='Pagos para residentes pendientes de habilitación por el titular.';
+let mpResFeedback='';
+
+function mpResidentCard(){
+ if(profile?.rol!=='residente'){
+  return '<div style="padding:13px;border-radius:12px;background:#0b2541;margin-top:12px">'+
+   '<p class="muted">Mercado Pago está preparado para residentes, pero los cobros generales requieren autorización del titular. El piloto anterior permanece separado.</p>'+
+   (profile?.rol==='owner'?'<button type="button" onclick="show(\'pagos\')">🔎 Ver piloto Owner</button>':'')+'</div>';
+ }
+ const own=profile.casa_id;
+ const due=resumenDeudaCasa(own).detalle.filter(q=>q.saldo>0.009);
+ const options=due.map(q=>'<option value="'+Number(q.id)+'">'+esc(q.concepto||'Cuota')+
+     ' · '+money(q.saldo)+' pendiente</option>').join('');
+ const disabled=(!mpResPaymentEnabled||mpResCheckoutBusy||!due.length)?' disabled':'';
+ const state=mpResPaymentEnabled?'✅ Disponible para residentes aprobados':mpResCheckMessage;
+ return '<div class="card" style="margin-top:12px;background:#0b2541;border-radius:12px">'+
+  '<h4>Pago en línea de cuotas</h4>'+
+  '<p>Deuda pendiente de tu casa: <strong>'+money(resumenDeudaCasa(own).deuda)+'</strong></p>'+
+  '<p class="muted">'+esc(state)+'</p>'+
+  (due.length?'<label for="mpResCuotaSelect">Selecciona una cuota pendiente</label>'+
+    '<select id="mpResCuotaSelect" style="margin-top:8px">'+options+'</select>':
+    '<p class="muted">Tu casa no tiene cuotas pendientes.</p>')+
+  '<p class="muted" style="margin-top:10px">Solo se paga el saldo de la cuota elegida; la comisión de la plataforma se registra por separado. No se añaden recargos por tarjeta.</p>'+
+  '<button class="primary" type="button" id="mpResCheckoutBtn" style="margin-top:10px"'+disabled+
+    ' onclick="mpResStartCheckout()">💳 Pagar cuota con Mercado Pago</button>'+
+  '<p class="muted" id="mpResCheckoutStatus" role="status" style="margin-top:8px">'+esc(mpResFeedback)+'</p>'+
+  '<p class="muted">Tu pago solo se acreditará cuando Mercado Pago lo confirme al servidor. Volver de la página de pago no constituye comprobante.</p>'+
+ '</div>';
+}
+async function mpResCheckAvailability(){
+ if(profile?.rol!=='residente')return;
+ mpResPaymentEnabled=false;
+ mpResCheckMessage='Verificando si están habilitados los cobros para residentes…';
+ renderMetodosPago();
+ try{
+  const {data,error}=await sb.functions.invoke('mp-resident-create-checkout',{body:{status_only:true}});
+  if(error||data?.checked!==true)throw Error('No se pudo consultar la disponibilidad');
+  mpResPaymentEnabled=data.enabled===true;
+  mpResCheckMessage=mpResPaymentEnabled?'Disponible':'Pendiente de habilitación por el titular';
+ }catch(_){
+  mpResPaymentEnabled=false;
+  mpResCheckMessage='No se pudo confirmar la disponibilidad; no se permite pagar.';
+ }finally{if(profile?.rol==='residente')renderMetodosPago();}
+}
+async function mpResStartCheckout(){
+ if(profile?.rol!=='residente'||!mpResPaymentEnabled||mpResCheckoutBusy)return;
+ const id=Number(document.getElementById('mpResCuotaSelect')?.value);
+ const due=resumenDeudaCasa(profile.casa_id).detalle.find(q=>Number(q.id)===id && q.saldo>0.009);
+ if(!due||!Number.isSafeInteger(id))return;
+ const localAmount=Math.round(due.saldo*100)/100;
+ if(!confirm('Vas a abrir Mercado Pago para un pago REAL por '+money(localAmount)+
+  ' de la cuota seleccionada. Solo el titular adulto autorizado debe confirmar el pago en Mercado Pago. ¿Abrir checkout?'))return;
+ mpResCheckoutBusy=true;
+ mpResFeedback='Preparando enlace de pago seguro…';
+ const selected=id;
+ renderMetodosPago();
+ try{
+  const {data,error}=await sb.functions.invoke('mp-resident-create-checkout',{body:{cuota_id:selected}});
+  if(error){
+   let msg=error.message||'El servidor rechazó el checkout.';
+   if(error.context&&typeof error.context.json==='function'){
+    try{const details=await error.context.json();if(typeof details?.error==='string')msg=details.error;}catch(_){}
+   }
+   throw Error(msg);
+  }
+  if(data?.ready!==true||Math.abs(Number(data.amount)-localAmount)>0.009)
+    throw Error('El importe ya cambió. Actualiza tus cuotas antes de volver a pagar.');
+  const u=new URL(String(data.checkout_url||''));
+  if(u.protocol!=='https:'||!['www.mercadopago.com.mx','www.mercadopago.com'].includes(u.hostname))
+    throw Error('Mercado Pago no devolvió un enlace confiable');
+  mpResFeedback='Abriendo el checkout de Mercado Pago…';
+  window.location.assign(u.href);
+ }catch(e){
+  mpResFeedback='No se pudo iniciar el pago: '+(e?.message||String(e))+
+   '. Si ya pagaste, no lo repitas. Verifica tu historial y el estado de tu cuota.';
+ }finally{mpResCheckoutBusy=false;renderMetodosPago();}
+}
+
 function renderMetodosPago(){
  const caja=document.getElementById('metodosPagoLista');
  if(!caja || !['owner','admin','residente'].includes(profile?.rol)) return;
  const lista=profile.rol==='residente'?metodosPago.filter(x=>x.activo!==false):metodosPago;
  caja.innerHTML=lista.map(m=>{
    const esMercadoPago=String(m.nombre||'').trim().toLowerCase()==='mercado pago';
-   const extrasMercadoPago=!esMercadoPago?'':(profile.rol==='residente'
-     ? `<div style="padding:13px;border-radius:12px;background:#0b2541;margin-top:12px">
-          <div class="badge">⏳ Integración para residentes en preparación</div>
-          <p style="margin-top:10px">Saldo pendiente de tu casa: <strong>${money(resumenDeudaCasa(profile.casa_id).deuda)}</strong></p>
-          <p class="muted">Para evitar cobros duplicados, el pago en línea desde cuentas de residentes se habilitará después de validar esta etapa. Por ahora no se generará ningún cobro desde aquí.</p>
-          <button type="button" onclick="show('cuotas')">🧾 Consultar mis cuotas</button>
-        </div>`
-     : `<div style="padding:13px;border-radius:12px;background:#0b2541;margin-top:12px">
-          <p class="muted">El piloto de Mercado Pago se administra exclusivamente desde el panel Owner. No se habilitan cobros generales a residentes todavía.</p>
-          ${profile.rol==='owner'?`<button type="button" onclick="show('pagos')">🔎 Ir al piloto de Mercado Pago</button>`:''}
-        </div>`);
+   const extrasMercadoPago=esMercadoPago?mpResidentCard():'';
    const cuentaCodificada=encodeURIComponent(m.numero_cuenta||'');
    const cuenta=m.numero_cuenta?`<div style="margin-top:10px"><strong>Cuenta / CLABE:</strong><br><span style="font-size:1.08em">${esc(m.numero_cuenta)}</span><br><button style="margin-top:8px" onclick="copiarCuenta(decodeURIComponent('${cuentaCodificada}'))">📋 Copiar cuenta</button></div>`:'';
    const acciones=isAdminProfileRole(profile.rol)?`<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button onclick="editarMetodoPago(${m.id})">✏️ Editar</button>${m.activo!==false?`<button class="danger" onclick="cambiarEstadoMetodoPago(${m.id},false)">Suspender</button>`:`<button class="primary" onclick="cambiarEstadoMetodoPago(${m.id},true)">Activar</button>`}<button class="danger" onclick="eliminarMetodoPago(${m.id})">🗑️ Eliminar</button></div>`:'';
