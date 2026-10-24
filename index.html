@@ -207,6 +207,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <button id="pushBtn" class="primary" type="button" onclick="activarNotificaciones()">
   🔔 Activar notificaciones
 </button>
+<button class="residentAdminOnly" onclick="show('disciplina')">⚖️ Avisos y multas</button>
 <button class="residentAdminOnly" onclick="show('notificaciones')">
   🔔 Notificaciones <span id="notifBadge" class="badge">0</span>
 </button>
@@ -326,6 +327,20 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div id="avisosInicio" style="margin-top:14px"></div>
 </section>
 
+<section id="disciplina" class="residentAdminOnly">
+<h2>⚖️ Avisos, multas y aclaraciones</h2>
+<p class="muted">Cada caso requiere tres avisos antes de que un administrador u owner pueda autorizar una multa. Las aclaraciones quedan registradas por casa.</p>
+<div id="disciplinaCrear" class="card adminOnly hidden">
+<h3>Nuevo expediente</h3>
+<div class="form">
+<div><label>Casa</label><select id="disciplinaCasa"></select></div>
+<div><label>Motivo</label><input id="disciplinaMotivo" maxlength="500" placeholder="Ej. Ruido fuera de horario"></div>
+<div class="full"><label>Descripción</label><textarea id="disciplinaDescripcion" maxlength="2000" placeholder="Describe los hechos y la regla aplicable"></textarea></div>
+</div>
+<button class="primary" onclick="disciplinaCrearCaso()">Crear expediente</button>
+</div>
+<div id="disciplinaLista" aria-live="polite"></div>
+</section>
 <section id="notificaciones" class="residentAdminOnly">
   <h2>🔔 Centro de notificaciones</h2>
   <div class="card">
@@ -2705,6 +2720,7 @@ async function basuraAccion(action){
 }
 
 function show(id){
+  if(id==='disciplina' && typeof disciplinaCargar==='function')setTimeout(disciplinaCargar,0);
   if(profile?.rol==='owner' && ownerPanelMode==='resident' && id!=='ownerResidentPreview')return;
   if(id==='ownerResidentPreview' && (profile?.rol!=='owner'||ownerPanelMode!=='resident'))return;
   if(id==='ownerPanel' && (profile?.rol!=='owner'||ownerPanelMode!=='owner'))return;
@@ -6836,5 +6852,6 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizar
 
 
 </script>
+<script src="./disciplina.js?v=1"></script>
 </body></html>
 
