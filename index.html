@@ -1070,6 +1070,12 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
         <p class="muted" id="mpProdCopyStatus" role="status">Después, guarda ese número en Supabase → Secrets → MP_PROD_SELLER_ID y vuelve a verificar.</p>
       </div>
     </div>
+    <div class="card" style="margin-top:16px;border-color:#475569">
+      <h4 style="margin:0 0 8px">💳 Piloto real $15 · Casa 63</h4>
+      <p class="muted">Solo el titular adulto autorizado puede realizar esta compra. El enlace de pago permanecerá bloqueado hasta que el titular habilite expresamente el piloto en Supabase y el diagnóstico confirme la cuenta real. Usa la cuota de $15 seleccionada arriba.</p>
+      <button type="button" id="mpRealPilotBtn" disabled onclick="mpRealPilotCheckout()">🔒 Preparar pago real de $15</button>
+      <p class="muted" role="status" id="mpRealPilotStatus" style="margin-top:10px">Cobros reales desactivados. El regreso de Mercado Pago no confirma un pago; solo la notificación firmada del servidor puede registrarlo.</p>
+    </div>
     <div class="mpLabHeading" style="margin:15px 0 8px">
       <h4 style="margin:0">Historial de operaciones de prueba</h4>
       <button type="button" onclick="mpSandboxLoadHistory()">↻ Actualizar</button>
@@ -6852,6 +6858,6 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizar
 
 
 </script>
-<script src="./mp-sandbox.js?v=mp-prod-seller-id2"></script>
+<script src="./mp-sandbox.js?v=mp-real-pilot1"></script>
 </body></html>
 
