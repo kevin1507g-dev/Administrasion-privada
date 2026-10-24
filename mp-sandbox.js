@@ -5,7 +5,7 @@
  * Solo Owner. Al integrar el checkout externo deberá existir una
  * validación verificada de webhook y de transacciones por backend.
  */
-const mpLab={busy:false,historyBusy:false,current:null,lastRequest:null};
+const mpLab={busy:false,historyBusy:false,current:null,lastRequest:null,realPilotReady:false,realPilotBusy:false};
 function mpLabEnabled(){
  return profile?.rol==='owner' && ownerPanelMode==='owner' && profile.activo===true && !!user;
 }
@@ -55,6 +55,8 @@ function mpSandboxPreview(){
  const checkout=document.getElementById('mpLabCheckout');
  if(checkout)checkout.disabled=mpLab.busy||!q;
  mpSandboxUpdateButtons();
+ const realButton=document.getElementById('mpRealPilotBtn');
+ if(realButton)realButton.disabled=!mpLabEnabled()||!mpLab.realPilotReady||mpLab.realPilotBusy||mpLab.busy||!q||Math.abs(Number(mpLabBalance(q))-15)>0.001;
 }
 function mpSandboxUpdateButtons(){
  const pending=mpLab.current?.status==='pending';
@@ -216,6 +218,8 @@ async function mpSandboxCheckProduction(){
  const detectedWrap=document.getElementById('mpProdDetectedSellerWrap');
  if(previousId)previousId.textContent='';
  if(detectedWrap)detectedWrap.classList.add('hidden');
+ mpLab.realPilotReady=false;
+ mpSandboxPreview();
  mpLabText('mpProdCheckStatus','Comprobando configuración de producción sin cobrar…');
  try{
   const {data,error}=await sb.functions.invoke('mp-prod-diagnostico',{body:{}});
@@ -227,6 +231,9 @@ async function mpSandboxCheckProduction(){
    throw new Error(details);
   }
   if(data?.checked!==true)throw new Error('Respuesta de verificación desconocida.');
+  mpLab.realPilotReady=data.vendedor_verificado===true&&
+    data.cobros_habilitados===true&&data.firma_webhook_configurada===true;
+  mpSandboxPreview();
   const detected=String(data.id_vendedor_detectado??'');
   const wrap=document.getElementById('mpProdDetectedSellerWrap');
   const value=document.getElementById('mpProdDetectedSellerId');
@@ -245,6 +252,8 @@ async function mpSandboxCheckProduction(){
   mpLabText('mpProdCheckStatus',parts.join(' · ')+'. '+String(data.verificacion_vendedor||'')+
   '. La entrega del webhook aún NO está verificada. No se realizó ningún cobro.');
  }catch(e){
+  mpLab.realPilotReady=false;
+  mpSandboxPreview();
   mpLabText('mpProdCheckStatus','No se completó la verificación: '+(e?.message||String(e))+
     '. Revisa los secretos guardados en Supabase, sin compartir sus valores.');
  }finally{if(btn)btn.disabled=false;}
@@ -260,5 +269,47 @@ async function mpCopyDetectedSellerId(){
   mpLabText('mpProdCopyStatus','ID de vendedor copiado. En Supabase, edita solo el VALUE de MP_PROD_SELLER_ID.');
  }catch(_){
   mpLabText('mpProdCopyStatus','Selecciona el número que aparece arriba y cópialo manualmente.');
+ }
+}
+
+
+/** Único cobro real de piloto para Owner adulto autorizado.
+ * Está BLOQUEADO en frontend y servidor hasta que el titular habilite el piloto.
+ * La confirmación de vuelta al sitio NUNCA acredita un pago: solo el webhook.
+ */
+async function mpRealPilotCheckout(){
+ if(!mpLabEnabled()||!mpLab.realPilotReady||mpLab.realPilotBusy)return;
+ const choice=document.getElementById('mpLabQuota')?.value;
+ const quota=mpLabQuotaOptions().find(x=>String(x.id)===String(choice));
+ if(!quota||Math.abs(Number(mpLabBalance(quota))-15)>0.001){
+  mpLabText('mpRealPilotStatus','Selecciona la cuota pendiente de $15 de Casa 63.');
+  return;
+ }
+ if(!window.confirm('ATENCIÓN: ESTE ES UN PAGO REAL de $15 MXN.\n\nEl cobro ocurrirá SOLO cuando el titular adulto autorizado lo confirme en Mercado Pago. Pueden existir comisiones. ¿Deseas abrir el checkout de producción para la prueba de Casa 63?'))return;
+ mpLab.realPilotBusy=true;
+ mpSandboxPreview();
+ mpLabText('mpRealPilotStatus','Preparando el enlace oficial de pago real…');
+ try{
+  const {data,error}=await sb.functions.invoke('mp-real-create-checkout',{body:{cuota_id:Number(quota.id)}});
+  if(error){
+   let message=error.message||'El servidor no preparó el cobro.';
+   if(error.context&&typeof error.context.json==='function'){
+    try{const detail=await error.context.json();if(typeof detail?.error==='string')message=detail.error;}catch(_){}
+   }
+   throw new Error(message);
+  }
+  if(data?.pilot!==true||Number(data.amount)!==15)throw new Error('El importe autorizado no coincide con $15 MXN.');
+  const url=new URL(String(data.checkout_url||''));
+  if(url.protocol!=='https:'||!['www.mercadopago.com.mx','www.mercadopago.com'].includes(url.hostname)){
+   throw new Error('Mercado Pago devolvió un enlace no permitido.');
+  }
+  mpLabText('mpRealPilotStatus','Abriendo Mercado Pago. NO se registra nada hasta confirmar el pago y verificar su notificación.');
+  window.location.assign(url.href);
+ }catch(err){
+  mpLabText('mpRealPilotStatus','No se abrió el pago real: '+(err?.message||String(err))+
+   '. No vuelvas a intentarlo si ya pagaste; primero revisa Mercado Pago y el registro.');
+ }finally{
+  mpLab.realPilotBusy=false;
+  mpSandboxPreview();
  }
 }
