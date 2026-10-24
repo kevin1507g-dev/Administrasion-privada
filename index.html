@@ -1028,7 +1028,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       <h3>💳 Mercado Pago · Laboratorio de pruebas</h3>
       <span class="mpLabBadge">🧪 SIN COBROS REALES</span>
     </div>
-    <p class="muted">Prueba cómo se comportaría el cobro automático con tarjeta o transferencia SPEI. Este simulador <strong>todavía no está conectado a Mercado Pago</strong>: no pide tarjetas, no cobra dinero, no registra pagos reales ni elimina deudas.</p>
+    <p class="muted">Prueba cómo se comportaría el cobro automático con tarjeta o transferencia SPEI. El simulador interno no pide tarjetas ni modifica pagos reales. El botón «Abrir Mercado Pago (PRUEBA)» permite utilizar exclusivamente el checkout de pruebas del proveedor con una cuenta compradora de prueba; tampoco modifica la deuda ni registra pagos reales. No uses cuentas ni tarjetas reales.</p>
     <div class="mpLabGrid">
       <div>
         <label for="mpLabQuota">Cuota pendiente para la prueba</label>
@@ -1051,6 +1051,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     </div>
     <div class="mpLabActions">
       <button id="mpLabStart" class="primary" type="button" onclick="mpSandboxStart()">🧪 Crear pago de prueba</button>
+      <button id="mpLabCheckout" type="button" onclick="mpSandboxCheckout()" disabled>🛒 Abrir Mercado Pago (PRUEBA)</button>
       <button id="mpLabApprove" type="button" onclick="mpSandboxSimulate('approved')" disabled>✓ Simular aprobado</button>
       <button id="mpLabReject" type="button" onclick="mpSandboxSimulate('rejected')" disabled>✕ Simular rechazado</button>
     </div>
@@ -6837,6 +6838,6 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizar
 
 
 </script>
-<script src="./mp-sandbox.js?v=mp-lab1"></script>
+<script src="./mp-sandbox.js?v=mp-checkout-test1"></script>
 </body></html>
 
