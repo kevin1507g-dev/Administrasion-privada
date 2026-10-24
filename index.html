@@ -3370,7 +3370,7 @@ async function archivarCuota(id, archivar=true){
  if(error)return alert('No se pudo modificar la cuota: '+error.message);
  if(data?.ok!==true){
   const msg=data?.reason==='active_or_unreconciled_checkout'
-    ? 'La cuota tiene un enlace de pago de Mercado Pago activo o en revisión. Por seguridad no se puede borrar ni archivar todavía. Primero debe anularse el enlace y verificarse que no haya un pago pendiente.'
+    ? 'Esta cuota conserva una operación externa que requiere revisión. No se puede eliminar sin verificar su estado.'
     : 'No se pudo archivar o restaurar esta cuota. Actualiza la página.';
   return alert(msg);
  }
@@ -3398,11 +3398,11 @@ async function eliminarCuota(id){
   return archivarCuota(id,true);
  }
  if(!confirm('¿Eliminar esta cuota?\n\n'+residente+'\n'+concepto+' · '+money(cuota.monto)+
-    '\n\nSolo se permite borrar cuotas sin pagos ni enlaces de Mercado Pago activos.'))return;
+    '\n\nSolo se permite borrar cuotas sin pagos ni referencias externas activas.'))return;
  const {error}=await sb.from('cuotas').delete().eq('id',id);
  if(error){
    if(error.code==='23503'||String(error.message||'').includes('intents_cuota_id_fkey')){
-      const aceptado=confirm('Esta cuota tiene un registro o enlace de Mercado Pago.\\n\\n¿QUITARLA DE LA LISTA de cuotas aunque el enlace anterior pudiera seguir activo?\\n\\nSe conservará internamente la cuota y su historial para poder reconocer pagos que lleguen después. No se cancela automáticamente el enlace.');
+      const aceptado=confirm('Esta cuota está relacionada con un cobro externo antiguo.\\n\\n¿QUITARLA DE LA LISTA aunque su enlace anterior pudiera seguir activo?\\n\\nSe conservará internamente la cuota y su historial para poder reconocer pagos que lleguen después. No se cancela automáticamente el enlace.');
       if(aceptado)return archivarCuota(id,true);
       return;
    }
