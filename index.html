@@ -2828,7 +2828,7 @@ function destinoPorTipoNotificacion(tipo){
 }
 
 function abrirDestinoNotificacion(destino,referencia,tipo){
-  const seccion=destino||destinoPorTipoNotificacion(tipo);
+  const seccion=destino||(['disciplina','disciplina_aclaracion','disciplina_respuesta'].includes(tipo)?'disciplina':destinoPorTipoNotificacion(tipo));
 
   if(seccion==='chat'){
     const partes=String(referencia||'').split(':');
