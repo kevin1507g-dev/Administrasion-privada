@@ -1061,6 +1061,14 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       <p class="muted">Verifica en el servidor si el Access Token, el ID del vendedor y la firma Webhook están configurados. No se cobra dinero, no se crean enlaces reales y no se cambian cuotas ni pagos.</p>
       <button type="button" id="mpProdCheckBtn" onclick="mpSandboxCheckProduction()">🔎 Verificar conexión (sin cobros)</button>
       <p class="muted" id="mpProdCheckStatus" role="status" aria-live="polite" style="margin-top:10px">Sin verificar. Los cobros de producción continúan desactivados.</p>
+      <div id="mpProdDetectedSellerWrap" class="hidden" style="margin-top:12px">
+        <p class="muted">ID correcto del vendedor detectado directamente con el Access Token de producción. Este número NO es el Client ID. Solo el Owner puede verlo aquí.</p>
+        <div class="actions" style="align-items:center">
+          <strong id="mpProdDetectedSellerId" style="font-family:monospace;letter-spacing:1px;user-select:all"></strong>
+          <button type="button" onclick="mpCopyDetectedSellerId()">📋 Copiar ID correcto</button>
+        </div>
+        <p class="muted" id="mpProdCopyStatus" role="status">Después, guarda ese número en Supabase → Secrets → MP_PROD_SELLER_ID y vuelve a verificar.</p>
+      </div>
     </div>
     <div class="mpLabHeading" style="margin:15px 0 8px">
       <h4 style="margin:0">Historial de operaciones de prueba</h4>
@@ -6844,6 +6852,6 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizar
 
 
 </script>
-<script src="./mp-sandbox.js?v=mp-prod-diagnostic1"></script>
+<script src="./mp-sandbox.js?v=mp-prod-seller-id2"></script>
 </body></html>
 
