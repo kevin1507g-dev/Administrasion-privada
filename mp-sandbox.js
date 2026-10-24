@@ -127,6 +127,15 @@ async function mpSandboxLoadHistory(){
   if(error)throw error;
   if(actor!==user?.id||!mpLabEnabled())return;
   rows.replaceChildren();
+  // Restore unfinished test after a mobile refresh; no real financial action occurs.
+  if(!mpLab.current && Array.isArray(data)){
+   const latestPending=data.find(x=>x.status==='pending');
+   if(latestPending){
+    mpLab.current={...latestPending,sandbox:true};
+    mpLabText('mpLabStatus','🧪 Prueba pendiente recuperada. Puedes simular la aprobación o el rechazo.');
+   }
+  }
+  mpSandboxUpdateButtons();
   if(!Array.isArray(data)||!data.length){
    const row=rows.insertRow();const cell=row.insertCell();
    cell.colSpan=5;cell.textContent='Sin pruebas. Elige una cuota y crea el primer intento.';
