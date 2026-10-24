@@ -45,7 +45,7 @@ window.disciplinaCrearCaso=async function(){
  if(!casa||motivo.length<5)return alert('Selecciona una casa y escribe un motivo de al menos 5 caracteres.');
  try{await runRpc('disciplina_crear_caso',{p_casa_id:casa,p_motivo:motivo,p_descripcion:descripcion});byId('disciplinaMotivo').value='';byId('disciplinaDescripcion').value='';}catch(e){alert(e.message);}
 };
-areaHandler=async function(e){
+const areaHandler=async function(e){
  const el=e.target.closest('button[data-warn],button[data-fine],button[data-clarify],button[data-answer]');if(!el)return;
  try{
   if(el.dataset.warn){const text=prompt('Describe el aviso. Quedará registrado y visible para la casa.');if(text===null)return;if(text.trim().length<5)return alert('Escribe al menos 5 caracteres.');await runRpc('disciplina_registrar_aviso',{p_caso_id:el.dataset.warn,p_mensaje:text});}
