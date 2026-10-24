@@ -40,7 +40,9 @@ Deno.serve(async(req:Request)=>{
   const mp=await fetch("https://api.mercadopago.com/checkout/preferences",{
    method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json","X-Idempotency-Key":String(intent.id)},
    body:JSON.stringify({items:[{id:String(quotaId),title:"Cuota de mantenimiento Casa 63",quantity:1,currency_id:"MXN",unit_price:15}],binary_mode:true,
-    external_reference:ref,notification_url:k.url+"/functions/v1/mp-real-webhook"})
+    external_reference:ref,notification_url:k.url+"/functions/v1/mp-real-webhook",
+    back_urls:{success:"https://kevin1507g-dev.github.io/Administrasion-privada/?mp_regreso=success",pending:"https://kevin1507g-dev.github.io/Administrasion-privada/?mp_regreso=pending",failure:"https://kevin1507g-dev.github.io/Administrasion-privada/?mp_regreso=failure"},
+    auto_return:"approved"})
   });
   if(!mp.ok)return answer(502,{error:"Mercado Pago no aceptó la preferencia, sin registrar ningún pago"});
   const info=await mp.json();if(!info.id||!info.init_point)return answer(502,{error:"Respuesta de proveedor incompleta"});
