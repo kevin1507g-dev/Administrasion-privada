@@ -205,3 +205,35 @@ async function mpSandboxCheckout(){
     '. Verifica que el Access Token TEST- esté guardado en Supabase.');
  }finally{mpLab.busy=false;mpSandboxPreview();}
 }
+
+
+/** Diagnóstico de SOLO LECTURA: no genera preferencias ni modifica cuotas/pagos. */
+async function mpSandboxCheckProduction(){
+ if(!mpLabEnabled())return;
+ const btn=document.getElementById('mpProdCheckBtn');
+ if(btn)btn.disabled=true;
+ mpLabText('mpProdCheckStatus','Comprobando configuración de producción sin cobrar…');
+ try{
+  const {data,error}=await sb.functions.invoke('mp-prod-diagnostico',{body:{}});
+  if(error){
+   let details=error.message||'No se pudo contactar con el servidor.';
+   if(error.context && typeof error.context.json==='function'){
+    try{const body=await error.context.json();if(typeof body?.error==='string')details=body.error;}catch(_){}
+   }
+   throw new Error(details);
+  }
+  if(data?.checked!==true)throw new Error('Respuesta de verificación desconocida.');
+  const parts=[
+    'Access Token: '+(data.token_configurado?'configurado':'falta o tiene formato incorrecto'),
+    'ID vendedor: '+(data.vendedor_configurado?'configurado':'falta o es inválido'),
+    'Firma Webhook: '+(data.firma_webhook_configurada?'configurada':'falta'),
+    'Cuenta vendedora: '+(data.vendedor_verificado?'verificada':'NO verificada'),
+    'Cobros reales: '+(data.cobros_habilitados?'HABILITADOS, requiere revisión':'desactivados')
+  ];
+  mpLabText('mpProdCheckStatus',parts.join(' · ')+'. '+String(data.verificacion_vendedor||'')+
+  '. La entrega del webhook aún NO está verificada. No se realizó ningún cobro.');
+ }catch(e){
+  mpLabText('mpProdCheckStatus','No se completó la verificación: '+(e?.message||String(e))+
+    '. Revisa los secretos guardados en Supabase, sin compartir sus valores.');
+ }finally{if(btn)btn.disabled=false;}
+}
