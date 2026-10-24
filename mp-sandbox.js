@@ -247,7 +247,8 @@ async function mpSandboxCheckProduction(){
     'ID vendedor: '+(data.vendedor_configurado?'configurado':'falta o es inválido'),
     'Firma Webhook: '+(data.firma_webhook_configurada?'configurada':'falta'),
     'Cuenta vendedora: '+(data.vendedor_verificado?'verificada':'NO verificada'),
-    'Cobros reales: '+(data.cobros_habilitados?'HABILITADOS, requiere revisión':'desactivados')
+    'Cobros reales: '+(data.cobros_habilitados?'HABILITADOS, requiere revisión':'desactivados'),
+    'Cobros de residentes: '+(data.cobros_residentes_habilitados?'HABILITADOS':'desactivados')
   ];
   mpLabText('mpProdCheckStatus',parts.join(' · ')+'. '+String(data.verificacion_vendedor||'')+
   '. La entrega del webhook aún NO está verificada. No se realizó ningún cobro.');
