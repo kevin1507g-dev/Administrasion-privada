@@ -233,6 +233,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <button onclick="show('cuotas')">🧾 Cuotas</button>
 <button onclick="show('pagos')">💳 Pagos</button>
 <button class="paymentMethodsOnly" onclick="show('metodosPago')">💵 Métodos de pago</button>
+<button class="adminOnly" onclick="show('reportesAdmin')">📑 Crear reporte</button>
 <button class="adminOnly" onclick="show('gastos')">🧾 Aclaración de gastos</button>
 <div class="navSectionLabel">Comunidad</div>
 <button onclick="show('eventos')">📅 Eventos</button>
@@ -1086,6 +1087,36 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <div id="metodosPagoLista" style="margin-top:14px"></div>
 </section>
 
+
+<section id="reportesAdmin" class="adminOnly">
+  <h2>📑 Crear reporte</h2>
+  <div class="card">
+    <h3>Reportes de Administración Residencial</h3>
+    <p class="muted">Exclusivo para Admin y Owner. Selecciona el tipo de reporte y el periodo. Puedes imprimirlo, guardarlo como PDF o descargarlo en Excel. No modifica cuotas ni pagos.</p>
+    <div class="form">
+      <div><label for="adminReporteTipo">Tipo de reporte</label>
+        <select id="adminReporteTipo" onchange="adminReporteVistaPrevia()">
+          <option value="financiero">💰 Ingresos, gastos y balance</option>
+          <option value="cuotas">🧾 Cuotas y saldos pendientes</option>
+          <option value="mantenimiento">🛠️ Reportes de mantenimiento</option>
+        </select>
+      </div>
+      <div><label for="adminReporteDesde">Desde</label><input id="adminReporteDesde" type="date" onchange="adminReporteVistaPrevia()"></div>
+      <div><label for="adminReporteHasta">Hasta</label><input id="adminReporteHasta" type="date" onchange="adminReporteVistaPrevia()"></div>
+    </div>
+    <p class="muted" style="margin-top:10px">Puedes borrar las fechas para incluir todo el historial. En el reporte de cuotas el periodo se aplica a la fecha de vencimiento. Las cuotas archivadas no se incluyen.</p>
+    <div class="actions" style="margin-top:14px">
+      <button class="primary" type="button" onclick="adminReporteVistaPrevia()">🔎 Vista previa</button>
+      <button type="button" onclick="adminReporteImprimir()">🖨️ Imprimir / Guardar PDF</button>
+      <button type="button" onclick="adminReporteExcel()">📊 Descargar Excel</button>
+      <button type="button" onclick="show('mantenimiento')">➕ Crear reporte de mantenimiento</button>
+    </div>
+    <p class="muted" role="status" id="adminReporteEstado" style="margin-top:12px">Selecciona un tipo y periodo para generar el reporte.</p>
+  </div>
+  <div id="adminReporteResultado" class="card" style="margin-top:14px" aria-live="polite">
+    Aquí aparecerá una vista previa del reporte.
+  </div>
+</section>
 
 <section id="gastos"><h2>Aclaración de gastos</h2>
 
@@ -2700,6 +2731,7 @@ async function basuraAccion(action){
 }
 
 function show(id){
+  if(id==='reportesAdmin'&&!isAdminProfileRole(profile?.rol))return;
   if(profile?.rol==='owner' && ownerPanelMode==='resident' && id!=='ownerResidentPreview')return;
   if(id==='ownerResidentPreview' && (profile?.rol!=='owner'||ownerPanelMode!=='resident'))return;
   if(id==='ownerPanel' && (profile?.rol!=='owner'||ownerPanelMode!=='owner'))return;
@@ -2749,6 +2781,9 @@ function show(id){
   }
 
 
+  if(id==='reportesAdmin' && isAdminProfileRole(profile?.rol)){
+    adminReporteInicializar();
+  }
   if(id==='cuotas' && isAdminProfileRole(profile?.rol)){
     cargarConfigCobroAutomatico();
   }
@@ -5376,6 +5411,157 @@ function renderGastos(){
      </tr>`;
    }).join('')||'<tr><td colspan="6" class="muted">No hay pagos registrados.</td></tr>';
  }
+}
+
+
+/* Reportes administrativos: generados a partir de datos autorizados por RLS.
+   Solo Owner/Admin pueden exportar; el procedimiento no escribe en la base. */
+let adminReporteFechaInicializada=false;
+
+function adminReporteInicializar(){
+ if(!isAdminProfileRole(profile?.rol))return;
+ if(!adminReporteFechaInicializada){
+  const ahora=new Date();
+  const d=String(ahora.getDate()).padStart(2,'0');
+  const m=String(ahora.getMonth()+1).padStart(2,'0');
+  const y=String(ahora.getFullYear());
+  $('adminReporteDesde').value=y+'-'+m+'-01';
+  $('adminReporteHasta').value=y+'-'+m+'-'+d;
+  adminReporteFechaInicializada=true;
+ }
+ adminReporteVistaPrevia();
+}
+function adminReporteFecha(raw){
+ return String(raw||'').slice(0,10);
+}
+function adminReporteDatos(){
+ if(!isAdminProfileRole(profile?.rol))throw new Error('Solo Admin y Owner pueden crear reportes.');
+ const tipo=$('adminReporteTipo')?.value||'financiero';
+ const desde=$('adminReporteDesde')?.value||'';
+ const hasta=$('adminReporteHasta')?.value||'';
+ if(desde&&hasta&&desde>hasta)throw new Error('La fecha Desde no puede ser posterior a Hasta.');
+ const enPeriodo=raw=>{
+  const f=adminReporteFecha(raw);
+  return !!f&&(!desde||f>=desde)&&(!hasta||f<=hasta);
+ };
+ const fecha=new Date().toLocaleString('es-MX');
+ const periodo=(desde||'Desde el inicio')+' a '+(hasta||'hoy');
+ let titulo, columnas, filas, resumen;
+ if(tipo==='financiero'){
+  const ingresos=pagos.filter(p=>enPeriodo(p.fecha||p.created_at));
+  const egresos=gastos.filter(g=>enPeriodo(g.fecha||g.created_at));
+  const sumaIngresos=ingresos.reduce((a,p)=>a+Number(p.monto||0),0);
+  const sumaEgresos=egresos.reduce((a,g)=>a+Number(g.monto||0),0);
+  titulo='Ingresos, gastos y balance';
+  columnas=['Fecha','Movimiento','Casa','Concepto','Medio / Proveedor','Monto (MXN)'];
+  filas=[
+   ...ingresos.map(p=>{
+    const cuota=cuotas.find(q=>String(q.id)===String(p.cuota_id));
+    return [adminReporteFecha(p.fecha||p.created_at),'Ingreso',
+      casaNumero(casaIdDeRegistro(p)||casaIdDeRegistro(cuota))||'',
+      cuota?.concepto||'Pago recibido',p.metodo||'',Number(p.monto||0)];
+   }),
+   ...egresos.map(g=>[adminReporteFecha(g.fecha||g.created_at),'Egreso','',
+     g.concepto||'',g.proveedor||'',-Number(g.monto||0)])
+  ].sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
+  resumen=[['Pagos registrados',sumaIngresos],['Gastos registrados',sumaEgresos],['Balance registrado',sumaIngresos-sumaEgresos]];
+ }else if(tipo==='cuotas'){
+  titulo='Cuotas y saldos pendientes';
+  columnas=['Vencimiento','Casa','Concepto','Cuota (MXN)','Abonado (MXN)','Saldo (MXN)','Estado'];
+  filas=cuotas.filter(q=>enPeriodo(q.vencimiento||q.created_at)).map(q=>{
+   const abonado=pagos.filter(p=>String(p.cuota_id)===String(q.id))
+     .reduce((a,p)=>a+Number(p.monto||0),0);
+   const total=Number(q.monto||0);
+   return [adminReporteFecha(q.vencimiento||q.created_at),casaNumero(casaIdDeRegistro(q))||'',
+     q.concepto||'',total,abonado,Math.max(0,total-abonado),
+     total-abonado<=0.009?'Pagada':'Pendiente'];
+  }).sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
+  resumen=[
+   ['Cuotas incluidas',filas.length],
+   ['Importe total de cuotas',filas.reduce((a,r)=>a+Number(r[3]||0),0)],
+   ['Total abonado',filas.reduce((a,r)=>a+Number(r[4]||0),0)],
+   ['Total pendiente',filas.reduce((a,r)=>a+Number(r[5]||0),0)]
+  ];
+ }else if(tipo==='mantenimiento'){
+  titulo='Reportes de mantenimiento';
+  columnas=['Fecha','Casa','Categoría','Descripción','Prioridad','Estado'];
+  filas=reportes.filter(r=>enPeriodo(r.created_at))
+   .map(r=>[adminReporteFecha(r.created_at),r.unidad||casaNumero(r.casa_id)||'',
+    r.categoria||'',r.descripcion||'',r.prioridad||'',r.estado||'pendiente'])
+   .sort((a,b)=>String(b[0]).localeCompare(String(a[0])));
+  resumen=[['Reportes incluidos',filas.length],
+           ['Pendientes o en proceso',filas.filter(r=>r[5]!=='resuelto').length],
+           ['Resueltos',filas.filter(r=>r[5]==='resuelto').length]];
+ }else throw new Error('Tipo de reporte no permitido.');
+ return {tipo,titulo,columnas,filas,resumen,periodo,fecha};
+}
+function adminReporteTablaHTML(d){
+ const moneyCols=d.tipo==='financiero'?[5]:d.tipo==='cuotas'?[3,4,5]:[];
+ const celda=(v,i)=>moneyCols.includes(i)?money(v):String(v??'');
+ return '<div class="table"><table><thead><tr>'+d.columnas.map(c=>'<th>'+esc(c)+'</th>').join('')+
+ '</tr></thead><tbody>'+
+ (d.filas.length?d.filas.map(row=>'<tr>'+row.map((v,i)=>'<td>'+esc(celda(v,i))+'</td>').join('')+'</tr>').join(''):
+ '<tr><td colspan="'+d.columnas.length+'">Sin registros en el periodo seleccionado.</td></tr>')+
+ '</tbody></table></div>';
+}
+function adminReporteResumenHTML(d){
+ return '<div class="grid" style="margin:16px 0">'+d.resumen.map(r=>
+  '<div class="card"><div class="muted">'+esc(r[0])+'</div><strong>'+
+  esc((d.tipo==='financiero'||(d.tipo==='cuotas'&&r[0]!=='Cuotas incluidas'))?money(r[1]):String(r[1]))+
+  '</strong></div>').join('')+'</div>';
+}
+function adminReporteVistaPrevia(){
+ const target=$('adminReporteResultado'),estado=$('adminReporteEstado');
+ if(!target||!estado)return;
+ try{
+  const d=adminReporteDatos();
+  target.innerHTML='<h3>'+esc(d.titulo)+'</h3><p class="muted">Periodo: '+esc(d.periodo)+
+   ' · Generado: '+esc(d.fecha)+'</p>'+adminReporteResumenHTML(d)+adminReporteTablaHTML(d);
+  estado.textContent='Reporte listo: '+d.filas.length+' registro(s).';
+ }catch(error){
+  target.textContent='No se pudo generar la vista previa.';
+  estado.textContent=error?.message||String(error);
+ }
+}
+function adminReporteImprimir(){
+ let d;
+ try{d=adminReporteDatos();}catch(e){return alert(e?.message||String(e))}
+ const w=window.open('','_blank');
+ if(!w)return alert('Permite ventanas emergentes para imprimir o guardar el reporte como PDF.');
+ const contenido='<!doctype html><html lang="es"><head><meta charset="utf-8">'+
+ '<title>'+esc(d.titulo)+'</title><style>'+
+ 'body{font:13px Arial,sans-serif;color:#111;padding:25px}h1{margin-bottom:4px}'+
+ '.muted{color:#555}.grid{display:flex;gap:14px;flex-wrap:wrap}.card{padding:10px;border:1px solid #ccc;border-radius:7px}'+
+ 'table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #ccc;text-align:left;padding:6px;vertical-align:top;word-break:break-word}'+
+ 'th{background:#eee}.table{overflow:visible}button{margin-bottom:15px;padding:8px}'+
+ '@media print{button{display:none}body{padding:0}@page{size:auto;margin:15mm}}'+
+ '</style></head><body><button onclick="window.print()">Imprimir / Guardar PDF</button>'+
+ '<h1>Administración Residencial · '+esc(d.titulo)+'</h1>'+
+ '<p class="muted">Periodo: '+esc(d.periodo)+' · Generado: '+esc(d.fecha)+'</p>'+
+ adminReporteResumenHTML(d)+adminReporteTablaHTML(d)+
+ '</body></html>';
+ w.document.open();w.document.write(contenido);w.document.close();
+}
+function adminReporteExcel(){
+ if(!isAdminProfileRole(profile?.rol))return alert('Solo Admin y Owner pueden generar Excel.');
+ if(typeof XLSX==='undefined')return alert('No se cargó la librería de Excel.');
+ let d;
+ try{d=adminReporteDatos();}catch(e){return alert(e?.message||String(e))}
+ const libro=XLSX.utils.book_new();
+ const resumen=[
+  ['ADMINISTRACIÓN RESIDENCIAL — '+d.titulo.toUpperCase(),''],
+  ['Periodo',d.periodo],['Generado',d.fecha],[],
+  ['Indicador','Valor'],...d.resumen
+ ];
+ const detalle=[d.columnas,...d.filas];
+ const wsResumen=XLSX.utils.aoa_to_sheet(resumen);
+ const wsDetalle=XLSX.utils.aoa_to_sheet(detalle);
+ wsDetalle['!cols']=d.columnas.map(c=>({wch:Math.min(65,Math.max(18,c.length+3))}));
+ wsResumen['!cols']=[{wch:37},{wch:27}];
+ XLSX.utils.book_append_sheet(libro,wsResumen,'Resumen');
+ XLSX.utils.book_append_sheet(libro,wsDetalle,'Detalle');
+ const hoy=new Date().toISOString().slice(0,10);
+ XLSX.writeFile(libro,'Reporte_'+d.tipo+'_'+hoy+'.xlsx');
 }
 
 function generarExcelAdministracion(){
