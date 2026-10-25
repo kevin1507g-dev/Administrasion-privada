@@ -3725,7 +3725,10 @@ async function addIncidente(){
   let resultado={count:0,errors:[]};
   if(files.length){
    if(msg)msg.textContent='Reporte guardado. Adjuntando archivos privados…';
-   resultado=await guardarArchivosIncidente(nuevo,files);
+   try{resultado=await guardarArchivosIncidente(nuevo,files)}
+   catch(subidaError){
+    resultado={count:0,errors:['No fue posible subir los archivos: '+(subidaError?.message||String(subidaError))]};
+   }
   }
   document.getElementById('incPersona').value='';
   document.getElementById('incTitulo').value='';
