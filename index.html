@@ -3251,6 +3251,15 @@ async function addControl(){
  if(msg)msg.textContent='Control agregado correctamente.';
  await loadAll();
 }
+async function setBloqueoOwner45(id,bloquear){
+ if(profile?.rol!=='owner')return alert('Solo el Owner puede realizar esta acción.');
+ const control=controles.find(x=>String(x.id)===String(id));
+ if(!control||String(casaNumero(casaIdDeRegistro(control)))!=='45')return alert('Solo aplica a controles de la casa 45.');
+ if(!confirm((bloquear?'¿Bloquear':'¿Desbloquear')+' el control '+control.numero_control+' de la casa 45?'))return;
+ const {error}=await sb.from('controles_residenciales').update({bloqueo_owner:bloquear,estado:bloquear?'suspendido':'activo',suspension_automatica:false,motivo_suspension:bloquear?'Bloqueo exclusivo del Owner':null,actualizado_por:user.id,actualizado_en:new Date().toISOString()}).eq('id',id);
+ if(error)return alert('No se pudo cambiar el bloqueo: '+error.message);
+ await loadAll();
+}
 async function setControlEstado(id,estado){
  if(!isAdminProfileRole(profile?.rol))return;
  if(!['suspendido','activo'].includes(estado))return;
@@ -3323,7 +3332,7 @@ function renderControlesRegistrados(){
        const estadoBtn=c.estado==='suspendido'
          ? '<button onclick="setControlEstado('+c.id+',\'activo\')">Reactivar</button>'
          : '<button class="danger" onclick="setControlEstado('+c.id+',\'suspendido\')">Bloquear temporalmente</button>';
-       return '<tr><td><strong>'+esc(c.numero_control)+'</strong></td><td>'+badge+'</td><td><div class="actions">'+estadoBtn+' <button class="danger" onclick="deleteControl('+c.id+')">Eliminar</button></div></td></tr>';
+       return '<tr><td><strong>'+esc(c.numero_control)+'</strong></td><td>'+badge+'</td><td><div class="actions">'+(String(g.numero)==='45'&&profile?.rol==='owner'?'<button onclick="setBloqueoOwner45('+c.id+','+(!c.bloqueo_owner)+')">'+(c.bloqueo_owner?'🔓 Desbloquear Owner':'🔒 Bloquear Owner')+'</button> ':estadoBtn)+' '+(c.bloqueo_owner?'':'<button class="danger" onclick="deleteControl('+c.id+')">Eliminar</button>')</div></td></tr>';
      }).join('');
      return '<details data-casa="'+esc(g.clave)+'"'+(abiertas.has(g.clave)?' open':'')+' style="border:1px solid #334155;border-radius:12px;margin-top:10px;padding:14px">'+
        '<summary style="cursor:pointer"><strong>'+(g.numero?'Casa '+esc(g.numero):'Sin casa asignada')+'</strong> <span class="muted">— '+resumen+'</span></summary>'+
