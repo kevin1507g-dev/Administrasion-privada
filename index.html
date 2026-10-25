@@ -3332,7 +3332,7 @@ function renderControlesRegistrados(){
        const estadoBtn=c.estado==='suspendido'
          ? '<button onclick="setControlEstado('+c.id+',\'activo\')">Reactivar</button>'
          : '<button class="danger" onclick="setControlEstado('+c.id+',\'suspendido\')">Bloquear temporalmente</button>';
-       return '<tr><td><strong>'+esc(c.numero_control)+'</strong></td><td>'+badge+'</td><td><div class="actions">'+(String(g.numero)==='45'&&profile?.rol==='owner'?'<button onclick="setBloqueoOwner45('+c.id+','+(!c.bloqueo_owner)+')">'+(c.bloqueo_owner?'🔓 Desbloquear Owner':'🔒 Bloquear Owner')+'</button> ':estadoBtn)+' '+(c.bloqueo_owner?'':'<button class="danger" onclick="deleteControl('+c.id+')">Eliminar</button>')</div></td></tr>';
+       return '<tr><td><strong>'+esc(c.numero_control)+'</strong></td><td>'+badge+'</td><td><div class="actions">'+(String(g.numero)==='45'&&profile?.rol==='owner'?'<button onclick="setBloqueoOwner45('+c.id+','+(!c.bloqueo_owner)+')">'+(c.bloqueo_owner?'🔓 Desbloquear Owner':'🔒 Bloquear Owner')+'</button> ':estadoBtn)+' '+(c.bloqueo_owner?'':'<button class="danger" onclick="deleteControl('+c.id+')">Eliminar</button>')+'</div></td></tr>';
      }).join('');
      return '<details data-casa="'+esc(g.clave)+'"'+(abiertas.has(g.clave)?' open':'')+' style="border:1px solid #334155;border-radius:12px;margin-top:10px;padding:14px">'+
        '<summary style="cursor:pointer"><strong>'+(g.numero?'Casa '+esc(g.numero):'Sin casa asignada')+'</strong> <span class="muted">— '+resumen+'</span></summary>'+
