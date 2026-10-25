@@ -1351,6 +1351,11 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       <div class="full"><label>Persona involucrada (opcional)</label><input id="incPersona" placeholder="Nombre, casa o descripción de la persona"></div>
       <div class="full"><label>Asunto</label><input id="incTitulo" placeholder="Ej. Problema recurrente de ruido"></div>
       <div class="full"><label>Descripción</label><textarea id="incDescripcion" placeholder="Describe lo ocurrido con el mayor detalle posible"></textarea></div>
+      <div class="full">
+        <label for="incArchivos">📎 Adjuntar foto o archivo (opcional)</label>
+        <input id="incArchivos" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" multiple>
+        <div class="fileHint">Hasta 3 archivos por envío, de 10 MB cada uno. Se aceptan fotos JPG, PNG, WEBP y documentos PDF. Los adjuntos son privados.</div>
+      </div>
     </div>
     <button id="incCrearBtn" class="primary" style="margin-top:12px" onclick="addIncidente()">⚠️ Crear reporte de incidente</button>
     <div id="incMsg" class="muted" style="margin-top:10px"></div>
@@ -1398,6 +1403,17 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     </div>
 
     <div id="incDetalleDescripcion" class="card" style="margin-top:14px"></div>
+    <div class="card" style="margin-top:14px">
+      <h4>📎 Fotos y archivos adjuntos</h4>
+      <div id="incAdjuntosLista" class="muted">Sin archivos adjuntos.</div>
+      <div id="incAdjuntosAgregar" style="margin-top:12px">
+        <label for="incAdjuntosNuevos">Agregar más fotos o documentos</label>
+        <input id="incAdjuntosNuevos" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" multiple>
+        <div class="fileHint">Máximo 3 archivos por envío, hasta 10 MB por archivo. Solo los participantes autorizados pueden adjuntar.</div>
+        <button id="incAdjuntosBtn" class="primary" type="button" style="margin-top:10px" onclick="adjuntarAlIncidenteActual()">📎 Adjuntar archivos</button>
+        <div id="incAdjuntosMsg" class="muted" role="status" style="margin-top:8px"></div>
+      </div>
+    </div>
     <div id="incMensajes" style="margin-top:14px"></div>
 
     <div style="margin-top:14px">
@@ -2414,6 +2430,8 @@ function renderOwnerResidentPreview(){
 
 let user=null, profile=null, casas=[], profiles=[], cuotas=[], cuotasArchivadas=[], pagos=[], visitas=[], accesos=[], eventos=[], controles=[], gastos=[], metodosPago=[], avisos=[], reportes=[], incidentes=[], incidenteMensajes=[], entregas=[], solicitudesContacto=[], mensajesContacto=[], notificaciones=[], notificacionLecturas=[], paquetes=[], reservas=[], documentos=[], contactosEmergencia=[];
 let incidenteActualId=null;
+let incidenteAdjuntos=[];
+let incidenteAdjuntosBusy=false;
 let chatConversaciones=[], chatMensajes=[], chatLecturas=[];
 let chatConversacionActual=null, chatPolling=null, chatDragMovio=false;
 let contactoActualId=null;
@@ -3122,7 +3140,7 @@ async function enter(){
  await abrirRutaNotificacion();
 }
 async function loadAll(){
- const [ca,pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,inc,im,en,cs,cm,nt,nl,pk,rs,dc,em]=await Promise.all([
+ const [ca,pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,inc,im,ia,en,cs,cm,nt,nl,pk,rs,dc,em]=await Promise.all([
    sb.from('casas').select('*').order('numero',{ascending:true}),
    ['owner','admin','residente'].includes(profile.rol)?sb.from('profiles').select('*').order('nombre'):Promise.resolve({data:[profile]}),
    sb.from('cuotas').select('*').order('created_at',{ascending:false}),
@@ -3137,6 +3155,7 @@ async function loadAll(){
    ['owner','admin','residente'].includes(profile.rol)?sb.from('reportes_mantenimiento').select('*').order('created_at',{ascending:false}):Promise.resolve({data:[]}),
    ['owner','admin','residente'].includes(profile.rol)?sb.from('incidentes').select('*').order('updated_at',{ascending:false}):Promise.resolve({data:[]}),
    ['owner','admin','residente'].includes(profile.rol)?sb.from('incidente_mensajes').select('*').order('created_at',{ascending:true}):Promise.resolve({data:[]}),
+   ['owner','admin','residente'].includes(profile.rol)?sb.from('incidente_adjuntos').select('id,incidente_id,subido_por,storage_path,nombre_archivo,mime_type,tamano_bytes,created_at').order('created_at',{ascending:true}):Promise.resolve({data:[]}),
    ['owner','admin','residente'].includes(profile.rol)?sb.from('entregas_contacto').select('id,casa_id,tipo,empresa,repartidor,mensaje,estado,respuesta,respondido_por,respondido_at,created_at,expires_at').order('created_at',{ascending:false}).limit(100):Promise.resolve({data:[]}),
    profile.rol==='residente'?sb.from('contacto_residente_solicitudes').select('*').order('updated_at',{ascending:false}).limit(100):Promise.resolve({data:[]}),
    profile.rol==='residente'?sb.from('contacto_residente_mensajes').select('*').order('created_at',{ascending:true}).limit(500):Promise.resolve({data:[]}),
@@ -3152,8 +3171,8 @@ async function loadAll(){
  ownerAnalyticsControlError=!!ct.error;
  casas=ca.data||[]; profiles=pr.data||[]; cuotas=(cu.data||[]).filter(q=>q.archivada!==true); cuotasArchivadas=(cu.data||[]).filter(q=>q.archivada===true && q.oculta_por_retiro_integracion!==true); pagos=pa.data||[]; visitas=vi.data||[]; accesos=ac.data||[];
  eventos=ev.data||[]; controles=ct.data||[]; gastos=ga.data||[]; metodosPago=mp.data||[];
- avisos=av.data||[]; reportes=rp.data||[]; incidentes=inc.data||[]; incidenteMensajes=im.data||[]; entregas=en.data||[]; solicitudesContacto=cs.data||[]; mensajesContacto=cm.data||[]; notificaciones=nt.data||[]; notificacionLecturas=nl.data||[]; paquetes=pk.data||[]; reservas=rs.data||[]; documentos=dc.data||[]; contactosEmergencia=em.data||[];
- [ca,av,rp,inc,im,en,cs,cm,nt,nl,pk,rs,dc,em].forEach((r,i)=>{if(r?.error) console.warn(['Casas','Avisos','Reportes','Incidentes','Mensajes de incidentes','Entregas','Solicitudes de contacto','Mensajes entre residentes','Notificaciones','Lecturas de notificaciones','Paquetes','Reservaciones','Documentos','Emergencia'][i]+':',r.error)});
+ avisos=av.data||[]; reportes=rp.data||[]; incidentes=inc.data||[]; incidenteMensajes=im.data||[]; incidenteAdjuntos=ia.data||[]; entregas=en.data||[]; solicitudesContacto=cs.data||[]; mensajesContacto=cm.data||[]; notificaciones=nt.data||[]; notificacionLecturas=nl.data||[]; paquetes=pk.data||[]; reservas=rs.data||[]; documentos=dc.data||[]; contactosEmergencia=em.data||[];
+ [ca,av,rp,inc,im,ia,en,cs,cm,nt,nl,pk,rs,dc,em].forEach((r,i)=>{if(r?.error) console.warn(['Casas','Avisos','Reportes','Incidentes','Mensajes de incidentes','Adjuntos de incidentes','Entregas','Solicitudes de contacto','Mensajes entre residentes','Notificaciones','Lecturas de notificaciones','Paquetes','Reservaciones','Documentos','Emergencia'][i]+':',r.error)});
  if(ga.error && isAdminProfileRole(profile.rol)) console.warn('Gastos:',ga.error);
  if(mp.error && ['owner','admin','residente'].includes(profile.rol)) console.warn('Métodos de pago:',mp.error);
  render();
@@ -3577,6 +3596,94 @@ function renderCasasParaIncidente(){
  if(ordenadas.some(c=>String(c.id)===selected))el.value=selected;
 }
 
+
+// Evidencias privadas para incidentes. El backend valida tanto la propiedad del
+// incidente como la ruta de cada archivo antes de permitir subirlo o leerlo.
+function validarArchivosIncidente(files){
+ const arr=Array.from(files||[]);
+ if(arr.length>3)throw new Error('Selecciona como máximo 3 archivos por envío.');
+ const allowed={
+  'image/jpeg':['jpg','jpeg'],'image/png':['png'],
+  'image/webp':['webp'],'application/pdf':['pdf']
+ };
+ const extForType={'image/jpeg':'jpg','image/png':'png','image/webp':'webp','application/pdf':'pdf'};
+ for(const f of arr){
+  const ext=String(f.name||'').split('.').pop()?.toLowerCase()||'';
+  if(!allowed[f.type]?.includes(ext))throw new Error('Archivo no permitido: '+(f.name||'Sin nombre')+'. Usa JPG, PNG, WEBP o PDF.');
+  if(!Number.isFinite(f.size)||f.size<=0||f.size>10*1024*1024)
+   throw new Error('Cada archivo debe pesar entre 1 byte y 10 MB.');
+ }
+ return arr.map(f=>({file:f,ext:extForType[f.type],name:String(f.name||'Adjunto').slice(0,160)}));
+}
+async function guardarArchivosIncidente(inc,files){
+ if(!['owner','admin','residente'].includes(profile?.rol)||!user?.id)return {count:0,errors:['Sesión sin permiso.']};
+ if(!inc?.id||!inc?.casa_id)return {count:0,errors:['Incidente no válido.']};
+ if(!isAdminProfileRole(profile?.rol)&&String(inc.reportado_por)!==String(user.id))
+  return {count:0,errors:['No puedes adjuntar archivos a reportes de otra persona.']};
+ const items=validarArchivosIncidente(files);
+ let count=0;const errors=[];
+ for(const item of items){
+  const path='incidentes/'+inc.id+'/'+user.id+'/'+crypto.randomUUID()+'.'+item.ext;
+  const {error:uploadError}=await sb.storage.from('condominio-media')
+   .upload(path,item.file,{upsert:false,contentType:item.file.type,cacheControl:'3600'});
+  if(uploadError){errors.push(item.name+': '+uploadError.message);continue;}
+  const {error:dbError}=await sb.from('incidente_adjuntos').insert({
+   incidente_id:inc.id,subido_por:user.id,storage_path:path,
+   nombre_archivo:item.name,mime_type:item.file.type,tamano_bytes:item.file.size
+  });
+  if(dbError){
+   // La carga privada puede quedar huérfana en Storage; no revelar su URL.
+   errors.push(item.name+': no se pudo asociar al incidente ('+dbError.message+').');
+  }else count++;
+ }
+ return {count,errors};
+}
+async function verAdjuntoIncidente(id){
+ if(!['owner','admin','residente'].includes(profile?.rol))return;
+ const adj=incidenteAdjuntos.find(a=>String(a.id)===String(id));
+ const inc=incidentes.find(i=>String(i.id)===String(adj?.incidente_id));
+ if(!adj||!inc||(profile.rol==='residente'&&String(inc.reportado_por)!==String(user.id)))
+  return alert('No tienes autorización para abrir este archivo.');
+ const {data,error}=await sb.storage.from('condominio-media').createSignedUrl(adj.storage_path,300);
+ if(error||!data?.signedUrl)return alert('No se pudo abrir el archivo privado: '+(error?.message||'Acceso no disponible'));
+ window.open(data.signedUrl,'_blank','noopener,noreferrer');
+}
+function renderAdjuntosIncidente(inc){
+ const area=document.getElementById('incAdjuntosLista');
+ const form=document.getElementById('incAdjuntosAgregar');
+ if(!area||!inc)return;
+ const items=incidenteAdjuntos.filter(a=>String(a.incidente_id)===String(inc.id));
+ area.innerHTML=items.map(a=>
+  '<div class="actions" style="padding:7px 0;align-items:center">'+
+  '<span>'+esc(a.mime_type==='application/pdf'?'📄':'🖼️')+' '+esc(a.nombre_archivo)+' · '+
+  esc((Number(a.tamano_bytes)/1048576).toFixed(2))+' MB</span>'+
+  '<button type="button" class="mini" onclick="verAdjuntoIncidente(\''+a.id+'\')">🔎 Ver archivo</button></div>'
+ ).join('')||'<div class="muted">Este reporte no tiene archivos adjuntos.</div>';
+ if(form)form.classList.toggle('hidden',!isAdminProfileRole(profile?.rol)&&String(inc.reportado_por)!==String(user?.id));
+}
+async function adjuntarAlIncidenteActual(){
+ if(incidenteAdjuntosBusy||!incidenteActualId)return;
+ const inc=incidentes.find(i=>String(i.id)===String(incidenteActualId));
+ const input=document.getElementById('incAdjuntosNuevos');
+ const status=document.getElementById('incAdjuntosMsg');
+ const btn=document.getElementById('incAdjuntosBtn');
+ if(!inc||!input)return;
+ let files;
+ try{files=validarArchivosIncidente(input.files)}
+ catch(e){if(status)status.textContent=e.message;return;}
+ if(!files.length){if(status)status.textContent='Elige una foto o documento primero.';return;}
+ incidenteAdjuntosBusy=true;if(btn)btn.disabled=true;
+ if(status)status.textContent='Subiendo archivos privados…';
+ try{
+  const res=await guardarArchivosIncidente(inc,files.map(x=>x.file));
+  if(res.count){input.value='';await loadAll();abrirIncidente(inc.id);}
+  if(status)status.textContent=
+   (res.count?res.count+' archivo(s) adjuntados. ':'')+
+   (res.errors.length?'No se guardaron: '+res.errors.join(' | '):'');
+ }catch(e){if(status)status.textContent='No se pudieron subir los archivos: '+e.message;}
+ finally{incidenteAdjuntosBusy=false;if(btn)btn.disabled=false;}
+}
+
 async function addIncidente(){
  if(!['owner','admin','residente'].includes(profile?.rol)||!user?.id)return;
  const esAdmin=isAdminProfileRole(profile.rol);
@@ -3600,24 +3707,36 @@ async function addIncidente(){
   if(msg)msg.textContent='Escribe el asunto y la descripción.';
   return;
  }
+ const inputArchivos=document.getElementById('incArchivos');
+ let files=[];
+ try{files=validarArchivosIncidente(inputArchivos?.files).map(x=>x.file)}
+ catch(e){if(msg)msg.textContent=e.message;return;}
  const boton=document.getElementById('incCrearBtn');
  if(boton?.disabled)return;
  if(boton)boton.disabled=true;
  try{
-  const {error}=await sb.from('incidentes').insert({
+  const {data:nuevo,error}=await sb.from('incidentes').insert({
    casa_id:casaId,
    reportado_por:user.id,
    categoria,prioridad,persona_involucrada:persona,
    titulo,descripcion,estado:'nuevo'
-  });
+  }).select('id,casa_id,reportado_por').single();
   if(error)throw error;
+  let resultado={count:0,errors:[]};
+  if(files.length){
+   if(msg)msg.textContent='Reporte guardado. Adjuntando archivos privados…';
+   resultado=await guardarArchivosIncidente(nuevo,files);
+  }
   document.getElementById('incPersona').value='';
   document.getElementById('incTitulo').value='';
   document.getElementById('incDescripcion').value='';
+  if(inputArchivos)inputArchivos.value='';
   await loadAll();
   if(msg){
-   msg.style.color='#bbf7d0';
-   msg.textContent=esAdmin?'Reporte de incidente creado correctamente. Admin y Owner pueden darle seguimiento.':'Reporte enviado de forma privada. La administración recibió una notificación.';
+   msg.style.color=resultado.errors.length?'#fde68a':'#bbf7d0';
+   msg.textContent=(esAdmin?'Reporte de incidente creado.':'Reporte enviado de forma privada.')+
+     (resultado.count?' '+resultado.count+' archivo(s) adjuntados.':'')+
+     (resultado.errors.length?' Algunos adjuntos no se guardaron: '+resultado.errors.join(' | ')+'. Abre el reporte para volver a adjuntarlos.':'');
   }
  }catch(error){
   if(msg)msg.textContent='No se pudo crear el reporte: '+(error?.message||String(error));
@@ -3837,6 +3956,7 @@ function abrirIncidente(id){
 
   if(estado)estado.value=inc.estado||'nuevo';
   prepararDestinatariosPDFIncidente(inc);
+  renderAdjuntosIncidente(inc);
 
   renderMensajesIncidente();
   detalle?.scrollIntoView({behavior:'smooth',block:'start'});
