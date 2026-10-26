@@ -125,7 +125,7 @@ async function descargarPDF(casoId){
  text('Motivo: '+c.motivo,{bold:true});
  text('Descripción: '+(c.descripcion||'Sin descripción'));
  text('Estado del expediente: '+c.estado+'   |   Avisos registrados: '+warns.length+' de 3',{bold:true});
- section('HISTORIAL DE AVISOS','✓');
+ section('HISTORIAL DE AVISOS','1');
  if(!warns.length)text('No se han registrado avisos.');
  for(const w of warns){text('Aviso '+w.numero+' de 3 · '+fecha(w.creado_at),{bold:true});text(w.mensaje);y+=2;}
  section(multa?'MULTA AUTORIZADA':'SITUACIÓN ACTUAL','i');
@@ -137,7 +137,7 @@ async function descargarPDF(casoId){
  section('ACLARACIONES DEL RESIDENTE','?');
  if(!notes.length)text('No hay aclaraciones registradas.');
  for(const n of notes){text('Aclaración · '+fecha(n.creada_at),{bold:true});text(n.mensaje);text('Respuesta: '+(n.respuesta||'Pendiente de respuesta'));y+=2;}
- section('CONSTANCIA DE ADMINISTRACIÓN','✎');
+ section('CONSTANCIA DE ADMINISTRACIÓN','4');
  next(32);y+=15;
  doc.setDrawColor(75,90,100);doc.line(20,y,94,y);doc.line(115,y,189,y);y+=6;
  text('Firma de administración                         Firma de recibido (opcional)',{size:9});
