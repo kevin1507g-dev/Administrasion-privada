@@ -47,7 +47,7 @@ window.disciplinaCrearCaso=async function(){
  try{await runRpc('disciplina_crear_caso',{p_casa_id:casa,p_motivo:motivo,p_descripcion:descripcion});byId('disciplinaMotivo').value='';byId('disciplinaDescripcion').value='';}catch(e){alert(e.message);}
 };
 
-function descargarPDF(casoId){
+async function descargarPDF(casoId){
  if(!admin())return alert('Solo administración puede generar el documento.');
  const c=casos.find(x=>x.id===casoId);
  if(!c)return alert('No se encontró el expediente.');
@@ -71,8 +71,26 @@ function descargarPDF(casoId){
  }
  function encabezado(text){y+=4;salto(13);doc.setDrawColor(160,170,185);doc.line(18,y,192,y);y+=7;line(text,{bold:true,size:11});}
  doc.setFillColor(15,23,42);doc.rect(0,0,210,23,'F');
- doc.setFillColor(30,160,135);doc.roundedRect(17,4,15,15,2,2,'F');
- doc.setTextColor(255,255,255);doc.setFontSize(15);doc.setFont('helvetica','bold');doc.text('VB',20,14);
+ // Renderizar el logotipo oficial usado en el inicio de sesión.
+ try{
+  const res=await fetch('./logo-beteles.svg',{cache:'force-cache'});
+  if(!res.ok)throw new Error('Logo no disponible');
+  const svg=await res.text();
+  const blob=new Blob([svg],{type:'image/svg+xml;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  try{
+   const img=new Image();
+   await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=url;});
+   const canvas=document.createElement('canvas');canvas.width=400;canvas.height=309;
+   const ctx=canvas.getContext('2d');
+   ctx.fillStyle='#ffffff';ctx.fillRect(0,0,400,309);ctx.drawImage(img,0,0,400,309);
+   doc.addImage(canvas.toDataURL('image/png'),'PNG',17,3,21,16);
+  }finally{URL.revokeObjectURL(url);}
+ }catch(err){
+  console.warn('No se pudo cargar el logo para PDF:',err);
+  doc.setFillColor(30,160,135);doc.roundedRect(17,4,15,15,2,2,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(15);doc.setFont('helvetica','bold');doc.text('VB',20,14);
+ }
  doc.setFontSize(12);doc.text('PRIVADA VALLE DE LOS BETELES',38,11);
  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text('ADMINISTRACIÓN RESIDENCIAL  |  AVISOS Y MULTAS',38,17);
  doc.setTextColor(15,23,42);
