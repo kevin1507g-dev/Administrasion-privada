@@ -61,7 +61,8 @@ async function descargarPDF(casoId){
  const fecha=v=>v?new Date(v).toLocaleDateString('es-MX'):'Sin fecha';
  const titulo=multa?'NOTIFICACIÓN DE MULTA':'NOTIFICACIÓN DE AVISO';
  const folio='BET-'+String(casa?.numero||'S/N')+'-'+c.id.slice(0,8).toUpperCase();
- let y=32;
+ let y=39;
+ let watermarkPng=null;
  const salto=(height=7)=>{if(y+height>270){doc.addPage();y=22;}};
  function line(text,opts={}){
   const {bold=false,size=10,space=6}=opts;
@@ -69,8 +70,9 @@ async function descargarPDF(casoId){
   const parts=doc.splitTextToSize(String(text??''),174);
   for(const item of parts){salto(space);doc.text(item,18,y);y+=space;}
  }
- function encabezado(text){y+=4;salto(13);doc.setDrawColor(160,170,185);doc.line(18,y,192,y);y+=7;line(text,{bold:true,size:11});}
- doc.setFillColor(15,23,42);doc.rect(0,0,210,23,'F');
+ function encabezado(text){y+=5;salto(15);doc.setDrawColor(176,190,184);doc.line(18,y,192,y);y+=8;doc.setTextColor(10,80,59);line(text,{bold:true,size:11});doc.setTextColor(15,23,42);}
+ doc.setFillColor(9,63,49);doc.rect(0,0,210,27,'F');
+ doc.setFillColor(186,154,75);doc.rect(0,26,210,1,'F');
  // Renderizar el logotipo oficial usado en el inicio de sesión.
  try{
   const res=await fetch('./logo-beteles.svg',{cache:'force-cache'});
@@ -84,15 +86,18 @@ async function descargarPDF(casoId){
    const canvas=document.createElement('canvas');canvas.width=400;canvas.height=309;
    const ctx=canvas.getContext('2d');
    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,400,309);ctx.drawImage(img,0,0,400,309);
-   doc.addImage(canvas.toDataURL('image/png'),'PNG',17,3,21,16);
+   doc.addImage(canvas.toDataURL('image/png'),'PNG',17,3,27,21);
+   const mark=document.createElement('canvas');mark.width=800;mark.height=618;
+   const mctx=mark.getContext('2d');mctx.clearRect(0,0,800,618);mctx.globalAlpha=0.075;mctx.drawImage(img,0,0,800,618);
+   watermarkPng=mark.toDataURL('image/png');
   }finally{URL.revokeObjectURL(url);}
  }catch(err){
   console.warn('No se pudo cargar el logo para PDF:',err);
   doc.setFillColor(30,160,135);doc.roundedRect(17,4,15,15,2,2,'F');
   doc.setTextColor(255,255,255);doc.setFontSize(15);doc.setFont('helvetica','bold');doc.text('VB',20,14);
  }
- doc.setFontSize(12);doc.text('PRIVADA VALLE DE LOS BETELES',38,11);
- doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text('ADMINISTRACIÓN RESIDENCIAL  |  AVISOS Y MULTAS',38,17);
+ doc.setFontSize(12);doc.setTextColor(255,255,255);doc.text('PRIVADA VALLE DE LOS BETELES',49,12);
+ doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text('ADMINISTRACIÓN RESIDENCIAL  |  AVISOS Y MULTAS',49,19);
  doc.setTextColor(15,23,42);
  line(titulo,{bold:true,size:17,space:9});
  line('Fecha de emisión: '+new Date().toLocaleDateString('es-MX'));
@@ -124,7 +129,14 @@ async function descargarPDF(casoId){
  encabezado('INFORMACIÓN IMPORTANTE');
  line('Puede presentar una aclaración desde el apartado Avisos y multas de Administración Residencial. La aplicación de sanciones debe ajustarse al reglamento y a los acuerdos aplicables.');
  const pages=doc.getNumberOfPages();
- for(let i=1;i<=pages;i++){doc.setPage(i);doc.setTextColor(100,116,139);doc.setFontSize(8);doc.text('Documento generado desde Administración Residencial · Página '+i+' de '+pages,18,289);}
+ for(let i=1;i<=pages;i++){
+  doc.setPage(i);
+  if(watermarkPng)doc.addImage(watermarkPng,'PNG',26,73,158,122,'marca-de-agua', 'FAST');
+  doc.setFillColor(9,63,49);doc.rect(0,282,210,15,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(8);
+  doc.text('PRIVADA VALLE DE LOS BETELES · ADMINISTRACIÓN RESIDENCIAL',18,289);
+  doc.text('Página '+i+' de '+pages,191,289,{align:'right'});
+ }
  const houseName=String(casa?.numero||'casa').replace(/[^a-zA-Z0-9_-]/g,'-');
  doc.save('Avisos-Multas-Casa-'+houseName+'-'+c.id.slice(0,8)+'.pdf');
 }
