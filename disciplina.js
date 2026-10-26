@@ -61,7 +61,7 @@ async function descargarPDF(casoId){
  const folio='BET-'+String(casa?.numero||'SN')+'-'+c.id.slice(0,8).toUpperCase();
  const fecha=v=>v?new Date(v).toLocaleDateString('es-MX'):'Sin fecha';
  const dark=[6,67,50],gold=[181,150,79],ink=[15,26,37];
- let logo=null,mark=null,y=63;
+ let logo=null,mark=null,y=59;
  try{
   const res=await fetch('./logo-beteles.svg');if(!res.ok)throw Error('logo');
   const blob=new Blob([await res.text()],{type:'image/svg+xml;charset=utf-8'});
@@ -102,14 +102,14 @@ async function descargarPDF(casoId){
   for(const p of parts){next(space);doc.text(p,x,y);y+=space;}
  }
  function section(title,symbol){
-  next(19);y+=6;
+  next(15);y+=3;
   doc.setDrawColor(176,198,190);doc.setLineWidth(.2);doc.line(9,y-7,201,y-7);
   doc.setFillColor(240,240,233);doc.roundedRect(9,y-3,192,9,2,2,'F');
   doc.setFillColor(...dark);doc.circle(16,y+1.5,5,'F');
   doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9);
   doc.text(symbol,16,y+3,{align:'center'});
   doc.setTextColor(...ink);doc.setFontSize(10.5);doc.text(title,28,y+3);
-  y+=15;
+  y+=11;
  }
  background();
  doc.setFillColor(231,239,236);doc.roundedRect(8,32,194,22,3,3,'F');
@@ -138,7 +138,7 @@ async function descargarPDF(casoId){
  if(!notes.length)text('No hay aclaraciones registradas.');
  for(const n of notes){text('Aclaración · '+fecha(n.creada_at),{bold:true});text(n.mensaje);text('Respuesta: '+(n.respuesta||'Pendiente de respuesta'));y+=2;}
  section('CONSTANCIA DE ADMINISTRACIÓN','4');
- next(32);y+=15;
+ next(23);y+=9;
  doc.setDrawColor(75,90,100);doc.line(20,y,94,y);doc.line(115,y,189,y);y+=6;
  text('Firma de administración                         Firma de recibido (opcional)',{size:9});
  text('La firma de recibido solo acredita recepción, no aceptación de los hechos.',{size:8});
