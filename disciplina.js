@@ -60,7 +60,8 @@ function descargarPDF(casoId){
  const notes=aclaraciones.filter(a=>a.caso_id===c.id).sort((a,b)=>a.creada_at.localeCompare(b.creada_at));
  const fecha=v=>v?new Date(v).toLocaleDateString('es-MX'):'Sin fecha';
  const titulo=multa?'NOTIFICACIÓN DE MULTA':'NOTIFICACIÓN DE AVISO';
- let y=23;
+ const folio='BET-'+String(casa?.numero||'S/N')+'-'+c.id.slice(0,8).toUpperCase();
+ let y=32;
  const salto=(height=7)=>{if(y+height>270){doc.addPage();y=22;}};
  function line(text,opts={}){
   const {bold=false,size=10,space=6}=opts;
@@ -69,13 +70,17 @@ function descargarPDF(casoId){
   for(const item of parts){salto(space);doc.text(item,18,y);y+=space;}
  }
  function encabezado(text){y+=4;salto(13);doc.setDrawColor(160,170,185);doc.line(18,y,192,y);y+=7;line(text,{bold:true,size:11});}
- doc.setFillColor(15,23,42);doc.rect(0,0,210,14,'F');
- doc.setTextColor(255,255,255);doc.setFontSize(11);doc.setFont('helvetica','bold');doc.text('PRIVADA VALLE DE LOS BETELES',18,9);
+ doc.setFillColor(15,23,42);doc.rect(0,0,210,23,'F');
+ doc.setFillColor(30,160,135);doc.roundedRect(17,4,15,15,2,2,'F');
+ doc.setTextColor(255,255,255);doc.setFontSize(15);doc.setFont('helvetica','bold');doc.text('VB',20,14);
+ doc.setFontSize(12);doc.text('PRIVADA VALLE DE LOS BETELES',38,11);
+ doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text('ADMINISTRACIÓN RESIDENCIAL  |  AVISOS Y MULTAS',38,17);
  doc.setTextColor(15,23,42);
  line(titulo,{bold:true,size:17,space:9});
  line('Fecha de emisión: '+new Date().toLocaleDateString('es-MX'));
  line('Casa: '+(casa?.numero||casa?.nombre||'Sin asignar'));
- line('Folio del expediente: '+c.id);
+ line('Folio: '+folio,{bold:true});
+ line('Identificador del expediente: '+c.id,{size:8});
  line('Motivo: '+c.motivo,{bold:true});
  line('Descripción: '+(c.descripcion||'Sin descripción'));
  line('Estado del expediente: '+c.estado+'  |  Avisos registrados: '+warn.length+' de 3');
@@ -95,6 +100,9 @@ function descargarPDF(casoId){
  encabezado('ACLARACIONES DEL RESIDENTE');
  if(!notes.length)line('No hay aclaraciones registradas.');
  for(const a of notes){line('Presentada el '+fecha(a.creada_at),{bold:true});line(a.mensaje);line('Respuesta: '+(a.respuesta||'Pendiente de respuesta'));y+=2;}
+ encabezado('CONSTANCIA DE ADMINISTRACIÓN');
+ salto(36);y+=16;doc.setDrawColor(70,85,105);doc.line(22,y,96,y);doc.line(114,y,188,y);y+=6;line('Firma de administración                         Firma de recibido (opcional)',{size:9});
+ line('La firma de recibido solo acredita la recepción del documento, no la aceptación de los hechos.',{size:8});
  encabezado('INFORMACIÓN IMPORTANTE');
  line('Puede presentar una aclaración desde el apartado Avisos y multas de Administración Residencial. La aplicación de sanciones debe ajustarse al reglamento y a los acuerdos aplicables.');
  const pages=doc.getNumberOfPages();
