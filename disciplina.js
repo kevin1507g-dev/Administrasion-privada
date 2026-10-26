@@ -60,6 +60,56 @@ async function descargarPDF(casoId){
  const notes=aclaraciones.filter(a=>a.caso_id===c.id).sort((a,b)=>a.creada_at.localeCompare(b.creada_at));
  const folio='BET-'+String(casa?.numero||'SN')+'-'+c.id.slice(0,8).toUpperCase();
  const fecha=v=>v?new Date(v).toLocaleDateString('es-MX'):'Sin fecha';
+ // La plantilla aprobada se utiliza literalmente como fondo cuando está disponible.
+ try{
+  const response=await fetch('./plantilla-avisos-beteles.jpg',{cache:'no-store'});
+  if(response.ok&&response.headers.get('content-type')?.includes('image')){
+   const blob=await response.blob();const url=URL.createObjectURL(blob);
+   try{
+    const img=new Image();await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=url;});
+    const template=doc.getImageProperties(img);
+    const page=(pageNumber)=>{
+     if(pageNumber>1)doc.addPage();
+     doc.addImage(img,'JPEG',0,0,210,297);
+     doc.setFont('helvetica','normal');doc.setTextColor(17,35,32);
+    };
+    const write=(value,x,y,{size=9,bold=false,width=160,step=4.7}={})=>{
+     doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(size);
+     const parts=doc.splitTextToSize(String(value??''),width);
+     for(const part of parts){doc.text(part,x,y);y+=step;}
+     return y;
+    };
+    // La primera hoja utiliza los espacios vacíos de la plantilla original.
+    page(1);
+    write('Folio: '+folio,154,40,{size:8,bold:true,width:44});
+    write('Fecha: '+new Date().toLocaleDateString('es-MX'),154,46,{size:8,width:44});
+    let top=60;
+    top=write('Casa: '+(casa?.numero||casa?.nombre||'Sin asignar'),12,top,{bold:true});
+    top=write('Identificador del expediente: '+c.id,12,top,{size:7.5});
+    top=write('Motivo: '+c.motivo,12,top,{bold:true});
+    top=write('Descripción: '+(c.descripcion||'Sin descripción'),12,top,{width:182,step:4.6});
+    if(top>101)throw Error('Contenido inicial demasiado largo para plantilla de una página');
+    // Cubrir solamente el estado fijo para reflejar el estado real.
+    doc.setFillColor(235,242,239);doc.roundedRect(55,104,25,9,3,3,'F');
+    write(String(c.estado||'abierto').toUpperCase(),59,110,{size:9,bold:true,width:22});
+    write('Avisos registrados: '+warns.length+' de 3',96,110,{size:9,bold:true,width:75});
+    let hy=139;
+    for(const w of warns){hy=write('Aviso '+w.numero+' de 3 · '+fecha(w.creado_at),27,hy,{size:9,bold:true,width:160});hy=write(w.mensaje,27,hy,{size:9,width:165});hy+=2;}
+    if(!warns.length)write('No hay avisos registrados.',27,hy);
+    if(hy>153)throw Error('Historial demasiado largo para plantilla de una página');
+    let sy=172;
+    if(multa){sy=write('Multa autorizada: $'+Number(multa.monto).toLocaleString('es-MX')+' MXN',27,sy,{bold:true});sy=write('Fundamento: '+multa.fundamento,27,sy,{size:9});}
+    else sy=write('Este documento es informativo. No se ha autorizado una multa en este expediente.',27,sy,{size:9});
+    if(sy>182)throw Error('Situación demasiado larga para plantilla de una página');
+    let ny=196;
+    if(!notes.length)write('No hay aclaraciones registradas.',27,ny,{size:9});
+    for(const n of notes){ny=write('Aclaración del '+fecha(n.creada_at)+': '+n.mensaje,27,ny,{size:9});ny=write('Respuesta: '+(n.respuesta||'Pendiente'),27,ny,{size:9});}
+    if(ny>209)throw Error('Aclaraciones demasiado largas para plantilla de una página');
+    doc.save('Avisos-Multas-Casa-'+String(casa?.numero||'casa')+'-'+c.id.slice(0,8)+'.pdf');
+    return;
+   }finally{URL.revokeObjectURL(url);}
+  }
+ }catch(err){console.warn('Plantilla visual no disponible; se usa formato alternativo:',err);}
  const dark=[6,67,50],gold=[181,150,79],ink=[15,26,37];
  let logo=null,mark=null,y=59;
  try{
