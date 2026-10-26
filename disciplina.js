@@ -61,7 +61,7 @@ async function descargarPDF(casoId){
  const folio='BET-'+String(casa?.numero||'SN')+'-'+c.id.slice(0,8).toUpperCase();
  const fecha=v=>v?new Date(v).toLocaleDateString('es-MX'):'Sin fecha';
  const dark=[6,67,50],gold=[181,150,79],ink=[15,26,37];
- let logo=null,mark=null,y=60;
+ let logo=null,mark=null,y=63;
  try{
   const res=await fetch('./logo-beteles.svg');if(!res.ok)throw Error('logo');
   const blob=new Blob([await res.text()],{type:'image/svg+xml;charset=utf-8'});
@@ -71,23 +71,29 @@ async function descargarPDF(casoId){
    const cv=document.createElement('canvas');cv.width=800;cv.height=618;
    const cx=cv.getContext('2d');cx.drawImage(img,0,0,800,618);logo=cv.toDataURL('image/png');
    const wm=document.createElement('canvas');wm.width=800;wm.height=618;
-   const wx=wm.getContext('2d');wx.globalAlpha=.075;wx.drawImage(img,0,0,800,618);mark=wm.toDataURL('image/png');
+   const wx=wm.getContext('2d');wx.globalAlpha=.045;wx.drawImage(img,0,0,800,618);mark=wm.toDataURL('image/png');
   }finally{URL.revokeObjectURL(url);}
  }catch(e){console.warn('Logo no disponible para PDF',e);}
  function background(){
   doc.setFillColor(255,255,255);doc.rect(0,0,210,297,'F');
-  if(mark)doc.addImage(mark,'PNG',25,76,160,124,'beteles-watermark','FAST');
-  doc.setFillColor(...dark);doc.rect(0,0,210,29,'F');
-  doc.setFillColor(...gold);doc.rect(0,29,210,1.1,'F');
-  if(logo)doc.addImage(logo,'PNG',12,2,32,25,'beteles-logo','FAST');
-  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(12);
-  doc.text('PRIVADA VALLE DE LOS BETELES',49,12);
-  doc.setFont('helvetica','normal');doc.setFontSize(8);
-  doc.text('ADMINISTRACIÓN RESIDENCIAL  |  AVISOS Y MULTAS',49,19);
-  doc.setFillColor(...dark);doc.rect(0,281,210,16,'F');
-  doc.setFillColor(...gold);doc.rect(0,280,210,1,'F');
-  doc.setTextColor(255,255,255);doc.setFontSize(8);
-  doc.text('Privada Valle de los Beteles · Administración Residencial',12,289);
+  if(mark)doc.addImage(mark,'PNG',34,73,142,110,'beteles-watermark','FAST');
+  // Encabezado blanco con escudo y banda verde a la derecha.
+  if(logo)doc.addImage(logo,'PNG',11,3,31,24,'beteles-logo','FAST');
+  doc.setTextColor(...dark);doc.setFont('helvetica','bold');doc.setFontSize(12);
+  doc.text('PRIVADA',47,10);doc.setFontSize(15);doc.text('VALLE DE LOS BETELES',47,17);
+  doc.setTextColor(...gold);doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+  doc.text('A D M I N I S T R A C I Ó N   R E S I D E N C I A L',47,23);
+  doc.setFillColor(...dark);doc.rect(139,0,71,28,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(16);
+  doc.text('AVISOS Y MULTAS',174.5,12,{align:'center'});
+  doc.setFont('helvetica','normal');doc.setFontSize(7);
+  doc.text('CONVIVENCIA · SEGURIDAD · ORDEN',174.5,20,{align:'center'});
+  doc.setDrawColor(...gold);doc.setLineWidth(1.1);doc.line(0,28.5,210,28.5);
+  doc.setFillColor(...dark);doc.rect(0,282,210,15,'F');
+  doc.setFillColor(...gold);doc.rect(0,281,210,1,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','normal');doc.setFontSize(7.7);
+  doc.text('Privada Valle de los Beteles · Administración Residencial',11,289);
+  doc.text('Convivencia · Seguridad · Orden',142,289,{align:'center'});
  }
  function next(height=7){if(y+height>274){doc.addPage();background();y=39;}}
  function text(t,{bold=false,size=10,space=5.7,x=17,width=176}={}){
@@ -96,41 +102,47 @@ async function descargarPDF(casoId){
   for(const p of parts){next(space);doc.text(p,x,y);y+=space;}
  }
  function section(title,symbol){
-  next(17);y+=5;
-  doc.setFillColor(232,239,235);doc.roundedRect(11,y-5,188,10,2,2,'F');
-  doc.setFillColor(...dark);doc.circle(17,y,4.5,'F');
-  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text(symbol,17,y+1.1,{align:'center'});
-  doc.setTextColor(...ink);doc.setFontSize(11);doc.text(title,26,y+1.5);y+=14;
+  next(19);y+=6;
+  doc.setDrawColor(176,198,190);doc.setLineWidth(.2);doc.line(9,y-7,201,y-7);
+  doc.setFillColor(240,240,233);doc.roundedRect(9,y-3,192,9,2,2,'F');
+  doc.setFillColor(...dark);doc.circle(16,y+1.5,5,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9);
+  doc.text(symbol,16,y+3,{align:'center'});
+  doc.setTextColor(...ink);doc.setFontSize(10.5);doc.text(title,28,y+3);
+  y+=15;
  }
  background();
- doc.setFillColor(231,239,236);doc.roundedRect(10,34,190,20,3,3,'F');
- doc.setTextColor(...dark);doc.setFont('helvetica','bold');doc.setFontSize(17);
- doc.text(multa?'NOTIFICACIÓN DE MULTA':'NOTIFICACIÓN DE AVISO',17,47);
- doc.setFontSize(8);doc.text('Folio: '+folio,193,40,{align:'right'});
- doc.text('Fecha: '+new Date().toLocaleDateString('es-MX'),193,47,{align:'right'});
+ doc.setFillColor(231,239,236);doc.roundedRect(8,32,194,22,3,3,'F');
+ doc.setFillColor(...dark);doc.circle(18,43,8,'F');
+ doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text('!',18,47,{align:'center'});
+ doc.setTextColor(...dark);doc.setFontSize(17);
+ doc.text(multa?'NOTIFICACIÓN DE MULTA':'NOTIFICACIÓN DE AVISO',30,46);
+ doc.setFillColor(248,250,248);doc.roundedRect(151,34,48,17,2,2,'F');
+ doc.setTextColor(...ink);doc.setFontSize(8);doc.text('Folio: '+folio,196,40,{align:'right'});
+ doc.text('Fecha: '+new Date().toLocaleDateString('es-MX'),196,47,{align:'right'});
  text('Casa: '+(casa?.numero||casa?.nombre||'Sin asignar'),{bold:true});
  text('Identificador del expediente: '+c.id,{size:8});
  text('Motivo: '+c.motivo,{bold:true});
  text('Descripción: '+(c.descripcion||'Sin descripción'));
  text('Estado del expediente: '+c.estado+'   |   Avisos registrados: '+warns.length+' de 3',{bold:true});
- section('HISTORIAL DE AVISOS','1');
+ section('HISTORIAL DE AVISOS','✓');
  if(!warns.length)text('No se han registrado avisos.');
  for(const w of warns){text('Aviso '+w.numero+' de 3 · '+fecha(w.creado_at),{bold:true});text(w.mensaje);y+=2;}
- section(multa?'MULTA AUTORIZADA':'SITUACIÓN ACTUAL','2');
+ section(multa?'MULTA AUTORIZADA':'SITUACIÓN ACTUAL','i');
  if(multa){
   text('Monto: $'+Number(multa.monto).toLocaleString('es-MX',{minimumFractionDigits:2})+' MXN',{bold:true});
   text('Fecha: '+fecha(multa.creada_at)+' · Estado: '+multa.estado);
   text('Fundamento: '+multa.fundamento);
  }else text('Este documento es informativo. No se ha autorizado una multa en este expediente.');
- section('ACLARACIONES DEL RESIDENTE','3');
+ section('ACLARACIONES DEL RESIDENTE','?');
  if(!notes.length)text('No hay aclaraciones registradas.');
  for(const n of notes){text('Aclaración · '+fecha(n.creada_at),{bold:true});text(n.mensaje);text('Respuesta: '+(n.respuesta||'Pendiente de respuesta'));y+=2;}
- section('CONSTANCIA DE ADMINISTRACIÓN','4');
+ section('CONSTANCIA DE ADMINISTRACIÓN','✎');
  next(32);y+=15;
  doc.setDrawColor(75,90,100);doc.line(20,y,94,y);doc.line(115,y,189,y);y+=6;
  text('Firma de administración                         Firma de recibido (opcional)',{size:9});
  text('La firma de recibido solo acredita recepción, no aceptación de los hechos.',{size:8});
- section('INFORMACIÓN IMPORTANTE','5');
+ section('INFORMACIÓN IMPORTANTE','i');
  text('Puede presentar una aclaración desde Avisos y multas de Administración Residencial. Las sanciones deben ajustarse al reglamento y acuerdos aplicables.',{size:9});
  const pages=doc.getNumberOfPages();
  for(let i=1;i<=pages;i++){doc.setPage(i);doc.setTextColor(255,255,255);doc.setFontSize(8);doc.text('Página '+i+' de '+pages,197,289,{align:'right'});}
