@@ -51,94 +51,91 @@ async function descargarPDF(casoId){
  if(!admin())return alert('Solo administración puede generar el documento.');
  const c=casos.find(x=>x.id===casoId);
  if(!c)return alert('No se encontró el expediente.');
- const jspdf=window.jspdf?.jsPDF;
- if(!jspdf)return alert('La herramienta PDF no se cargó. Actualiza la página e inténtalo de nuevo.');
- const doc=new jspdf({unit:'mm',format:'a4'});
+ const PDF=window.jspdf?.jsPDF;
+ if(!PDF)return alert('No se cargó la herramienta PDF.');
+ const doc=new PDF({unit:'mm',format:'a4'});
  const casa=(typeof casas!=='undefined'?casas:[]).find(h=>h.id===c.casa_id);
- const warn=avisos.filter(a=>a.caso_id===c.id).sort((a,b)=>a.numero-b.numero);
+ const warns=avisos.filter(a=>a.caso_id===c.id).sort((a,b)=>a.numero-b.numero);
  const multa=multas.find(m=>m.caso_id===c.id);
  const notes=aclaraciones.filter(a=>a.caso_id===c.id).sort((a,b)=>a.creada_at.localeCompare(b.creada_at));
+ const folio='BET-'+String(casa?.numero||'SN')+'-'+c.id.slice(0,8).toUpperCase();
  const fecha=v=>v?new Date(v).toLocaleDateString('es-MX'):'Sin fecha';
- const titulo=multa?'NOTIFICACIÓN DE MULTA':'NOTIFICACIÓN DE AVISO';
- const folio='BET-'+String(casa?.numero||'S/N')+'-'+c.id.slice(0,8).toUpperCase();
- let y=39;
- let watermarkPng=null;
- const salto=(height=7)=>{if(y+height>270){doc.addPage();y=22;}};
- function line(text,opts={}){
-  const {bold=false,size=10,space=6}=opts;
-  doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(size);
-  const parts=doc.splitTextToSize(String(text??''),174);
-  for(const item of parts){salto(space);doc.text(item,18,y);y+=space;}
- }
- function encabezado(text){y+=5;salto(15);doc.setDrawColor(176,190,184);doc.line(18,y,192,y);y+=8;doc.setTextColor(10,80,59);line(text,{bold:true,size:11});doc.setTextColor(15,23,42);}
- doc.setFillColor(9,63,49);doc.rect(0,0,210,27,'F');
- doc.setFillColor(186,154,75);doc.rect(0,26,210,1,'F');
- // Renderizar el logotipo oficial usado en el inicio de sesión.
+ const dark=[6,67,50],gold=[181,150,79],ink=[15,26,37];
+ let logo=null,mark=null,y=60;
  try{
-  const res=await fetch('./logo-beteles.svg',{cache:'force-cache'});
-  if(!res.ok)throw new Error('Logo no disponible');
-  const svg=await res.text();
-  const blob=new Blob([svg],{type:'image/svg+xml;charset=utf-8'});
+  const res=await fetch('./logo-beteles.svg');if(!res.ok)throw Error('logo');
+  const blob=new Blob([await res.text()],{type:'image/svg+xml;charset=utf-8'});
   const url=URL.createObjectURL(blob);
   try{
-   const img=new Image();
-   await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=url;});
-   const canvas=document.createElement('canvas');canvas.width=400;canvas.height=309;
-   const ctx=canvas.getContext('2d');
-   ctx.fillStyle='#ffffff';ctx.fillRect(0,0,400,309);ctx.drawImage(img,0,0,400,309);
-   doc.addImage(canvas.toDataURL('image/png'),'PNG',17,3,27,21);
-   const mark=document.createElement('canvas');mark.width=800;mark.height=618;
-   const mctx=mark.getContext('2d');mctx.clearRect(0,0,800,618);mctx.globalAlpha=0.075;mctx.drawImage(img,0,0,800,618);
-   watermarkPng=mark.toDataURL('image/png');
+   const img=new Image();await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=url;});
+   const cv=document.createElement('canvas');cv.width=800;cv.height=618;
+   const cx=cv.getContext('2d');cx.drawImage(img,0,0,800,618);logo=cv.toDataURL('image/png');
+   const wm=document.createElement('canvas');wm.width=800;wm.height=618;
+   const wx=wm.getContext('2d');wx.globalAlpha=.075;wx.drawImage(img,0,0,800,618);mark=wm.toDataURL('image/png');
   }finally{URL.revokeObjectURL(url);}
- }catch(err){
-  console.warn('No se pudo cargar el logo para PDF:',err);
-  doc.setFillColor(30,160,135);doc.roundedRect(17,4,15,15,2,2,'F');
-  doc.setTextColor(255,255,255);doc.setFontSize(15);doc.setFont('helvetica','bold');doc.text('VB',20,14);
- }
- doc.setFontSize(12);doc.setTextColor(255,255,255);doc.text('PRIVADA VALLE DE LOS BETELES',49,12);
- doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text('ADMINISTRACIÓN RESIDENCIAL  |  AVISOS Y MULTAS',49,19);
- doc.setTextColor(15,23,42);
- line(titulo,{bold:true,size:17,space:9});
- line('Fecha de emisión: '+new Date().toLocaleDateString('es-MX'));
- line('Casa: '+(casa?.numero||casa?.nombre||'Sin asignar'));
- line('Folio: '+folio,{bold:true});
- line('Identificador del expediente: '+c.id,{size:8});
- line('Motivo: '+c.motivo,{bold:true});
- line('Descripción: '+(c.descripcion||'Sin descripción'));
- line('Estado del expediente: '+c.estado+'  |  Avisos registrados: '+warn.length+' de 3');
- encabezado('HISTORIAL DE AVISOS');
- if(!warn.length)line('No se han registrado avisos.');
- for(const a of warn){line('Aviso '+a.numero+' de 3 — '+fecha(a.creado_at),{bold:true});line(a.mensaje);y+=2;}
- if(multa){
-  encabezado('MULTA AUTORIZADA');
-  line('Monto: '+Number(multa.monto).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})+' MXN',{bold:true});
-  line('Fecha: '+fecha(multa.creada_at));
-  line('Estado: '+multa.estado);
-  line('Fundamento y motivo: '+multa.fundamento);
- }else{
-  encabezado('SITUACIÓN ACTUAL');
-  line('Este documento es informativo. No se ha autorizado una multa en este expediente.');
- }
- encabezado('ACLARACIONES DEL RESIDENTE');
- if(!notes.length)line('No hay aclaraciones registradas.');
- for(const a of notes){line('Presentada el '+fecha(a.creada_at),{bold:true});line(a.mensaje);line('Respuesta: '+(a.respuesta||'Pendiente de respuesta'));y+=2;}
- encabezado('CONSTANCIA DE ADMINISTRACIÓN');
- salto(36);y+=16;doc.setDrawColor(70,85,105);doc.line(22,y,96,y);doc.line(114,y,188,y);y+=6;line('Firma de administración                         Firma de recibido (opcional)',{size:9});
- line('La firma de recibido solo acredita la recepción del documento, no la aceptación de los hechos.',{size:8});
- encabezado('INFORMACIÓN IMPORTANTE');
- line('Puede presentar una aclaración desde el apartado Avisos y multas de Administración Residencial. La aplicación de sanciones debe ajustarse al reglamento y a los acuerdos aplicables.');
- const pages=doc.getNumberOfPages();
- for(let i=1;i<=pages;i++){
-  doc.setPage(i);
-  if(watermarkPng)doc.addImage(watermarkPng,'PNG',26,73,158,122,'marca-de-agua', 'FAST');
-  doc.setFillColor(9,63,49);doc.rect(0,282,210,15,'F');
+ }catch(e){console.warn('Logo no disponible para PDF',e);}
+ function background(){
+  doc.setFillColor(255,255,255);doc.rect(0,0,210,297,'F');
+  if(mark)doc.addImage(mark,'PNG',25,76,160,124,'beteles-watermark','FAST');
+  doc.setFillColor(...dark);doc.rect(0,0,210,29,'F');
+  doc.setFillColor(...gold);doc.rect(0,29,210,1.1,'F');
+  if(logo)doc.addImage(logo,'PNG',12,2,32,25,'beteles-logo','FAST');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(12);
+  doc.text('PRIVADA VALLE DE LOS BETELES',49,12);
+  doc.setFont('helvetica','normal');doc.setFontSize(8);
+  doc.text('ADMINISTRACIÓN RESIDENCIAL  |  AVISOS Y MULTAS',49,19);
+  doc.setFillColor(...dark);doc.rect(0,281,210,16,'F');
+  doc.setFillColor(...gold);doc.rect(0,280,210,1,'F');
   doc.setTextColor(255,255,255);doc.setFontSize(8);
-  doc.text('PRIVADA VALLE DE LOS BETELES · ADMINISTRACIÓN RESIDENCIAL',18,289);
-  doc.text('Página '+i+' de '+pages,191,289,{align:'right'});
+  doc.text('Privada Valle de los Beteles · Administración Residencial',12,289);
  }
- const houseName=String(casa?.numero||'casa').replace(/[^a-zA-Z0-9_-]/g,'-');
- doc.save('Avisos-Multas-Casa-'+houseName+'-'+c.id.slice(0,8)+'.pdf');
+ function next(height=7){if(y+height>274){doc.addPage();background();y=39;}}
+ function text(t,{bold=false,size=10,space=5.7,x=17,width=176}={}){
+  doc.setTextColor(...ink);doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(size);
+  const parts=doc.splitTextToSize(String(t??''),width);
+  for(const p of parts){next(space);doc.text(p,x,y);y+=space;}
+ }
+ function section(title,symbol){
+  next(17);y+=5;
+  doc.setFillColor(232,239,235);doc.roundedRect(11,y-5,188,10,2,2,'F');
+  doc.setFillColor(...dark);doc.circle(17,y,4.5,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text(symbol,17,y+1.1,{align:'center'});
+  doc.setTextColor(...ink);doc.setFontSize(11);doc.text(title,26,y+1.5);y+=14;
+ }
+ background();
+ doc.setFillColor(231,239,236);doc.roundedRect(10,34,190,20,3,3,'F');
+ doc.setTextColor(...dark);doc.setFont('helvetica','bold');doc.setFontSize(17);
+ doc.text(multa?'NOTIFICACIÓN DE MULTA':'NOTIFICACIÓN DE AVISO',17,47);
+ doc.setFontSize(8);doc.text('Folio: '+folio,193,40,{align:'right'});
+ doc.text('Fecha: '+new Date().toLocaleDateString('es-MX'),193,47,{align:'right'});
+ text('Casa: '+(casa?.numero||casa?.nombre||'Sin asignar'),{bold:true});
+ text('Identificador del expediente: '+c.id,{size:8});
+ text('Motivo: '+c.motivo,{bold:true});
+ text('Descripción: '+(c.descripcion||'Sin descripción'));
+ text('Estado del expediente: '+c.estado+'   |   Avisos registrados: '+warns.length+' de 3',{bold:true});
+ section('HISTORIAL DE AVISOS','1');
+ if(!warns.length)text('No se han registrado avisos.');
+ for(const w of warns){text('Aviso '+w.numero+' de 3 · '+fecha(w.creado_at),{bold:true});text(w.mensaje);y+=2;}
+ section(multa?'MULTA AUTORIZADA':'SITUACIÓN ACTUAL','2');
+ if(multa){
+  text('Monto: $'+Number(multa.monto).toLocaleString('es-MX',{minimumFractionDigits:2})+' MXN',{bold:true});
+  text('Fecha: '+fecha(multa.creada_at)+' · Estado: '+multa.estado);
+  text('Fundamento: '+multa.fundamento);
+ }else text('Este documento es informativo. No se ha autorizado una multa en este expediente.');
+ section('ACLARACIONES DEL RESIDENTE','3');
+ if(!notes.length)text('No hay aclaraciones registradas.');
+ for(const n of notes){text('Aclaración · '+fecha(n.creada_at),{bold:true});text(n.mensaje);text('Respuesta: '+(n.respuesta||'Pendiente de respuesta'));y+=2;}
+ section('CONSTANCIA DE ADMINISTRACIÓN','4');
+ next(32);y+=15;
+ doc.setDrawColor(75,90,100);doc.line(20,y,94,y);doc.line(115,y,189,y);y+=6;
+ text('Firma de administración                         Firma de recibido (opcional)',{size:9});
+ text('La firma de recibido solo acredita recepción, no aceptación de los hechos.',{size:8});
+ section('INFORMACIÓN IMPORTANTE','5');
+ text('Puede presentar una aclaración desde Avisos y multas de Administración Residencial. Las sanciones deben ajustarse al reglamento y acuerdos aplicables.',{size:9});
+ const pages=doc.getNumberOfPages();
+ for(let i=1;i<=pages;i++){doc.setPage(i);doc.setTextColor(255,255,255);doc.setFontSize(8);doc.text('Página '+i+' de '+pages,197,289,{align:'right'});}
+ const name=String(casa?.numero||'casa').replace(/[^a-zA-Z0-9_-]/g,'-');
+ doc.save('Avisos-Multas-Casa-'+name+'-'+c.id.slice(0,8)+'.pdf');
 }
 
 const areaHandler=async function(e){
