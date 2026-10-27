@@ -4830,7 +4830,21 @@ async function marcarChatActualLeido(){
   renderChatBadge();
 }
 
+function iniciarChatRealtime(){
+ if(window.chatRealtimeCanal){sb.removeChannel(window.chatRealtimeCanal).catch(()=>{});window.chatRealtimeCanal=null;}
+ if(!user||!['owner','admin','residente'].includes(profile?.rol))return;
+ const uid=user.id;
+ window.chatRealtimeCanal=sb.channel('chat-rapido-'+uid)
+  .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_mensajes'},async()=>{
+   if(user?.id!==uid)return;
+   await cargarChatDatos();
+   const panel=document.getElementById('chatPanel');
+   if(panel&&!panel.classList.contains('hidden'))await marcarChatActualLeido();
+  }).subscribe();
+}
+
 function iniciarChatPolling(){
+  iniciarChatRealtime();
   if(chatPolling)clearInterval(chatPolling);
   if(!['owner','admin','residente'].includes(profile?.rol))return;
 
