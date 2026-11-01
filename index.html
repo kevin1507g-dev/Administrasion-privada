@@ -5241,7 +5241,7 @@ async function eliminarReserva(id){
 function renderReservas(){
  const body=document.getElementById('reservasRows');if(!body)return;
  if(isAdminProfileRole(profile?.rol))refreshEventModeStatus();
- body.innerHTML=reservas.map(r=>`<tr><td>${esc(r.fecha||'')}</td><td>${esc(String(r.hora_inicio||'').slice(0,5))}–${esc(String(r.hora_fin||'').slice(0,5))}</td><td>${esc(r.area||'')}</td><td>${esc(r.unidad||'')}</td><td><span class="badge">${esc(r.estado||'')}</span></td><td>${esc(r.notas||'')}</td><td class="adminOnly">${isAdminProfileRole(profile?.rol)?`<div class="actions"><button class="primary mini" onclick="setReservaEstado('${r.id}','aprobada')">Aprobar</button><button class="mini" onclick="setReservaEstado('${r.id}','rechazada')">Rechazar</button><button class="danger mini" onclick="eliminarReserva('${r.id}')">Eliminar</button></div>`:''}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">No hay reservaciones.</td></tr>';
+ body.innerHTML=reservas.map(r=>`<tr><td>${esc(r.fecha||'')}</td><td>${esc(String(r.hora_inicio||'').slice(0,5))}–${esc(String(r.hora_fin||'').slice(0,5))}</td><td>${esc(r.area||'')}</td><td>${esc(r.unidad||'')}</td><td><span class="badge">${esc(r.estado||'')}</span></td><td>${esc(r.notas||'')}</td><td class="adminOnly">${isAdminProfileRole(profile?.rol) && r.estado!=='aprobada' ? `<div class="actions"><button class="primary mini" onclick="setReservaEstado('${r.id}','aprobada')">Aprobar</button><button class="mini" onclick="setReservaEstado('${r.id}','rechazada')">Rechazar</button><button class="danger mini" onclick="eliminarReserva('${r.id}')">Eliminar</button></div>` : ''}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">No hay reservaciones.</td></tr>';
 }
 
 async function testEventMode(){
