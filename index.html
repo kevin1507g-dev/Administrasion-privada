@@ -223,7 +223,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <button class="cameraOnly" onclick="show('camaras')">📹 Cámaras</button>
 <div class="navSectionLabel">Gestión y accesos</div>
 <button class="adminOnly" onclick="show('residentes')">👥 Residentes</button>
-<button class="ownerOnly hidden" onclick="show('ownerPanel')">👑 Panel Owner</button>
+<button class="ownerOnly hidden" onclick="show('ownerPanel')">👑 Panel Sistema Admin</button>
 <button class="adminOnly" onclick="show('solicitudes')">📝 Solicitudes</button>
 <button class="adminOnly" onclick="show('casas')">🏠 Casas</button>
 <button class="adminOnly" onclick="show('deudas')">💰 Deuda total</button>
@@ -255,9 +255,9 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   <div class="appTopbarCopy"><strong id="topbarSectionTitle">Panel principal</strong><small>Privada Beteles · Administración Residencial</small></div>
   <div id="ownerPanelSwitcher" class="ownerPanelSwitcher hidden">
     <label for="ownerPanelMode">Cambiar panel</label>
-    <select id="ownerPanelMode" aria-label="Seleccionar panel Owner, Administrador o Residente"
+    <select id="ownerPanelMode" aria-label="Seleccionar panel Sistema Admin, Administrador o Residente"
       onchange="cambiarPanelOwner(this.value)">
-      <option value="owner">👑 Owner</option>
+      <option value="owner">👑 Sistema Admin</option>
       <option value="admin">🛡️ Administrador</option>
       <option value="resident">🏠 Residente</option>
     </select>
@@ -666,14 +666,14 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </section>
 
 <section id="ownerPanel" class="ownerOnly hidden">
-  <h2>👑 Centro de control Owner</h2>
+  <h2>👑 Centro de control Sistema Admin</h2>
   <div id="ownerAnalyticsDashboard" class="ownerAnalyticsDashboard">
     <div class="ownerAnalyticsHeading">
       <div>
         <h3>📊 Avance y actividad de la privada</h3>
-        <p class="muted">Cifras reales de cuotas, controles y solicitudes confirmadas por el ESP32. Solo Owner.</p>
+        <p class="muted">Cifras reales de cuotas, controles y solicitudes confirmadas por el ESP32. Solo Sistema Admin.</p>
       </div>
-      <button type="button" id="ownerAnalyticsRefresh" onclick="actualizarMetricasOwner()" aria-label="Actualizar las gráficas Owner">↻ Actualizar gráficas</button>
+      <button type="button" id="ownerAnalyticsRefresh" onclick="actualizarMetricasOwner()" aria-label="Actualizar las gráficas Sistema Admin">↻ Actualizar gráficas</button>
     </div>
     <div class="ownerAnalyticsKpis">
       <div class="ownerAnalyticsKpi"><span>Avance de cobranza</span><strong id="ownerAnalyticCollection">—</strong><small>De las cuotas registradas</small></div>
@@ -732,9 +732,9 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 
   <div class="card" style="margin-bottom:14px">
     <h3>🔀 Cambiar de panel</h3>
-    <p class="muted">Explora el panel de administrador o consulta cómo se ve una casa desde la vista de residente. Tu cuenta siempre conserva el rango Owner.</p>
+    <p class="muted">Explora el panel de administrador o consulta cómo se ve una casa desde la vista de residente. Tu cuenta siempre conserva el rango Sistema Admin.</p>
     <div class="ownerModeButtons">
-      <button type="button" onclick="cambiarPanelOwner('owner')">👑 Panel Owner</button>
+      <button type="button" onclick="cambiarPanelOwner('owner')">👑 Panel Sistema Admin</button>
       <button type="button" onclick="cambiarPanelOwner('admin')">🛡️ Panel Administrador</button>
       <button type="button" onclick="cambiarPanelOwner('resident')">🏠 Vista Residente</button>
     </div>
@@ -790,7 +790,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   </div>
   <div class="card" style="margin-top:14px">
     <h3>🛡️ Control de usuarios y administradores</h3>
-    <p class="muted">Puedes cambiar roles o activar y suspender cuentas. La cuenta Owner actual y el último Owner activo están protegidos.</p>
+    <p class="muted">Puedes cambiar roles o activar y suspender cuentas. La cuenta Sistema Admin actual y el último Sistema Admin activo están protegidos.</p>
     <div class="form">
       <div><label for="ownerRoleUser">Cuenta</label>
         <select id="ownerRoleUser" onchange="mostrarRolActualOwner()"><option value="">Seleccionar usuario</option></select>
@@ -798,7 +798,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       <div><label for="ownerNewRole">Asignar rol</label>
         <select id="ownerNewRole">
           <option value="admin">Administrador</option>
-          <option value="owner">👑 Owner</option>
+          <option value="owner">👑 Sistema Admin</option>
           <option value="guardia">Guardia</option>
           <option value="residente">Residente (requiere casa asignada)</option>
         </select>
@@ -817,7 +817,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     </table></div>
   </div>
   <div class="card" style="margin-top:14px">
-    <h3>🕘 Historial de gestión Owner</h3>
+    <h3>🕘 Historial de gestión Sistema Admin</h3>
     <p class="muted">Registro de cambios de roles y de cuentas activadas o suspendidas.</p>
     <div id="ownerAuditList" role="status" class="muted">Abre esta sección para consultar los movimientos.</div>
     <button type="button" onclick="cargarAccionesOwner()" style="margin-top:12px">↻ Actualizar historial</button>
@@ -897,7 +897,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
           <option value="guardia">Guardia</option>
           <option value="admin">Administrador</option>
         </select>
-        <small class="muted">El rol Owner solo puede asignarse desde el panel del propietario.</small>
+        <small class="muted">El rol Sistema Admin solo puede asignarse desde el panel del propietario.</small>
       </div>
     </div>
     <button class="primary" style="margin-top:12px" onclick="addProfile()">Guardar perfil</button>
@@ -1213,7 +1213,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <section id="visitas"><h2>Visitas</h2>
 <div class="card adminOnly">
  <h3>🛡️ Registrar visita como administrador</h3>
- <p class="muted">Registra una visita para cualquier casa activa. Los códigos temporales quedan autorizados al crearse. Los permanentes solicitados por administradores necesitan autorización del Owner y siguen sujetos a los permisos de la casa y del ESP32.</p>
+ <p class="muted">Registra una visita para cualquier casa activa. Los códigos temporales quedan autorizados al crearse. Los permanentes solicitados por administradores necesitan autorización del Sistema Admin y siguen sujetos a los permisos de la casa y del ESP32.</p>
  <div class="form">
   <div><label for="adminVisCasa">Casa de la visita</label><select id="adminVisCasa"><option value="">Selecciona una casa</option></select></div>
   <div><label for="adminVisNombre">Nombre o referencia de la visita (opcional)</label><input id="adminVisNombre" maxlength="100" placeholder="Ej. Familia, Juan o dejar vacío"></div>
@@ -1261,7 +1261,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
  <p id="vpPermanentMessage" role="status" class="muted"></p>
  <div id="vpPermanentResult" class="hidden">
   <strong id="vpPermanentCode"></strong>
-  <p class="muted">El código permanecerá consultable en «Mis solicitudes permanentes». No funcionará hasta que lo apruebe el Owner.</p>
+  <p class="muted">El código permanecerá consultable en «Mis solicitudes permanentes». No funcionará hasta que lo apruebe el Sistema Admin.</p>
   <button type="button" onclick="copiarCodigoPermanente()">📋 Copiar datos para la visita</button>
  </div>
  <h4>Mis solicitudes permanentes</h4>
@@ -1269,8 +1269,8 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
  <button type="button" style="margin-top:10px" onclick="cargarCodigosPermanentes()">↻ Actualizar solicitudes</button>
 </div>
 <div class="card ownerOnly hidden" style="margin-top:14px">
- <h3>👑 Autorizar códigos permanentes · Solo Owner</h3>
- <p class="muted">Solo el propietario puede revisar los códigos de todas las casas y aprobar, rechazar, revocar, consultar o regenerar sus credenciales. Los cambios realizados por residentes requieren una nueva aprobación del Owner.</p>
+ <h3>👑 Autorizar códigos permanentes · Solo Sistema Admin</h3>
+ <p class="muted">Solo el propietario puede revisar los códigos de todas las casas y aprobar, rechazar, revocar, consultar o regenerar sus credenciales. Los cambios realizados por residentes requieren una nueva aprobación del Sistema Admin.</p>
  <div id="vpPermanentAdminList" class="muted">Abre esta sección para consultar las solicitudes.</div>
  <button type="button" style="margin-top:10px" onclick="cargarCodigosPermanentes()">↻ Actualizar autorizaciones</button>
 </div>
@@ -1337,7 +1337,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       Tu reporte es confidencial: otros residentes no pueden verlo. Solo la administración puede identificarte y darle seguimiento.
     </p>
     <p class="muted adminOnly">
-      Owner y Admin pueden registrar incidentes relacionados con una casa. El reporte quedará a nombre de quien lo registra y los residentes no tendrán acceso a los reportes administrativos.
+      Sistema Admin y Admin pueden registrar incidentes relacionados con una casa. El reporte quedará a nombre de quien lo registra y los residentes no tendrán acceso a los reportes administrativos.
     </p>
     <div class="form">
       <div class="adminOnly"><label for="incCasa">Casa relacionada</label>
@@ -1821,7 +1821,7 @@ function renderOwnerAnalytics(){
    ownerAccessStatsError?'No se pudo consultar el uso: '+ownerAccessStatsError:
    'Abre este panel para consultar el historial de accesos.';
   chart.appendChild(p);
-  ownerChartSet('ownerAccessNote','El historial se consulta de forma privada para Owner.');
+  ownerChartSet('ownerAccessNote','El historial se consulta de forma privada para Sistema Admin.');
   ['ownerPassApproved','ownerPassPending','ownerPassRevoked'].forEach(id=>ownerChartSet(id,'—'));
   ownerChartSet('ownerAnalyticsUpdated',ownerAccessStatsBusy?'Consultando actividad…':'Pendiente de consulta');
   return;
@@ -1938,7 +1938,7 @@ function renderOwnerPanel(){
  for(const p of profiles.filter(x=>['owner','admin','guardia'].includes(x.rol))){
   const row=tbody.insertRow();
   row.insertCell().textContent=p.nombre||'Sin nombre';
-  row.insertCell().textContent=p.rol==='owner'?'👑 Owner':p.rol==='admin'?'Administrador':'Guardia';
+  row.insertCell().textContent=p.rol==='owner'?'👑 Sistema Admin':p.rol==='admin'?'Administrador':'Guardia';
   row.insertCell().textContent=p.activo===false?'Suspendido':'Activo';
  }
 }
@@ -1965,7 +1965,7 @@ async function guardarRolOwner(){
  if(!target||!newRole)return msg.textContent='Selecciona un usuario y un rol.';
  if(target.rol===newRole)return msg.textContent='El usuario ya tiene ese rol.';
  if(target.rol==='residente'&&newRole==='owner')
-  return msg.textContent='Por seguridad, cambia primero a administrador antes de asignar Owner.';
+  return msg.textContent='Por seguridad, cambia primero a administrador antes de asignar Sistema Admin.';
  if(newRole==='residente'&&!casas.some(c=>c.id===target.casa_id&&c.activo===true))
   return msg.textContent='Esta cuenta necesita tener una casa activa asignada antes de convertirse en residente.';
  if(!confirm('¿Cambiar a '+(target.nombre||'usuario')+' de '+target.rol+' a '+newRole+'? Esto modifica sus permisos.'))return;
@@ -2032,7 +2032,7 @@ function renderResidentes(){
   body.innerHTML = lista.map(x=>`<tr>
     <td>${esc(x.nombre||'')}</td>
     <td><strong>${esc(x.unidad||'')}</strong></td>
-    <td>${esc(x.rol==='owner'?'👑 Owner':(x.rol||''))}</td>
+    <td>${esc(x.rol==='owner'?'👑 Sistema Admin':(x.rol||''))}</td>
     <td>${x.estado_registro==='pendiente'
       ? '<span class="badge">Pendiente</span>'
       : (x.estado_registro==='rechazado'
@@ -2054,7 +2054,7 @@ function renderResidentes(){
 async function eliminarPago(id){
 
   if(!isOwnerPanelActive()){
-    return alert('Solo Owner puede eliminar pagos.');
+    return alert('Solo Sistema Admin puede eliminar pagos.');
   }
 
   const pago = pagos.find(
@@ -3107,7 +3107,7 @@ async function enter(){
  if(error||!data){loginMsg.textContent='Tu usuario existe, pero no tiene un perfil en la tabla profiles.';await sb.auth.signOut();return}
  profile=data;
  if(profile.rol!=='residente'&&(profile.activo===false || (profile.estado_registro && profile.estado_registro!=='aprobado'))){
-  loginMsg.textContent='Esta cuenta de personal está suspendida o no está aprobada. Contacta al Owner.';
+  loginMsg.textContent='Esta cuenta de personal está suspendida o no está aprobada. Contacta al Sistema Admin.';
   await sb.auth.signOut(); user=null;profile=null;return;
  }
  if(profile.rol==='residente' && (profile.activo===false || profile.estado_registro==='pendiente')){
@@ -3124,7 +3124,7 @@ async function enter(){
  }
  cerrarChatFlotante();
  login.classList.add('hidden');app.classList.remove('hidden');
- who.textContent=`${profile.nombre} · ${profile.rol==='owner'?'👑 OWNER':profile.rol}${profile.unidad?' · '+profile.unidad:''}`;
+ who.textContent=`${profile.nombre} · ${profile.rol==='owner'?'👑 Sistema Admin':profile.rol}${profile.unidad?' · '+profile.unidad:''}`;
  const ownerSwitcher=document.getElementById('ownerPanelSwitcher');
  if(ownerSwitcher)ownerSwitcher.classList.toggle('hidden',profile.rol!=='owner');
  ownerPanelMode='owner';
@@ -3263,11 +3263,11 @@ async function addControl(){
  await loadAll();
 }
 async function setBloqueoOwner45(id,bloquear){
- if(profile?.rol!=='owner')return alert('Solo el Owner puede realizar esta acción.');
+ if(profile?.rol!=='owner')return alert('Solo el Sistema Admin puede realizar esta acción.');
  const control=controles.find(x=>String(x.id)===String(id));
  if(!control||String(casaNumero(casaIdDeRegistro(control)))!=='45')return alert('Solo aplica a controles de la casa 45.');
  if(!confirm((bloquear?'¿Bloquear':'¿Desbloquear')+' el control '+control.numero_control+' de la casa 45?'))return;
- const {error}=await sb.from('controles_residenciales').update({bloqueo_owner:bloquear,estado:bloquear?'suspendido':'activo',suspension_automatica:false,motivo_suspension:bloquear?'Bloqueo exclusivo del Owner':null,actualizado_por:user.id,actualizado_en:new Date().toISOString()}).eq('id',id);
+ const {error}=await sb.from('controles_residenciales').update({bloqueo_owner:bloquear,estado:bloquear?'suspendido':'activo',suspension_automatica:false,motivo_suspension:bloquear?'Bloqueo exclusivo del Sistema Admin':null,actualizado_por:user.id,actualizado_en:new Date().toISOString()}).eq('id',id);
  if(error)return alert('No se pudo cambiar el bloqueo: '+error.message);
  await loadAll();
 }
@@ -3343,7 +3343,7 @@ function renderControlesRegistrados(){
        const estadoBtn=c.estado==='suspendido'
          ? '<button onclick="setControlEstado('+c.id+',\'activo\')">Reactivar</button>'
          : '<button class="danger" onclick="setControlEstado('+c.id+',\'suspendido\')">Bloquear temporalmente</button>';
-       return '<tr><td><strong>'+esc(c.numero_control)+'</strong></td><td>'+badge+'</td><td><div class="actions">'+(String(g.numero)==='45'&&profile?.rol==='owner'?'<button onclick="setBloqueoOwner45('+c.id+','+(!c.bloqueo_owner)+')">'+(c.bloqueo_owner?'🔓 Desbloquear Owner':'🔒 Bloquear Owner')+'</button> ':estadoBtn)+' '+(c.bloqueo_owner?'':'<button class="danger" onclick="deleteControl('+c.id+')">Eliminar</button>')+'</div></td></tr>';
+       return '<tr><td><strong>'+esc(c.numero_control)+'</strong></td><td>'+badge+'</td><td><div class="actions">'+(String(g.numero)==='45'&&profile?.rol==='owner'?'<button onclick="setBloqueoOwner45('+c.id+','+(!c.bloqueo_owner)+')">'+(c.bloqueo_owner?'🔓 Desbloquear Sistema Admin':'🔒 Bloquear Sistema Admin')+'</button> ':estadoBtn)+' '+(c.bloqueo_owner?'':'<button class="danger" onclick="deleteControl('+c.id+')">Eliminar</button>')+'</div></td></tr>';
      }).join('');
      return '<details data-casa="'+esc(g.clave)+'"'+(abiertas.has(g.clave)?' open':'')+' style="border:1px solid #334155;border-radius:12px;margin-top:10px;padding:14px">'+
        '<summary style="cursor:pointer"><strong>'+(g.numero?'Casa '+esc(g.numero):'Sin casa asignada')+'</strong> <span class="muted">— '+resumen+'</span></summary>'+
@@ -3794,7 +3794,7 @@ function renderIncidentes(){
 }
 
 
-// Formato PDF de notificación de incidente para entrega voluntaria por Admin/Owner.
+// Formato PDF de notificación de incidente para entrega voluntaria por Admin/Sistema Admin.
 // Se genera en el navegador y no sube documentos a servidores externos.
 function prepararDestinatariosPDFIncidente(inc){
  const select=document.getElementById('incPdfDestinatario');
@@ -3811,7 +3811,7 @@ function prepararDestinatariosPDFIncidente(inc){
 }
 
 function documentoPDFDeIncidente(id){
- if(!isAdminProfileRole(profile?.rol))throw Error('Solo Admin y Owner pueden preparar el PDF.');
+ if(!isAdminProfileRole(profile?.rol))throw Error('Solo Admin y Sistema Admin pueden preparar el PDF.');
  if(!window.jspdf?.jsPDF)throw Error('No se cargó el generador PDF. Revisa tu conexión y actualiza la página.');
  const inc=incidentes.find(x=>String(x.id)===String(id));
  if(!inc)throw Error('Este incidente no está disponible. Actualiza la página.');
@@ -5675,7 +5675,7 @@ async function editarGasto(id){
 }
 
 async function eliminarGasto(id){
- if(!isOwnerPanelActive()) return alert('Solo el panel Owner permite eliminar gastos y aclaraciones.');
+ if(!isOwnerPanelActive()) return alert('Solo el panel Sistema Admin permite eliminar gastos y aclaraciones.');
  if(!confirm('¿Eliminar este gasto o aclaración del historial? Esta acción no se puede deshacer.')) return;
 
  const {error}=await sb.from('gastos').delete().eq('id',id);
@@ -5875,11 +5875,11 @@ th{background:#f2f2f2}
  w.document.open();
  w.document.write(reporte);
  w.document.close();
- // The report is now generated. Inform Owner(s) through the authenticated server,
+ // The report is now generated. Inform Sistema Admin(s) through the authenticated server,
  // not by sending a user-editable notification directly from this browser.
  sb.rpc('owner_notify_clarification_generated',{p_event_id:crypto.randomUUID()})
    .then(({error})=>{
-     if(error) console.warn('No se pudo avisar a Owner de la aclaración generada:',error);
+     if(error) console.warn('No se pudo avisar a Sistema Admin de la aclaración generada:',error);
    });
 }
 async function addMetodoPago(){
@@ -6286,7 +6286,7 @@ function renderDuplicateDuesWarning(){
   return;
  }
  const warning=document.createElement('p');warning.style.fontWeight='700';
- warning.textContent='⚠️ Hay '+repeats.length+' grupo(s) de cuotas posiblemente duplicadas. Solo Owner debe decidir si corresponde corregirlas.';
+ warning.textContent='⚠️ Hay '+repeats.length+' grupo(s) de cuotas posiblemente duplicadas. Solo Sistema Admin debe decidir si corresponde corregirlas.';
  el.appendChild(warning);
  for(const items of repeats){
   const row=document.createElement('p');
@@ -6483,7 +6483,7 @@ async function adminRegistrarVisita(){
  const msg=document.getElementById('adminVisMensaje');
  if(!house)return msg.textContent='Selecciona una casa.';
  if(!permanente&&(!inicio||!fin||new Date(fin)<=new Date(inicio)))return msg.textContent='Selecciona un horario válido.';
- if(permanente&&!confirm(profile.rol==='owner'?'Este código permanente quedará autorizado por Owner. ¿Continuar?':'Este código permanente quedará pendiente de autorización del Owner. ¿Continuar?'))return;
+ if(permanente&&!confirm(profile.rol==='owner'?'Este código permanente quedará autorizado por Sistema Admin. ¿Continuar?':'Este código permanente quedará pendiente de autorización del Sistema Admin. ¿Continuar?'))return;
  adminVisBusy=true;
  const btn=document.getElementById('adminVisCrearBtn');btn.disabled=true;
  document.getElementById('adminVisResultado').classList.add('hidden');
@@ -6494,13 +6494,13 @@ async function adminRegistrarVisita(){
   });
   if(error)throw error;
   const portal=new URL('./repartidor.html',location.href).href;
-  adminVisCopy=(data.status==='pending'?'Visita pendiente de autorización Owner':'Visita autorizada')+' · Privada Beteles\nNombre: '+data.visitor+'\nCasa: '+data.house+'\nCódigo: '+data.code+
+  adminVisCopy=(data.status==='pending'?'Visita pendiente de autorización Sistema Admin':'Visita autorizada')+' · Privada Beteles\nNombre: '+data.visitor+'\nCasa: '+data.house+'\nCódigo: '+data.code+
    '\nTipo: '+(data.permanent?'Permanente':'Temporal')+
    (data.permanent?'':'\nHorario: '+new Date(data.starts_at).toLocaleString('es-MX')+' a '+new Date(data.ends_at).toLocaleString('es-MX'))+
    '\nPortal: '+portal;
-  document.getElementById('adminVisDatos').textContent='Casa '+data.house+' · '+data.visitor+' · Código '+data.code+' · '+(data.permanent?'Permanente':'Temporal')+(data.status==='pending'?' · Pendiente de autorización Owner':'');
+  document.getElementById('adminVisDatos').textContent='Casa '+data.house+' · '+data.visitor+' · Código '+data.code+' · '+(data.permanent?'Permanente':'Temporal')+(data.status==='pending'?' · Pendiente de autorización Sistema Admin':'');
   document.getElementById('adminVisResultado').classList.remove('hidden');
-  msg.textContent=data.status==='pending'?'Código permanente registrado, pero INACTIVO hasta que Owner lo autorice. Guarda este código ahora.':permanente?'Código permanente autorizado por Owner; puedes consultarlo en la lista.':'Visita temporal registrada y autorizada. Guarda el código ahora.';
+  msg.textContent=data.status==='pending'?'Código permanente registrado, pero INACTIVO hasta que Sistema Admin lo autorice. Guarda este código ahora.':permanente?'Código permanente autorizado por Sistema Admin; puedes consultarlo en la lista.':'Visita temporal registrada y autorizada. Guarda el código ahora.';
   document.getElementById('adminVisNombre').value='';
   if(permanente)await cargarCodigosPermanentes();else await cargarCodigosVisita();
  }catch(e){msg.textContent='No se pudo registrar: '+(e.message||'error');}
@@ -6515,13 +6515,13 @@ async function adminCopiarVisita(){
 let vpPermanentCopy='',vpPermanentBusy=false;
 const vpPermanentStatus={
  pending:'⏳ Pendiente de autorización',
- approved:'✅ Autorizado por Owner',
+ approved:'✅ Autorizado por Sistema Admin',
  rejected:'❌ Rechazado (puedes modificar y volver a solicitar)',
  revoked:'🚫 Revocado'
 };
 function mostrarCodigoPermanente(data){
  const portal=new URL('./repartidor.html',location.href).href;
- vpPermanentCopy='Visita frecuente · Privada Beteles\nNombre: '+data.visitor+'\nCasa: '+data.house+'\nCódigo: '+data.code+'\nPortal: '+portal+'\nIMPORTANTE: requiere aprobación del Owner.';
+ vpPermanentCopy='Visita frecuente · Privada Beteles\nNombre: '+data.visitor+'\nCasa: '+data.house+'\nCódigo: '+data.code+'\nPortal: '+portal+'\nIMPORTANTE: requiere aprobación del Sistema Admin.';
  document.getElementById('vpPermanentCode').textContent='Casa '+data.house+' · '+data.visitor+' · Código '+data.code;
  document.getElementById('vpPermanentResult').classList.remove('hidden');
 }
@@ -6542,7 +6542,7 @@ async function solicitarCodigoPermanente(){
   const {data,error}=await sb.rpc('permanent_pass_create',{p_name:nombre});
   if(error)throw error;
   mostrarCodigoPermanente(data);
-  msg.textContent='Solicitud enviada. El código NO está activo hasta que lo apruebe el Owner.';
+  msg.textContent='Solicitud enviada. El código NO está activo hasta que lo apruebe el Sistema Admin.';
   document.getElementById('vpPermanentName').value='';
   await cargarCodigosPermanentes();
  }catch(e){msg.textContent='No se pudo solicitar: '+(e.message||'error');}
@@ -6553,13 +6553,13 @@ async function modificarCodigoPermanente(item){
  const nombre=prompt('Nombre o referencia (puede estar vacío). Se generará un NUEVO código y deberá aprobarlo administración:',item.visitor);
  if(nombre===null)return;
  if(nombre.trim().length>100)return alert('El nombre es demasiado largo.');
- if(!confirm('Se invalidará el código anterior y necesitará nueva autorización del Owner. ¿Continuar?'))return;
+ if(!confirm('Se invalidará el código anterior y necesitará nueva autorización del Sistema Admin. ¿Continuar?'))return;
  vpPermanentBusy=true;
  try{
   const {data,error}=await sb.rpc('permanent_pass_edit',{p_id:item.id,p_name:nombre.trim(),p_rotate:true});
   if(error)throw error;
   mostrarCodigoPermanente(data);
-  document.getElementById('vpPermanentMessage').textContent='Código modificado. Espera una nueva autorización del Owner.';
+  document.getElementById('vpPermanentMessage').textContent='Código modificado. Espera una nueva autorización del Sistema Admin.';
   await cargarCodigosPermanentes();
  }catch(e){alert('No se pudo modificar: '+(e.message||'error'));}
  finally{vpPermanentBusy=false;}
@@ -6629,8 +6629,8 @@ async function regenerarCodigoPermanente(item){
    (profile.rol==='owner'&&ownerPanelMode!=='owner'))return;
  const admin=profile.rol==='owner';
  const warning=admin
-  ?'Se invalidará el código anterior. El nuevo quedará autorizado por Owner.'
-  :'Se invalidará el código anterior. El nuevo deberá ser aprobado otra vez por Owner.';
+  ?'Se invalidará el código anterior. El nuevo quedará autorizado por Sistema Admin.'
+  :'Se invalidará el código anterior. El nuevo deberá ser aprobado otra vez por Sistema Admin.';
  if(!confirm('¿Generar otro código para '+item.visitor+' de la Casa '+item.house+'?\n\n'+warning))return;
  try{
   const {data,error}=await sb.rpc('permanent_pass_rotate',{p_id:item.id});
@@ -6639,7 +6639,7 @@ async function regenerarCodigoPermanente(item){
   const row=[...document.querySelectorAll('.vpPermanentEntry')].find(el=>el.dataset.passId===String(item.id));
   const reveal=row?.querySelector('.vpPassShow');
   if(reveal)reveal.click();
-  const message=admin?'Nuevo código generado y autorizado por Owner.':'Nuevo código generado; pendiente de autorización del Owner.';
+  const message=admin?'Nuevo código generado y autorizado por Sistema Admin.':'Nuevo código generado; pendiente de autorización del Sistema Admin.';
   const target=document.getElementById(admin?'adminVisMensaje':'vpPermanentMessage');
   if(target)target.textContent=message;
  }catch(e){alert('No se pudo regenerar el código: '+(e.message||'error'));}
@@ -7072,7 +7072,7 @@ async function refreshEsp32Panel(){
     esp32PanelBusy=false;
   }
 }
-/* Auditoría de ventanas de recolección: solo lectura y exclusivamente Owner. */
+/* Auditoría de ventanas de recolección: solo lectura y exclusivamente Sistema Admin. */
 let garbageHistoryBusy=false;
 function abrirHistorialBasuraOwner(){
  if(!isOwnerPanelActive())return;
@@ -7101,7 +7101,7 @@ async function cargarHistorialBasuraOwner(){
    for(const item of data){
     const row=rows.insertRow();
     const labels={
-     owner:'Owner',admin:'Administrador',residente:'Residente',guardia:'Guardia'
+     owner:'Sistema Admin',admin:'Administrador',residente:'Residente',guardia:'Guardia'
     };
     const values=[
      esp32PanelDate(item.performed_at),
