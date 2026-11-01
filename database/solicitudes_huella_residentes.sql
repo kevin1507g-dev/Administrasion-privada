@@ -14,7 +14,7 @@ create unique index if not exists solicitudes_huella_una_por_dedo_activa
  on public.solicitudes_huella(residente_id,dedo)
  where estado in ('pendiente_captura','registrada');
 alter table public.solicitudes_huella enable row level security;
-revoke all on public.solicitudes_huella from public,anon;
+revoke all on public.solicitudes_huella from public,anon,authenticated;
 grant select,insert,delete on public.solicitudes_huella to authenticated;
 
 create policy "huella_select_owner_admin_o_titular"
