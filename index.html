@@ -230,7 +230,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <button class="controlAccessOnly" onclick="show('porton')">🚧 Controles de portón</button>
 <button class="controlAccessOnly" onclick="show('controlDigital')">📲 Control digital</button>
 <button class="adminOnly" type="button" onclick="show('esp32Panel')">🖥️ Panel ESP32</button>
-<button class="adminOnly" type="button" onclick="show('biometrico')">🖐️ Registrar biométrico</button>
+<button class="residentAdminOnly" type="button" onclick="show('biometrico')">🖐️ Huellas de mi casa</button>
 <div class="navSectionLabel">Cobros y pagos</div>
 <button onclick="show('cuotas')">🧾 Cuotas</button>
 <button onclick="show('pagos')">💳 Pagos</button>
@@ -494,10 +494,33 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 
 
 
-<section id="biometrico" class="adminOnly">
-  <h2>🖐️ Registrar biométrico</h2>
-  <div class="card">
-    <p id="bioEstado" class="muted" role="status">Pendiente de conectar el lector de huellas. Todavía no se pueden capturar ni guardar huellas.</p>
+<section id="biometrico" class="residentAdminOnly">
+  <h2>🖐️ Huellas de mi casa</h2>
+  <div class="card residentOnly">
+    <h3>Solicitar registro de mis huellas</h3>
+    <p id="bioMiCasa" class="muted" role="status">Consultando casa...</p>
+    <p>Puedes solicitar registrar <strong>tus propias huellas</strong> para tu casa. El lector R503Pro deberá capturarlas físicamente; el teléfono no puede escanearlas.</p>
+    <div class="form">
+      <div class="card">
+        <h3>🚶 Acceso peatonal</h3>
+        <p>Índice de la mano izquierda</p>
+        <button id="bioSolicitarIndice" class="primary" type="button" disabled onclick="solicitarHuellaResidente('indice_izquierdo')">Solicitar índice izquierdo</button>
+      </div>
+      <div class="card">
+        <h3>🚗 Portón vehicular</h3>
+        <p>Pulgar de la mano derecha</p>
+        <button id="bioSolicitarPulgar" class="primary" type="button" disabled onclick="solicitarHuellaResidente('pulgar_derecho')">Solicitar pulgar derecho</button>
+      </div>
+    </div>
+    <label style="display:block;margin:14px 0"><input type="checkbox" id="bioConsentimiento" onchange="actualizarBotonesHuella()"> Solicito voluntariamente registrar mis propias huellas y entiendo que deben capturarse con el lector físico.</label>
+    <p id="bioResidenteMensaje" class="muted" role="status" aria-live="polite">Marca la casilla para habilitar las solicitudes.</p>
+    <h3>Mis solicitudes de huella</h3>
+    <div class="table"><table><thead><tr><th>Dedo / acceso</th><th>Estado</th><th>Fecha</th><th>Acción</th></tr></thead><tbody id="bioMisSolicitudes"><tr><td colspan="4" class="muted">Cargando solicitudes...</td></tr></tbody></table></div>
+    <p class="fileHint">La solicitud no habilita el portón ni registra tu huella todavía. La captura real requiere conectar el lector R503Pro. No se almacenan imágenes ni plantillas biométricas en esta plataforma.</p>
+  </div>
+  <div class="card adminOnly">
+    <h3>Administración del lector y solicitudes</h3>
+    <p id="bioEstado" class="muted" role="status">Pendiente de integrar el lector R503Pro al ESP32. Aún no se pueden capturar huellas desde esta página.</p>
     <label for="bioResidente">Residente y casa</label>
     <select id="bioResidente" onchange="actualizarSeleccionBiometrica()"></select>
     <p id="bioSeleccion" class="muted" aria-live="polite"></p>
@@ -505,24 +528,25 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       <div class="card">
         <h3>🚶 Puerta peatonal</h3>
         <p>Índice de la mano izquierda</p>
-        <button type="button" disabled aria-describedby="bioEstado">Registrar índice izquierdo</button>
+        <button type="button" disabled aria-describedby="bioEstado">Captura pendiente de integración</button>
       </div>
       <div class="card">
         <h3>🚗 Portón</h3>
         <p>Pulgar de la mano derecha</p>
-        <button type="button" disabled aria-describedby="bioEstado">Registrar pulgar derecho</button>
+        <button type="button" disabled aria-describedby="bioEstado">Captura pendiente de integración</button>
       </div>
     </div>
-    <p class="fileHint">Cuando esté conectado el equipo, selecciona al residente y registra cada dedo en el lector físico. Seleccionar un residente aquí todavía no crea un registro biométrico.</p>
-    <details open style="margin-top:14px">
+    <h3>Solicitudes recibidas</h3>
+    <p class="muted">Cada residente solicita sus huellas desde su panel. La captura debe realizarse presencialmente con su consentimiento cuando esté conectado el lector.</p>
+    <button type="button" onclick="cargarSolicitudesHuellas()">↻ Actualizar solicitudes</button>
+    <div class="table" style="margin-top:12px"><table><thead><tr><th>Residente</th><th>Casa</th><th>Dedo</th><th>Estado</th><th>Fecha</th></tr></thead><tbody id="bioAdminSolicitudes"><tr><td colspan="5" class="muted">Cargando solicitudes...</td></tr></tbody></table></div>
+    <details style="margin-top:14px">
       <summary style="font-weight:700;cursor:pointer">📱 Instrucciones para registrar huellas desde el teléfono</summary>
       <div class="card" style="margin-top:10px">
-        <p><strong>Paso 1.</strong> En tu celular, entra a Administración Residencial con una cuenta de administrador u owner y abre <strong>Registrar biométrico</strong>.</p>
-        <p><strong>Paso 2.</strong> Selecciona al residente y comprueba que la casa sea correcta.</p>
-        <p><strong>Paso 3.</strong> Verifica que el lector de huellas físico esté conectado y disponible. Por ahora, la plataforma todavía no tiene conexión para iniciar una captura remota.</p>
-        <p><strong>Paso 4.</strong> Cuando se integre el lector, el residente deberá colocar varias veces el <strong>índice izquierdo</strong> para acceso peatonal o el <strong>pulgar derecho</strong> para el portón, siguiendo las indicaciones del equipo.</p>
-        <p><strong>Paso 5.</strong> Comprueba la confirmación de registro en el lector y prueba el acceso con autorización y supervisión de la administración.</p>
-        <p class="muted"><strong>Importante:</strong> estas son instrucciones de consulta. Los botones de captura permanecerán desactivados hasta integrar y verificar el lector con el ESP32. No se almacenan imágenes de huellas en el teléfono.</p>
+        <p><strong>Paso 1.</strong> El residente entra con su cuenta y abre <strong>Huellas de mi casa</strong>.</p>
+        <p><strong>Paso 2.</strong> Solicita el índice izquierdo o el pulgar derecho. La solicitud se vincula automáticamente con su casa.</p>
+        <p><strong>Paso 3.</strong> Cuando el lector R503Pro esté integrado, deberá presentarse para capturar voluntariamente su dedo.</p>
+        <p><strong>Paso 4.</strong> Se requerirá la confirmación real del lector antes de habilitar cualquier acceso. Una solicitud pendiente no es una huella capturada.</p>
       </div>
     </details>
   </div>
@@ -2770,8 +2794,9 @@ function show(id){
   if(id!=='visitas')ocultarCodigosPermanentes();
   if(id==='ownerPanel'){if(profile?.rol!=='owner')return;renderOwnerPanel();cargarAccionesOwner();cargarMetricasOwnerAccesos();}
   if(id==='biometrico'){
-    if(!isAdminProfileRole(profile?.rol))return;
+    if(!['owner','admin','residente'].includes(profile?.rol))return;
     renderRegistroBiometrico();
+    cargarSolicitudesHuellas();
   }
   document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));
 
@@ -7165,6 +7190,8 @@ async function actualizarVistaActiva(){
  try{
   if(document.getElementById('controlDigital')?.classList.contains('active')){
    await Promise.all([refreshDigitalAccess(),basuraActualizar()]);
+  }else if(document.getElementById('biometrico')?.classList.contains('active')){
+   await cargarSolicitudesHuellas();
   }else if(isAdminProfileRole(profile.rol)&&document.getElementById('esp32Panel')?.classList.contains('active')){
    await refreshEsp32Panel();
   }
@@ -7178,5 +7205,6 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizar
 
 </script>
 <script src="./disciplina.js?v=10"></script>
+<script src="./biometrico.js?v=1"></script>
 </body></html>
 
