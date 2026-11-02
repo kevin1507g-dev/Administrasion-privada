@@ -2490,6 +2490,8 @@ let incidenteActualId=null;
 let incidenteAdjuntos=[];
 let incidenteAdjuntosBusy=false;
 let chatConversaciones=[], chatMensajes=[], chatLecturas=[];
+let chatStaffConversaciones=[],chatStaffMensajes=[],chatStaffLecturas=[];
+let chatStaffActualId=null,chatEnvioStaffBusy=false;
 let chatConversacionActual=null, chatPolling=null, chatDragMovio=false;
 let contactoActualId=null;
 const VAPID_PUBLIC_KEY =
@@ -4588,6 +4590,229 @@ function residentesDisponiblesChat(){
     });
 }
 
+
+function modoChatStaff(){
+ return document.getElementById('chatModoStaff')?.value||'residente';
+}
+function staffConversacionSeleccionada(){
+ if(profile?.rol==='admin')return chatStaffConversaciones.find(c=>String(c.admin_id)===String(user.id))||null;
+ if(profile?.rol!=='owner')return null;
+ const seleccionado=document.getElementById('chatStaffAdminSelect')?.value||'todos';
+ return seleccionado==='todos'?null:
+   chatStaffConversaciones.find(c=>String(c.admin_id)===seleccionado)||null;
+}
+function configurarOpcionesChatStaff(){
+ if(!isAdminProfileRole(profile?.rol))return;
+ const select=document.getElementById('chatModoStaff');
+ const box=document.getElementById('chatModoPicker');
+ if(!select||!box)return;
+ box.classList.remove('hidden');
+ const role=profile.rol;
+ const opciones=role==='admin'?[
+  ['residente','Un residente'],['residentes','Todos los residentes'],['sistema','Sistema Admin']
+ ]:[
+  ['residente','Un residente'],['residentes','Todos los residentes'],['admins','Todos los administradores']
+ ];
+ const anterior=select.value;
+ if(select.dataset.rol!==role){
+  select.replaceChildren();
+  for(const [value,label] of opciones){
+   const o=document.createElement('option');o.value=value;o.textContent=label;select.appendChild(o);
+  }
+  select.dataset.rol=role;
+  select.value=opciones.some(x=>x[0]===anterior)?anterior:'residente';
+ }
+ actualizarControlesChatStaff();
+}
+function llenarStaffAdminSelect(){
+ if(profile?.rol!=='owner')return;
+ const select=document.getElementById('chatStaffAdminSelect');
+ if(!select)return;
+ const old=select.value||'todos';
+ const admins=profiles.filter(p=>p.rol==='admin'&&p.activo!==false&&p.estado_registro==='aprobado');
+ select.replaceChildren();
+ const general=document.createElement('option');
+ general.value='todos';general.textContent='Enviar individualmente a todos los administradores';
+ select.appendChild(general);
+ for(const a of admins){
+  const option=document.createElement('option');
+  option.value=a.id;option.textContent='Chat privado con '+a.nombre;
+  select.appendChild(option);
+ }
+ select.value=[...select.options].some(o=>o.value===old)?old:'todos';
+}
+function actualizarControlesChatStaff(){
+ const role=profile?.rol;
+ if(!['admin','owner'].includes(role))return;
+ const mode=modoChatStaff();
+ const picker=document.getElementById('chatAdminPicker');
+ const staffPicker=document.getElementById('chatStaffPicker');
+ const help=document.getElementById('chatModoAyuda');
+ if(picker)picker.classList.toggle('hidden',mode!=='residente');
+ if(staffPicker)staffPicker.classList.toggle('hidden',!(role==='owner'&&mode==='admins'));
+ if(role==='owner'&&mode==='admins')llenarStaffAdminSelect();
+ const notes={
+  residente:'El mensaje será privado para el residente seleccionado.',
+  residentes:'Se enviará una copia privada a cada residente activo. Las respuestas serán individuales.',
+  sistema:'Conversación privada entre tu cuenta de administrador y Sistema Admin.',
+  admins:'Se enviará una copia privada a cada administrador, que podrá responderte individualmente.'
+ };
+ if(help)help.textContent=notes[mode]||'';
+ const input=document.getElementById('chatInput');
+ if(input)input.placeholder=mode==='residentes'?'Escribe el mensaje para todos los residentes...':
+   mode==='admins'?'Escribe para todos los administradores o elige uno...':
+   'Escribe un mensaje privado...';
+}
+function cambiarModoChatStaff(){
+ if(!isAdminProfileRole(profile?.rol))return;
+ chatConversacionActual=null;chatStaffActualId=null;
+ actualizarControlesChatStaff();
+ renderChatPanel();
+ marcarChatActualLeido();
+}
+function seleccionarChatStaffAdmin(){
+ if(profile?.rol!=='owner')return;
+ chatStaffActualId=staffConversacionSeleccionada()?.id||null;
+ renderChatPanel();
+ marcarChatActualLeido();
+}
+async function cargarStaffChatDatos(){
+ if(!isAdminProfileRole(profile?.rol)){
+  chatStaffConversaciones=[];chatStaffMensajes=[];chatStaffLecturas=[];
+  return;
+ }
+ const [conv,lecturas]=await Promise.all([
+  sb.from('chat_staff_conversaciones').select('*').order('updated_at',{ascending:false}),
+  sb.from('chat_staff_lecturas').select('*').eq('user_id',user.id)
+ ]);
+ if(conv.error||lecturas.error){
+  console.warn('No se pudo cargar el chat administrativo:',conv.error||lecturas.error);
+  return;
+ }
+ chatStaffConversaciones=conv.data||[];
+ chatStaffLecturas=lecturas.data||[];
+ const ids=chatStaffConversaciones.map(c=>c.id);
+ if(ids.length){
+  const messages=await sb.from('chat_staff_mensajes').select('*')
+    .in('conversacion_id',ids).order('created_at',{ascending:true});
+  if(messages.error)console.warn('Mensajes administrativos:',messages.error);
+  else chatStaffMensajes=messages.data||[];
+ }else chatStaffMensajes=[];
+}
+function contarStaffNoLeidos(){
+ if(!isAdminProfileRole(profile?.rol))return 0;
+ const leidos=new Set(chatStaffLecturas.map(x=>String(x.mensaje_id)));
+ return chatStaffMensajes.filter(m=>
+  String(m.autor_id)!==String(user?.id)&&!leidos.has(String(m.id))).length;
+}
+function renderChatStaffPanel(){
+ const mode=modoChatStaff();
+ const body=document.getElementById('chatBody');
+ const titulo=document.getElementById('chatTitulo');
+ const subtitulo=document.getElementById('chatSubtitulo');
+ const input=document.getElementById('chatInput');
+ const send=document.getElementById('chatSendBtn');
+ if(!body||!titulo||!subtitulo||!input||!send)return;
+ chatConversacionActual=null;
+ if(mode==='residentes'){
+  titulo.textContent='💬 Todos los residentes';
+  subtitulo.textContent='Cada residente recibirá un mensaje privado. Las respuestas no serán públicas.';
+  body.innerHTML='<div class="muted">Selecciona «Enviar a todos los residentes» para distribuir un mensaje individual a cada residente activo. Podrás responder después en «Un residente».</div>';
+  input.disabled=false;send.disabled=false;
+  send.textContent='Enviar a todos los residentes';
+  return;
+ }
+ if(mode==='admins'&&profile.rol==='owner'){
+  llenarStaffAdminSelect();
+  if(document.getElementById('chatStaffAdminSelect')?.value==='todos'){
+   titulo.textContent='💬 Todos los administradores';
+   subtitulo.textContent='Cada administrador recibirá un mensaje privado y responderá por separado.';
+   body.innerHTML='<div class="muted">Escribe un mensaje para todos los administradores o elige uno arriba para consultar y responderle individualmente.</div>';
+   input.disabled=false;send.disabled=false;
+   send.textContent='Enviar a todos los administradores';
+   chatStaffActualId=null;
+   return;
+  }
+ }
+ const conv=staffConversacionSeleccionada();
+ chatStaffActualId=conv?.id||null;
+ titulo.textContent='💬 '+(profile.rol==='admin'?'Sistema Admin':'Administrador');
+ const partner=profile.rol==='admin'?'Sistema Admin':
+  (profiles.find(p=>String(p.id)===String(document.getElementById('chatStaffAdminSelect')?.value))?.nombre||'Administrador');
+ subtitulo.textContent='Conversación privada con '+partner;
+ input.disabled=false;send.disabled=false;
+ send.textContent='Enviar mensaje';
+ const messages=conv?chatStaffMensajes.filter(m=>String(m.conversacion_id)===String(conv.id)):[];
+ body.innerHTML=messages.map(m=>{
+  const mio=String(m.autor_id)===String(user.id);
+  const autor=profiles.find(p=>String(p.id)===String(m.autor_id));
+  const name=mio?'Tú':autor?.nombre||'Administración';
+  return '<div class="chatMsg '+(mio?'mine':'')+'"><div class="chatBubble"><div>'+
+   esc(m.mensaje||'')+'</div><div class="chatMeta">'+esc(name)+' · '+
+   esc(fechaHora(m.created_at))+'</div></div></div>';
+ }).join('')||'<div class="muted">Aún no hay mensajes en esta conversación privada.</div>';
+ requestAnimationFrame(()=>{body.scrollTop=body.scrollHeight;});
+}
+async function marcarStaffActualLeido(){
+ if(!chatStaffActualId||!user)return;
+ const leidos=new Set(chatStaffLecturas.map(x=>String(x.mensaje_id)));
+ const pendientes=chatStaffMensajes.filter(m=>String(m.conversacion_id)===String(chatStaffActualId)&&
+  String(m.autor_id)!==String(user.id)&&!leidos.has(String(m.id)));
+ if(!pendientes.length)return;
+ const filas=pendientes.map(m=>({mensaje_id:m.id,user_id:user.id}));
+ const {error}=await sb.from('chat_staff_lecturas')
+  .upsert(filas,{onConflict:'mensaje_id,user_id',ignoreDuplicates:true});
+ if(error){console.warn('No se marcaron mensajes staff como leídos:',error);return;}
+ chatStaffLecturas.push(...filas.map(x=>({...x,leido_at:new Date().toISOString()})));
+ renderChatBadge();
+}
+async function enviarChatDesdeStaff(){
+ if(chatEnvioStaffBusy||!isAdminProfileRole(profile?.rol))return;
+ const input=document.getElementById('chatInput');
+ const text=input?.value.trim()||'';
+ if(!text||text.length>1500)return;
+ const mode=modoChatStaff();
+ const role=profile.rol;
+ if(!['residentes','sistema','admins'].includes(mode))return;
+ const admins=profiles.filter(p=>p.rol==='admin'&&p.activo!==false&&p.estado_registro==='aprobado');
+ const residentes=residentesDisponiblesChat();
+ let rpc='',args={},isBulk=false;
+ if(mode==='residentes'){
+  const n=residentes.length;
+  if(!n)return alert('No hay residentes aprobados a quienes enviar.');
+  if(!confirm('¿Enviar este mensaje privado a '+n+' residente(s)? Cada respuesta será individual.'))return;
+  rpc='chat_enviar_masivo';isBulk=true;
+  args={p_destino:'residentes',p_mensaje:text,p_solicitud_id:crypto.randomUUID()};
+ }else if(mode==='admins'&&role==='owner'&&document.getElementById('chatStaffAdminSelect')?.value==='todos'){
+  const n=admins.length;
+  if(!n)return alert('No hay administradores activos.');
+  if(!confirm('¿Enviar una copia privada a los '+n+' administrador(es)?'))return;
+  rpc='chat_enviar_masivo';isBulk=true;
+  args={p_destino:'admins',p_mensaje:text,p_solicitud_id:crypto.randomUUID()};
+ }else{
+  const target=role==='admin'?user.id:document.getElementById('chatStaffAdminSelect')?.value;
+  if(!target||target==='todos')return alert('Selecciona un administrador.');
+  rpc='chat_enviar_staff';
+  args={p_admin_id:target,p_mensaje:text};
+ }
+ chatEnvioStaffBusy=true;
+ const send=document.getElementById('chatSendBtn');
+ if(send)send.disabled=true;
+ try{
+  const {data,error}=await sb.rpc(rpc,args);
+  if(error)throw error;
+  if(input)input.value='';
+  await cargarChatDatos();
+  if(isBulk)alert('Mensaje enviado por separado a '+data+' destinatario(s).');
+  else{
+   chatStaffActualId=staffConversacionSeleccionada()?.id||null;
+   await marcarStaffActualLeido();
+  }
+  renderChatPanel();
+ }catch(e){alert('No se pudo enviar el mensaje: '+(e?.message||'Error desconocido'));}
+ finally{chatEnvioStaffBusy=false;if(send)send.disabled=false;}
+}
+
 async function cargarChatDatos(){
   if(!user||!['owner','admin','residente'].includes(profile?.rol))return;
 
@@ -4615,6 +4840,7 @@ async function cargarChatDatos(){
     chatLecturas=[];
   }
 
+  await cargarStaffChatDatos();
   renderChatBadge();
   window.residentePendientesActualizar?.();
 
@@ -4629,7 +4855,7 @@ function contarChatNoLeidos(){
   return chatMensajes.filter(m=>
     String(m.autor_id)!==String(user?.id) &&
     !leidos.has(String(m.id))
-  ).length;
+  ).length+contarStaffNoLeidos();
 }
 
 function renderChatBadge(){
