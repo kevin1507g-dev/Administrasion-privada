@@ -79,7 +79,7 @@ async function switchTab(target,conversationToOpen=null){
 function starters(){
  const wrap=node('div',{className:'ia-starters'},refs.messages);
  const own=typeof profile!=='undefined'&&profile?.rol==='residente';
- const questions=own?['¿De qué casa soy?','¿Cuánto debo?','Mis pagos']:
+ const questions=own?['Quiero reservar el portón','Cancelar mi reservación','¿Cuánto debo?','Mis pagos']:
   ['¿De qué casa soy?','Pendientes de toda la privada','Casas con más adeudos'];
  for(const q of questions){const b=node('button',{type:'button',text:q},wrap);b.onclick=()=>{refs.text.value=q;send();};}
 }
@@ -90,6 +90,107 @@ function loading(){
  refs.messages.scrollTop=refs.messages.scrollHeight;
  return el;
 }
+
+function reservationWizard(parent,config){
+ const mode=config.mode;
+ const wrap=node("div",{className:"ia-reserva-wizard"},parent);
+ const title=node("strong",{text:mode==="create"?"📅 Solicitar reservación":"🚫 Cancelar mi reservación"},wrap);
+ node("p",{text:mode==="create"?
+  "Elige fecha y horario del mismo día. Administración debe aprobar tu solicitud.":
+  "Selecciona una de tus reservaciones. La cancelación requiere tu confirmación."},wrap);
+ const error=node("p",{className:"ia-reserva-feedback",text:""},wrap);
+ error.setAttribute("role","status");
+ if(mode==="create"){
+  const field=(name,type,label,val)=>{
+   const holder=node("label",{className:"ia-reserva-field"},wrap);
+   node("span",{text:label},holder);
+   const input=node("input",{type},holder);
+   input.type=type;input.value=val||"";
+   input.setAttribute("aria-label",label);
+   input.required=true;
+   input.addEventListener("change",()=>{requestId=crypto.randomUUID();error.textContent="";});
+   return input;
+  };
+  let requestId=crypto.randomUUID();
+  const fecha=field("fecha","date","Fecha",/^\d{4}-\d{2}-\d{2}$/.test(config.suggested_date||"")?config.suggested_date:"");
+  const inicio=field("inicio","time","Hora de inicio","");
+  const fin=field("fin","time","Hora de fin","");
+  const label=node("label",{className:"ia-reserva-field"},wrap);
+  node("span",{text:"Evento o motivo (opcional)"},label);
+  const notas=node("input",{type:"text"},label);
+  notas.maxLength=300;notas.placeholder="Ej. Reunión familiar";
+  notas.addEventListener("input",()=>{requestId=crypto.randomUUID();});
+  const occupied=node("div",{className:"ia-reserva-occupied"},wrap);
+  const actions=node("div",{className:"ia-reserva-actions"},wrap);
+  const available=node("button",{type:"button",text:"Revisar disponibilidad"},actions);
+  available.onclick=async()=>{
+   if(!fecha.value){error.textContent="Selecciona primero una fecha.";return;}
+   available.disabled=true;error.textContent="Consultando horarios…";
+   try{
+    const r=await call({kind:"reservation_availability",fecha:fecha.value});
+    const slots=Array.isArray(r.ocupados)?r.ocupados:[];
+    occupied.textContent=slots.length?
+     "Horarios ocupados o pendientes: "+slots.map(x=>x.inicio+"–"+x.fin).join(", "):
+     "Sin horarios ocupados o pendientes registrados para ese día.";
+    error.textContent="El servidor comprobará nuevamente la disponibilidad al enviar.";
+   }catch(e){error.textContent=e.message;}finally{available.disabled=false;}
+  };
+  const save=node("button",{type:"button",className:"ia-reserva-primary",text:"Solicitar reservación"},actions);
+  save.onclick=async()=>{
+   if(!fecha.value||!inicio.value||!fin.value||fin.value<=inicio.value){
+    error.textContent="Completa la fecha y el horario. La hora final debe ser posterior a la inicial.";return;
+   }
+   if(!window.confirm("¿Solicitar el portón para "+fecha.value+" de "+inicio.value+" a "+fin.value+"? Quedará pendiente de aprobación."))return;
+   save.disabled=true;available.disabled=true;error.textContent="Guardando solicitud…";
+   try{
+    const r=await call({kind:"reservation_create",fecha:fecha.value,inicio:inicio.value,
+     fin:fin.value,notas:notas.value.trim(),solicitud_id:requestId});
+    if(!r.result?.ok)throw Error("No se confirmó la reservación.");
+    error.textContent="✓ Solicitud enviada y guardada.";
+    addMessage("assistant","Reservación solicitada para "+fecha.value+" de "+inicio.value+" a "+fin.value+
+      ". Estado: pendiente de aprobación. Administración revisará la solicitud.");
+    wrap.querySelectorAll("input,button").forEach(x=>x.disabled=true);
+    if(typeof loadAll==="function")void loadAll();
+   }catch(e){error.textContent="No se pudo reservar: "+e.message;save.disabled=false;available.disabled=false;}
+  };
+  return;
+ }
+ if(mode==="cancel"){
+  if(!Array.isArray(config.items)||!config.items.length){
+   node("p",{text:"No tienes reservaciones propias pendientes de cancelación."},wrap);return;
+  }
+  const label=node("label",{className:"ia-reserva-field"},wrap);
+  node("span",{text:"Mis reservaciones"},label);
+  const select=node("select",{},label);
+  for(const item of config.items){
+   const o=node("option",{text:item.fecha+" · "+item.inicio+"–"+item.fin+" · "+item.estado+
+    (item.notas?" · "+item.notas:"")},select);
+   o.value=item.id;
+  }
+  const cancel=node("button",{type:"button",className:"ia-reserva-danger",text:"Cancelar reservación elegida"},wrap);
+  cancel.onclick=async()=>{
+   const item=config.items.find(x=>x.id===select.value);
+   if(!item)return;
+   if(!window.confirm("¿Cancelar tu reservación del "+item.fecha+" de "+item.inicio+
+     " a "+item.fin+"? Esta acción no se puede deshacer."))return;
+   cancel.disabled=true;select.disabled=true;error.textContent="Cancelando…";
+   try{
+    const result=await call({kind:"reservation_cancel",reservacion_id:item.id});
+    if(!result.result?.ok)throw Error("No se confirmó la cancelación.");
+    error.textContent="✓ Reservación cancelada.";
+    addMessage("assistant","Tu reservación del "+item.fecha+" a las "+item.inicio+
+      " fue cancelada correctamente. Estado: cancelada.");
+    const opt=[...select.options].find(o=>o.value===item.id);
+    if(opt)opt.remove();
+    config.items=config.items.filter(x=>x.id!==item.id);
+    if(!config.items.length){select.disabled=true;cancel.disabled=true;}
+    else{select.disabled=false;cancel.disabled=false;}
+    if(typeof loadAll==="function")void loadAll();
+   }catch(e){error.textContent="No se pudo cancelar: "+e.message;cancel.disabled=false;select.disabled=false;}
+  };
+ }
+}
+
 function addMessage(role,text,extras={}){
  const container=node("div",{className:"ia-message ia-"+role},refs.messages);
  node("div",{className:"ia-message-text",text:String(text||"")},container);
@@ -104,6 +205,9 @@ function addMessage(role,text,extras={}){
    const r=node("tr",{},tbody);
    for(const k of keys)node("td",{text:String(item?.[k]??"—").slice(0,150)},r);
   }
+ }
+ if(extras.reservation && typeof extras.reservation==="object"){
+  reservationWizard(container,extras.reservation);
  }
  if(extras.open_chat){
   const openChat=node("button",{type:"button",className:"ia-open-chat",text:"💬 Abrir chat privado"},container);
