@@ -2854,6 +2854,9 @@ function show(id){
   }
 
   closeMenu();
+  // Marcar como leídas únicamente las notificaciones presentes al ABRIR
+  // el panel, no las que lleguen después mientras permanece abierto.
+  if(id==='notificaciones' && target)void marcarNotificacionesAlAbrirPanel();
 }
 
 function destinoPorTipoNotificacion(tipo){
@@ -5152,14 +5155,52 @@ function renderNotificaciones(){
   }).join('')||'<div class="card muted">Todavía no tienes notificaciones.</div>';
 }
 
+
+// El estado leído es por usuario en notificacion_lecturas (RLS).
+// Tomamos una instantánea del servidor al abrir para incluir notificaciones
+// recientes sin marcar automáticamente las recibidas después de la apertura.
+let notificacionesMarcandoAlAbrir=false;
+async function marcarNotificacionesAlAbrirPanel(){
+  const panel=document.getElementById('notificaciones');
+  if(notificacionesMarcandoAlAbrir ||
+     !panel?.classList.contains('active') ||
+     !user || !['owner','admin','residente'].includes(profile?.rol))return;
+
+  const usuarioActual=user.id;
+  notificacionesMarcandoAlAbrir=true;
+  try{
+    const [nuevas,lecturas]=await Promise.all([
+      sb.from('notificaciones_push').select('*')
+        .or('user_id.eq.'+usuarioActual+',user_id.is.null')
+        .order('created_at',{ascending:false}).limit(100),
+      sb.from('notificacion_lecturas').select('*').eq('user_id',usuarioActual)
+    ]);
+    if(user?.id!==usuarioActual || !panel.classList.contains('active'))return;
+    if(nuevas.error||lecturas.error)throw nuevas.error||lecturas.error;
+
+    notificaciones=nuevas.data||[];
+    notificacionLecturas=lecturas.data||[];
+    renderNotificaciones();
+    await marcarTodasNotificacionesLeidas({silencioso:true});
+  }catch(e){
+    console.warn('No se pudieron marcar las notificaciones al abrir:',e);
+    if(user?.id===usuarioActual && panel.classList.contains('active')){
+      const resumen=document.getElementById('notifResumen');
+      if(resumen)resumen.textContent='No se pudieron marcar como leídas. Usa el botón para reintentar.';
+    }
+  }finally{
+    notificacionesMarcandoAlAbrir=false;
+  }
+}
+
 async function marcarNotificacionLeida(id){
   if(!user||!id)return;
   if(notificacionLecturas.some(x=>String(x.notificacion_id)===String(id)))return;
 
-  const {error}=await sb.from('notificacion_lecturas').insert({
+  const {error}=await sb.from('notificacion_lecturas').upsert({
     notificacion_id:id,
     user_id:user.id
-  });
+  },{onConflict:'notificacion_id,user_id',ignoreDuplicates:true});
 
   if(error){
     console.warn('No se pudo marcar la notificación como leída:',error);
@@ -5175,9 +5216,10 @@ async function marcarNotificacionLeida(id){
   renderNotificaciones();
 }
 
-async function marcarTodasNotificacionesLeidas(){
+async function marcarTodasNotificacionesLeidas({silencioso=false}={}){
   if(!user||!notificaciones.length)return;
 
+  const usuarioActual=user.id;
   const leidas=new Set(notificacionLecturas.map(x=>String(x.notificacion_id)));
   const pendientes=notificaciones.filter(n=>!leidas.has(String(n.id)));
 
@@ -5185,14 +5227,27 @@ async function marcarTodasNotificacionesLeidas(){
 
   const filas=pendientes.map(n=>({
     notificacion_id:n.id,
-    user_id:user.id
+    user_id:usuarioActual
   }));
 
-  const {error}=await sb.from('notificacion_lecturas').insert(filas);
+  // Idempotente ante múltiples dispositivos, aperturas y refrescos simultáneos.
+  const {error}=await sb.from('notificacion_lecturas')
+    .upsert(filas,{onConflict:'notificacion_id,user_id',ignoreDuplicates:true});
 
-  if(error)return alert('No se pudieron marcar todas como leídas: '+error.message);
+  if(user?.id!==usuarioActual)return;
+  if(error){
+    console.warn('No se pudieron marcar todas las notificaciones:',error);
+    if(!silencioso)alert('No se pudieron marcar todas como leídas: '+error.message);
+    else{
+      const resumen=document.getElementById('notifResumen');
+      if(resumen)resumen.textContent='No se pudieron marcar como leídas. Usa el botón para reintentar.';
+    }
+    return;
+  }
 
-  notificacionLecturas.push(...filas.map(x=>({...x,leida_at:new Date().toISOString()})));
+  const actuales=new Set(notificacionLecturas.map(x=>String(x.notificacion_id)));
+  notificacionLecturas.push(...filas.filter(f=>!actuales.has(String(f.notificacion_id)))
+    .map(x=>({...x,leida_at:new Date().toISOString()})));
   renderNotificaciones();
 }
 
