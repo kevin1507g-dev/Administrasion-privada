@@ -126,3 +126,31 @@ body.ia-open{overflow:hidden!important}
 .ia-reserva-danger{background:#872f3e!important;color:#fff!important;border:1px solid #db6880!important}
 .ia-reserva-wizard button:disabled{cursor:default;opacity:.55}
 .ia-reserva-wizard input:focus-visible,.ia-reserva-wizard select:focus-visible,.ia-reserva-wizard button:focus-visible{outline:3px solid #42ebc1;outline-offset:2px}
+
+
+/* Reportes guiados dentro de IA · campos privados y accesibles en móvil. */
+.ia-incidente-wizard{display:flex;flex-direction:column;gap:10px;margin-top:12px;padding:12px;
+ border:1px solid #579f8d;border-radius:13px;background:rgba(26,77,70,.23);box-sizing:border-box;max-width:100%}
+.ia-incidente-wizard>strong{font-size:15px;color:inherit}
+.ia-incidente-wizard>p{font-size:13px;margin:0;line-height:1.45}
+.ia-incidente-wizard>small{font-size:12px;line-height:1.45;opacity:.88}
+.ia-incidente-feedback{font-size:12px;line-height:1.45;overflow-wrap:anywhere;min-height:1em;color:#b7ead9}
+.ia-incidente-field{display:flex;flex-direction:column;gap:5px;min-width:0;font-size:13px;font-weight:650}
+.ia-incidente-field input,.ia-incidente-field select,.ia-incidente-field textarea{
+ box-sizing:border-box;max-width:100%;width:100%;min-height:43px;border:1px solid #7b9d9a;border-radius:10px;
+ background:#13303b;color:#fff;padding:9px 10px;font:normal 16px system-ui,-apple-system,sans-serif;color-scheme:dark}
+.ia-incidente-field textarea{resize:vertical;min-height:96px}
+.ia-incidente-wizard button{min-height:43px;border-radius:10px;padding:9px 12px;
+ font-size:13px;line-height:1.35;white-space:normal;text-align:center;cursor:pointer}
+.ia-incidente-submit,.ia-incidente-followup{background:#078569!important;color:#fff!important;border:1px solid #24bc9c!important}
+.ia-incidente-wizard button:disabled{opacity:.6;cursor:default}
+.ia-incidente-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px;
+ background:rgba(34,77,79,.6);border-radius:10px}
+.ia-incidente-row>div{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.ia-incidente-row strong{font-size:13px;overflow-wrap:anywhere}
+.ia-incidente-row small{font-size:11px;overflow-wrap:anywhere;opacity:.82}
+.ia-incidente-row button{flex:0 0 auto;max-width:42%;background:#284c54;color:#fff;border:1px solid #55837e}
+.ia-incidente-wizard input:focus-visible,.ia-incidente-wizard select:focus-visible,.ia-incidente-wizard textarea:focus-visible,
+.ia-incidente-wizard button:focus-visible{outline:3px solid #42ebc1;outline-offset:2px}
+@media(max-width:480px){.ia-incidente-row{align-items:stretch;flex-direction:column}
+ .ia-incidente-row button{max-width:100%}}
