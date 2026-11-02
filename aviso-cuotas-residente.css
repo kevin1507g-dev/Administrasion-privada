@@ -1,0 +1,44 @@
+/* Recordatorio de cuota: aviso en primer plano, sin modificar Control Digital. */
+.rcu-root{position:fixed!important;inset:0!important;z-index:2147482900!important;
+ display:flex!important;justify-content:center!important;align-items:center!important;
+ padding:16px!important;box-sizing:border-box!important;
+ background:rgba(3,15,20,.76)!important;color:#f1fff9!important;
+ overflow:auto!important;-webkit-overflow-scrolling:touch!important}
+.rcu-root[hidden]{display:none!important}
+.rcu-root *{box-sizing:border-box!important}
+.rcu-dialog{width:min(430px,100%)!important;max-height:calc(100dvh - 42px)!important;overflow-y:auto!important;
+ overscroll-behavior:contain!important;border:1px solid #36bfa0!important;
+ border-radius:19px!important;background:#102c35!important;color:#f2fff9!important;
+ padding:18px!important;box-shadow:0 20px 80px rgba(0,0,0,.55)!important;
+ font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important}
+.rcu-header{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important}
+.rcu-header h2{font-size:18px!important;line-height:1.3!important;margin:0!important;color:#f1fff9!important}
+.rcu-x{flex:0 0 38px!important;width:38px!important;height:38px!important;min-height:38px!important;padding:0!important;
+ background:#28474d!important;color:white!important;border:1px solid #588077!important;border-radius:11px!important;
+ font-size:26px!important;line-height:1!important;cursor:pointer!important}
+.rcu-subtitle{margin:9px 0 0!important;font-size:14px!important;color:#d0e9e3!important}
+.rcu-amount{font-size:32px!important;font-weight:850!important;color:#a3f6d4!important;letter-spacing:-.5px!important;margin:10px 0 3px!important}
+.rcu-note{margin:0 0 12px!important;color:#d5eee7!important;font-size:12px!important}
+.rcu-overdue{margin:10px 0!important;padding:9px 10px!important;border-radius:10px!important;
+ background:#5d3526!important;color:#ffebd4!important;font-size:13px!important;font-weight:700!important}
+.rcu-detail{display:flex!important;flex-direction:column!important;gap:6px!important;
+ max-height:min(29dvh,235px)!important;overflow-y:auto!important;overscroll-behavior:contain!important}
+.rcu-row{display:flex!important;gap:10px!important;justify-content:space-between!important;align-items:center!important;
+ padding:10px 11px!important;background:#1b3d43!important;border-radius:10px!important}
+.rcu-row-left{min-width:0!important;display:flex!important;flex-direction:column!important;gap:4px!important;overflow-wrap:anywhere!important}
+.rcu-row-left strong{font-size:13px!important;line-height:1.3!important}
+.rcu-row-left small{color:#c3dfd5!important;font-size:11px!important}
+.rcu-row-money{flex:0 0 auto!important;font-size:14px!important;color:#e9fff4!important}
+.rcu-more,.rcu-instructions{font-size:12px!important;line-height:1.45!important;color:#c3d9d3!important}
+.rcu-instructions{margin:12px 0 8px!important}
+.rcu-actions{display:grid!important;grid-template-columns:1fr!important;gap:8px!important;margin-top:10px!important}
+.rcu-actions button{width:100%!important;min-height:45px!important;margin:0!important;padding:10px 13px!important;
+ border-radius:11px!important;font-size:14px!important;font-weight:750!important;
+ text-align:center!important;box-shadow:none!important;cursor:pointer!important}
+.rcu-primary{background:#0b9c78!important;border:1px solid #35dab0!important;color:#fff!important}
+.rcu-secondary{background:#284850!important;color:#edfff8!important;border:1px solid #4e8178!important}
+.rcu-actions button:focus-visible,.rcu-x:focus-visible{outline:3px solid #75fbd6!important;outline-offset:2px!important}
+@media(max-width:700px){.rcu-root{padding:10px!important;padding-top:calc(10px + env(safe-area-inset-top,0px))!important;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))!important}
+ .rcu-dialog{padding:14px!important;max-height:calc(100dvh - 30px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important}
+ .rcu-amount{font-size:30px!important}}
+@media(prefers-reduced-motion:reduce){.rcu-root *{transition:none!important;animation:none!important}}
