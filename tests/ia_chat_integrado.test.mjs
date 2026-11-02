@@ -20,7 +20,7 @@ assert(begin>=0&&end>begin);
 const {consultaDirecta,runQuery}=new Function(
  "const ok=async p=>{const r=await p;if(r.error)throw Error(r.error.message);return r.data||[];};"+
  "const num=x=>Number(x)||0;const mexico=()=>'';const corto=(x,n)=>String(x).slice(0,n);const mx=x=>x;"+
- "const targetHouse=(ctx,n)=>Promise.resolve(ctx.p.rol==='residente'?'houseA':null);"+
+ ""+
  backend.slice(begin,end)+"\nreturn {consultaDirecta,runQuery};"
 )();
 for(const str of ["Mis mensajes","¿Tengo mensajes nuevos?","Abre el chat","¿Hay conversaciones?"])assert.equal(consultaDirecta(str),"chat",str);
