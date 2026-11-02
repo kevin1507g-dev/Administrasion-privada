@@ -1317,7 +1317,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </div>
 <div class="card table" style="margin-top:14px">
   <table>
-    <thead><tr><th>Fecha</th><th>Hora</th><th>Evento</th><th>Tipo</th><th>Lugar</th><th>Descripción</th><th class="adminOnly">Acción</th></tr></thead>
+    <thead><tr><th>Fecha</th><th>Hora</th><th>Evento</th><th>Tipo</th><th>Lugar</th><th>Descripción</th><th>Estado</th><th class="adminOnly">Acción</th></tr></thead>
     <tbody id="eventosRows"></tbody>
   </table>
 </div>
@@ -3428,19 +3428,38 @@ async function deleteEvento(id){
  if(error) return alert('No se pudo eliminar: '+error.message);
  await loadAll();
 }
+async function cancelarEventoSistemaAdmin(id){
+ if(profile?.rol!=='owner')return;
+ const evento=eventos.find(e=>String(e.id)===String(id));
+ if(!evento||evento.estado==='cancelado')return;
+ if(!confirm('¿Cancelar el evento "'+(evento.titulo||'programado')+'"?\n\nSe mostrará como cancelado y no se eliminará su historial.'))return;
+ try{
+  const {data,error}=await sb.rpc('sistema_admin_cancelar_evento',{p_evento_id:id});
+  if(error)throw error;
+  if(!data?.ok)throw Error('No se confirmó la cancelación.');
+  await loadAll();
+ }catch(e){alert('No se pudo cancelar el evento: '+(e.message||'intenta de nuevo'));}
+}
 function renderEventos(){
  const body=document.getElementById('eventosRows'); if(!body)return;
- const hoy=new Date().toISOString().slice(0,10);
+ const hoy=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Mexico_City'});
  const lista=eventos.filter(e=>!e.fecha||e.fecha>=hoy);
- body.innerHTML=lista.map(e=>`<tr>
+ body.innerHTML=lista.map(e=>{
+   const cancelado=e.estado==='cancelado';
+   const acciones=profile?.rol==='owner'
+     ?(cancelado?'':`<button class="danger" onclick="cancelarEventoSistemaAdmin(${Number(e.id)})">Cancelar evento</button>`)
+     :(isAdminProfileRole(profile?.rol)?`<button class="danger" onclick="deleteEvento(${Number(e.id)})">Eliminar</button>`:'');
+   return `<tr>
    <td>${esc(e.fecha||'')}</td>
    <td>${esc(e.hora?String(e.hora).slice(0,5):'')}</td>
    <td><strong>${esc(e.titulo||'')}</strong></td>
    <td>${esc(e.tipo||'')}</td>
    <td>${esc(e.lugar||'')}</td>
    <td>${esc(e.descripcion||'')}</td>
-   <td class="adminOnly">${isAdminProfileRole(profile?.rol)?`<button class="danger" onclick="deleteEvento(${e.id})">Eliminar</button>`:''}</td>
- </tr>`).join('')||'<tr><td colspan="7" class="muted">No hay próximos eventos.</td></tr>';
+   <td><span class="badge">${cancelado?'Cancelado':'Programado'}</span></td>
+   <td class="adminOnly">${acciones||'—'}</td>
+ </tr>`;
+ }).join('')||'<tr><td colspan="8" class="muted">No hay próximos eventos.</td></tr>';
 }
 
 async function editarVencimientoCuota(id, fechaActual){
@@ -5264,10 +5283,31 @@ async function eliminarReserva(id){
  if(!isAdminProfileRole(profile?.rol)||!confirm('¿Eliminar esta reservación?'))return;
  const {error}=await sb.from('reservaciones').delete().eq('id',id);if(error)return alert(error.message);await loadAll();
 }
+async function cancelarReservaSistemaAdmin(id){
+ if(profile?.rol!=='owner')return;
+ const r=reservas.find(x=>String(x.id)===String(id));
+ if(!r||r.estado!=='aprobada')return;
+ if(!confirm('¿Cancelar la reservación aprobada de la casa '+String(r.unidad||'')+'?\n\nSi el Modo Evento está activo, dejará de solicitarse en la siguiente sincronización del ESP32. Verifica el portón físicamente.'))return;
+ try{
+  const {data,error}=await sb.rpc('sistema_admin_cancelar_reservacion',{p_reservacion_id:id});
+  if(error)throw error;
+  if(!data?.ok)throw Error('No se confirmó la cancelación.');
+  await loadAll();
+  await refreshEventModeStatus();
+ }catch(e){alert('No se pudo cancelar la reservación: '+(e.message||'intenta de nuevo'));}
+}
 function renderReservas(){
  const body=document.getElementById('reservasRows');if(!body)return;
  if(isAdminProfileRole(profile?.rol))refreshEventModeStatus();
- body.innerHTML=reservas.map(r=>`<tr><td>${esc(r.fecha||'')}</td><td>${esc(String(r.hora_inicio||'').slice(0,5))}–${esc(String(r.hora_fin||'').slice(0,5))}</td><td>${esc(r.area||'')}</td><td>${esc(r.unidad||'')}</td><td><span class="badge">${esc(r.estado||'')}</span></td><td>${esc(r.notas||'')}</td><td class="adminOnly">${isAdminProfileRole(profile?.rol) && r.estado!=='aprobada' ? `<div class="actions"><button class="primary mini" onclick="setReservaEstado('${r.id}','aprobada')">Aprobar</button><button class="mini" onclick="setReservaEstado('${r.id}','rechazada')">Rechazar</button><button class="danger mini" onclick="eliminarReserva('${r.id}')">Eliminar</button></div>` : ''}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">No hay reservaciones.</td></tr>';
+ body.innerHTML=reservas.map(r=>{
+  let acciones='';
+  if(profile?.rol==='owner'&&r.estado==='aprobada'){
+   acciones=`<button class="danger mini" onclick="cancelarReservaSistemaAdmin('${r.id}')">Cancelar evento</button>`;
+  }else if(isAdminProfileRole(profile?.rol)&&r.estado!=='aprobada'&&r.estado!=='cancelada'){
+   acciones=`<div class="actions"><button class="primary mini" onclick="setReservaEstado('${r.id}','aprobada')">Aprobar</button><button class="mini" onclick="setReservaEstado('${r.id}','rechazada')">Rechazar</button><button class="danger mini" onclick="eliminarReserva('${r.id}')">Eliminar</button></div>`;
+  }
+  return `<tr><td>${esc(r.fecha||'')}</td><td>${esc(String(r.hora_inicio||'').slice(0,5))}–${esc(String(r.hora_fin||'').slice(0,5))}</td><td>${esc(r.area||'')}</td><td>${esc(r.unidad||'')}</td><td><span class="badge">${esc(r.estado||'')}</span></td><td>${esc(r.notas||'')}</td><td class="adminOnly">${acciones||'—'}</td></tr>`;
+ }).join('')||'<tr><td colspan="7" class="muted">No hay reservaciones.</td></tr>';
 }
 
 async function testEventMode(){
