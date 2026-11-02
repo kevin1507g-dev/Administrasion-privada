@@ -1,7 +1,7 @@
 /* Asistente Residencial IA, interfaz accesible y móvil. Requiere sesión Supabase. */
 (function(){
 "use strict";
-let mount=null,opened=false,busy=false,conversationId=null,voiceEnabled=false,recognizer=null;
+let mount=null,opened=false,busy=false,conversationId=null,voiceEnabled=false,recognizer=null,chatOriginalParent=null,chatOriginalNext=null,chatSelected=false,chatLoading=false;
 const refs={};
 function node(tag,opts={},parent){
  const n=document.createElement(tag);
@@ -21,6 +21,57 @@ function viewport(){
  mount.style.setProperty('--ia-visual-height',Math.round(v.height)+'px');
  mount.style.setProperty('--ia-visual-top',Math.max(0,Math.round(v.offsetTop))+'px');
 }
+
+function unreadChat(){
+ try{return typeof contarChatNoLeidos==="function"?Math.max(0,Number(contarChatNoLeidos())||0):0;}catch{return 0;}
+}
+function refreshChatTab(){
+ if(!refs.chatTab)return;
+ const n=unreadChat();
+ refs.chatTab.textContent="💬 Mensajes"+(n?" ("+(n>99?"99+":n)+")":"");
+ refs.chatTab.setAttribute("aria-label","Chat privado"+(n?", "+n+" mensajes sin leer":""));
+}
+function restoreChat(){
+ const panel=document.getElementById("chatPanel");
+ if(!panel||!chatOriginalParent)return;
+ if(typeof cerrarChatFlotante==="function")cerrarChatFlotante();
+ panel.classList.remove("ia-embedded-chat");
+ try{
+  if(chatOriginalNext?.parentNode===chatOriginalParent)chatOriginalParent.insertBefore(panel,chatOriginalNext);
+  else chatOriginalParent.appendChild(panel);
+ }finally{chatOriginalParent=null;chatOriginalNext=null;}
+}
+async function switchTab(target){
+ if(!opened||!refs.chatHost||chatLoading)return;
+ const chat=target==="chat";
+ chatSelected=chat;
+ refs.aiTab.setAttribute("aria-selected",String(!chat));
+ refs.chatTab.setAttribute("aria-selected",String(chat));
+ refs.aiToolbar.hidden=chat;
+ refs.status.hidden=chat;
+ refs.messages.hidden=chat;
+ refs.compose.hidden=chat;
+ refs.chatHost.hidden=!chat;
+ if(chat){
+  if(typeof abrirChatFlotante!=="function"||typeof cerrarChatFlotante!=="function"){
+   refs.chatHost.textContent="El chat privado no está disponible en esta sesión.";
+   return;
+  }
+  const panel=document.getElementById("chatPanel");
+  if(!panel){refs.chatHost.textContent="No se encontró el módulo de mensajes.";return;}
+  if(!chatOriginalParent){chatOriginalParent=panel.parentNode;chatOriginalNext=panel.nextSibling;}
+  refs.chatHost.appendChild(panel);
+  panel.classList.add("ia-embedded-chat");
+  chatLoading=true;
+  try{await abrirChatFlotante();}catch(err){
+   node("p",{className:"ia-chat-error",text:"No se pudo abrir el chat: "+String(err?.message||"inténtalo de nuevo.")},refs.chatHost);
+  }finally{chatLoading=false;refreshChatTab();}
+ }else{
+  if(typeof cerrarChatFlotante==="function")cerrarChatFlotante();
+  refreshChatTab();
+ }
+}
+
 function starters(){
  const wrap=node('div',{className:'ia-starters'},refs.messages);
  const own=typeof profile!=='undefined'&&profile?.rol==='residente';
@@ -49,6 +100,10 @@ function addMessage(role,text,extras={}){
    const r=node("tr",{},tbody);
    for(const k of keys)node("td",{text:String(item?.[k]??"—").slice(0,150)},r);
   }
+ }
+ if(extras.open_chat){
+  const openChat=node("button",{type:"button",className:"ia-open-chat",text:"💬 Abrir chat privado"},container);
+  openChat.onclick=()=>switchTab("chat");
  }
  if(extras.proposal){
   const p=extras.proposal;
@@ -138,8 +193,12 @@ async function open(){
    refs.config.hidden=st.role!=="owner";
   }catch(e){status("Conexión no verificada: "+e.message);}
   await loadHistory();
+  await switchTab("ia");
+  refreshChatTab();
   if(window.matchMedia("(min-width:701px)").matches)refs.text.focus();
  }else{
+  restoreChat();
+  chatSelected=false;
   if("speechSynthesis" in window)window.speechSynthesis.cancel();
   try{recognizer?.stop();}catch{}
   refs.launch.focus();
@@ -163,6 +222,8 @@ function init(){
  refs.panel=node("section",{className:"ia-panel"},mount);
  refs.panel.hidden=true;refs.panel.setAttribute("aria-label","Asistente Residencial IA");
  refs.panel.setAttribute("role","dialog");refs.panel.setAttribute("aria-modal","true");
+ const originalChatButton=document.getElementById("chatFloatingBtn");
+ if(originalChatButton)originalChatButton.classList.add("ia-chat-migrated");
  const head=node("header",{className:"ia-head"},refs.panel);
  const brand=node("div",{className:"ia-brand"},head);
  refs.brandAvatar=node("span",{className:"ia-avatar",text:"✦"},brand);
@@ -170,14 +231,23 @@ function init(){
  refs.headTitle=node("strong",{className:"ia-head-title",text:"Asistente Residencial IA"},brandText);
  refs.headSubtitle=node("span",{className:"ia-head-subtitle",text:"Consultas seguras"},brandText);
  const close=node("button",{type:"button",className:"ia-close",text:"×",aria:"Cerrar asistente"},head);
- const controls=node("div",{className:"ia-top-controls"},refs.panel);
+ const tabs=node("div",{className:"ia-tabs"},refs.panel);tabs.setAttribute("role","tablist");
+ refs.aiTab=node("button",{type:"button",className:"ia-tab",text:"✦ Asistente",aria:"Conversar con la IA"},tabs);
+ refs.chatTab=node("button",{type:"button",className:"ia-tab",text:"💬 Mensajes",aria:"Abrir chat privado"},tabs);
+ refs.aiTab.setAttribute("role","tab");refs.chatTab.setAttribute("role","tab");
+ refs.aiTab.setAttribute("aria-selected","true");refs.chatTab.setAttribute("aria-selected","false");
+ refs.aiTab.onclick=()=>switchTab("ia");refs.chatTab.onclick=()=>switchTab("chat");
+ refs.aiToolbar=node("div",{className:"ia-top-controls"},refs.panel);
+ const controls=refs.aiToolbar;
  refs.history=node("select",{aria:"Historial de conversaciones"},controls);
  const newBtn=node("button",{type:"button",text:"＋",aria:"Nueva conversación"},controls);newBtn.title="Nueva conversación";
  refs.alerts=node("button",{type:"button",text:"🔔",aria:"Alertas de IA"},controls);refs.alerts.title="Ver alertas";
  refs.config=node("button",{type:"button",text:"⚙",aria:"Configurar nombre e icono"},controls);refs.config.hidden=true;refs.config.title="Configurar IA";
  refs.status=node("p",{className:"ia-status",text:"Verificando acceso…"},refs.panel);
  refs.messages=node("div",{className:"ia-messages"},refs.panel);refs.messages.setAttribute("role","log");refs.messages.setAttribute("aria-live","polite");
- const compose=node("div",{className:"ia-compose"},refs.panel);
+ refs.chatHost=node("div",{className:"ia-chat-host"},refs.panel);refs.chatHost.hidden=true;
+ refs.compose=node("div",{className:"ia-compose"},refs.panel);
+ const compose=refs.compose;
  refs.text=node("textarea",{aria:"Escribe tu consulta"},compose);refs.text.placeholder="Escribe tu pregunta…";refs.text.rows=2;refs.text.maxLength=900;
  const actionsRow=node("div",{className:"ia-actions"},compose);
  refs.mic=node("button",{type:"button",text:"🎤",aria:"Dictar mensaje"},actionsRow);
@@ -210,6 +280,7 @@ function init(){
  window.visualViewport?.addEventListener("resize",viewport,{passive:true});
  window.visualViewport?.addEventListener("scroll",viewport,{passive:true});
  document.addEventListener("keydown",e=>{if(opened&&e.key==="Escape"){e.preventDefault();open();}});
+ window.setInterval(()=>{if(opened)refreshChatTab();},4500);
 }
 window.aiInitialize=init;
 if(!document.getElementById("app")?.classList.contains("hidden"))init();
