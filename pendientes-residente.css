@@ -1,0 +1,53 @@
+/* Alerta automática de pendientes de residentes: no bloquea el portón.
+   No es modal, el recordatorio siempre puede minimizarse. */
+.rp-pending-root{
+ position:fixed!important;z-index:1100!important;top:calc(80px + env(safe-area-inset-top,0px))!important;
+ right:14px!important;left:auto!important;bottom:auto!important;
+ width:min(370px,calc(100vw - 26px))!important;
+ font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;
+ color:#effcf7!important;box-sizing:border-box!important;pointer-events:none;
+}
+.rp-pending-root *{box-sizing:border-box!important}
+.rp-pending-root[hidden],.rp-pending-root [hidden]{display:none!important}
+.rp-pending-card{
+ pointer-events:auto!important;max-height:min(62dvh,480px)!important;overflow:auto!important;
+ -webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+ background:#102b32!important;color:#f3fcf9!important;border:1px solid #28af8d!important;
+ border-radius:17px!important;padding:13px!important;box-shadow:0 14px 44px #0008!important;
+}
+.rp-pending-header{display:flex!important;align-items:flex-start!important;justify-content:space-between!important;gap:9px!important}
+.rp-pending-title{display:flex!important;flex-direction:column!important;gap:5px!important;min-width:0!important}
+.rp-pending-title strong{font-size:16px!important;font-weight:800!important;color:#e9fff6!important}
+.rp-pending-title small{font-size:12px!important;color:#bcd7d0!important;line-height:1.4!important}
+.rp-pending-close{background:#27484d!important;color:#fff!important;border:1px solid #4c7a75!important;border-radius:10px!important;
+ width:36px!important;height:36px!important;min-height:36px!important;padding:0!important;flex:0 0 36px!important;font-size:25px!important}
+.rp-pending-group{padding:11px 0!important;border-top:1px solid #315960!important;display:flex!important;flex-direction:column!important;gap:8px!important}
+.rp-pending-header+.rp-pending-group{margin-top:12px}
+.rp-pending-group-title{font-size:14px!important;color:#aaf6db!important}
+.rp-pending-entry{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:9px!important;background:#173c42!important;padding:10px!important;border-radius:10px!important}
+.rp-pending-entry-text{min-width:0!important;display:flex!important;flex-direction:column!important;gap:3px!important;flex:1!important}
+.rp-pending-entry-text b{font-size:13px!important}
+.rp-pending-entry-text span{font-size:12px!important;color:#c4dcd9!important;overflow-wrap:anywhere!important;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.rp-pending-action{background:#0b9e81!important;color:white!important;border:1px solid #29caa9!important;
+ border-radius:10px!important;min-height:41px!important;padding:9px 11px!important;flex:0 0 auto!important;
+ font-size:13px!important;font-weight:700!important;cursor:pointer!important}
+.rp-pending-notification{align-self:flex-start!important}
+.rp-pending-preview{font-size:13px!important;overflow-wrap:anywhere!important;color:#e2eee9!important}
+.rp-pending-more,.rp-pending-foot{font-size:11px!important;color:#b0ccc7!important}
+.rp-pending-foot{display:block!important;padding:3px 0 0!important}
+.rp-pending-bubble{pointer-events:auto!important;float:right!important;min-height:44px!important;padding:9px 14px!important;
+ border-radius:25px!important;border:1px solid #38e2b9!important;background:#0e715c!important;
+ color:#fff!important;font-size:13px!important;font-weight:750!important;box-shadow:0 6px 24px #0008!important}
+.rp-pending-action:focus-visible,.rp-pending-close:focus-visible,.rp-pending-bubble:focus-visible{
+ outline:3px solid #87ffde!important;outline-offset:2px!important
+}
+/* El chat de IA tiene su propia capa; no superponer avisos sobre una conversación activa. */
+body.ia-open .rp-pending-root{visibility:hidden!important;pointer-events:none!important}
+@media(max-width:700px){
+ .rp-pending-root{top:calc(73px + env(safe-area-inset-top,0px))!important;right:10px!important;
+ width:min(355px,calc(100vw - 20px))!important}
+ .rp-pending-card{max-height:min(48dvh,385px)!important;padding:11px!important}
+ .rp-pending-entry{gap:7px!important;padding:8px!important}
+ .rp-pending-action{min-height:43px!important}
+}
+@media(prefers-reduced-motion:reduce){.rp-pending-root *{animation:none!important;transition:none!important}}
