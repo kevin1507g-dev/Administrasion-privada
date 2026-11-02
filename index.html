@@ -169,7 +169,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </style>
 <link rel="stylesheet" href="./ui-modern.css?v=owner-circular22" />
 <link rel="stylesheet" href="./mp-sandbox.css?v=mp-lab1" />
-<link rel="stylesheet" href="./asistente-ia.css?v=4" />
+<link rel="stylesheet" href="./asistente-ia.css?v=5" />
 <link rel="stylesheet" href="./acciones-menu.css?v=1" />
 <link rel="stylesheet" href="./chat-destinos.css?v=2" />
 <link rel="stylesheet" href="./aviso-cuotas-residente.css?v=1" />
@@ -1528,7 +1528,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   </div>
   <button class="primary" style="margin-top:12px" onclick="addReserva()">📅 Solicitar reservación</button>
 </div>
-<div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Horario</th><th>Acceso</th><th>Casa</th><th>Estado</th><th>Notas</th><th class="adminOnly">Acciones</th></tr></thead><tbody id="reservasRows"></tbody></table></div>
+<div class="card table" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Horario</th><th>Acceso</th><th>Casa</th><th>Estado</th><th>Notas</th><th>Acciones</th></tr></thead><tbody id="reservasRows"></tbody></table></div>
 <div class="card adminOnly" style="margin-top:14px">
   <h3>⚡ Vinculación ESP32 · Modo Evento</h3>
   <p id="eventModeStatus" class="muted" role="status">Consultando vinculación...</p>
@@ -5660,6 +5660,23 @@ async function eliminarReserva(id){
  if(!isAdminProfileRole(profile?.rol)||!confirm('¿Eliminar esta reservación?'))return;
  const {error}=await sb.from('reservaciones').delete().eq('id',id);if(error)return alert(error.message);await loadAll();
 }
+async function cancelarReservaResidente(id){
+ if(profile?.rol!=='residente')return;
+ const reserva=reservas.find(x=>String(x.id)===String(id));
+ if(!reserva||String(reserva.creado_por)!==String(user.id)||
+   String(reserva.casa_id)!==String(profile.casa_id)||
+   !['pendiente','aprobada'].includes(reserva.estado))return;
+ if(!confirm('¿Cancelar tu reservación del '+reserva.fecha+' de '+
+   String(reserva.hora_inicio).slice(0,5)+' a '+String(reserva.hora_fin).slice(0,5)+
+   '? Esta acción no se puede deshacer.'))return;
+ try{
+  const {data,error}=await sb.rpc('ia_residente_cancelar_reservacion',{p_reservacion_id:id});
+  if(error)throw error;
+  if(!data?.ok)throw Error('El servidor no confirmó la cancelación.');
+  await loadAll();
+  alert('Reservación cancelada correctamente.');
+ }catch(e){alert('No se pudo cancelar tu reservación: '+(e?.message||String(e)));}
+}
 async function cancelarReservaSistemaAdmin(id){
  if(profile?.rol!=='owner')return;
  const r=reservas.find(x=>String(x.id)===String(id));
@@ -5682,8 +5699,11 @@ function renderReservas(){
    acciones=`<button class="danger mini" onclick="cancelarReservaSistemaAdmin('${r.id}')">Cancelar evento</button>`;
   }else if(isAdminProfileRole(profile?.rol)&&r.estado!=='aprobada'&&r.estado!=='cancelada'){
    acciones=`<div class="actions"><button class="primary mini" onclick="setReservaEstado('${r.id}','aprobada')">Aprobar</button><button class="mini" onclick="setReservaEstado('${r.id}','rechazada')">Rechazar</button><button class="danger mini" onclick="eliminarReserva('${r.id}')">Eliminar</button></div>`;
+  }else if(profile?.rol==='residente' && String(r.creado_por)===String(user?.id) &&
+    String(r.casa_id)===String(profile.casa_id) && ['pendiente','aprobada'].includes(r.estado)){
+    acciones=`<button class="danger mini" onclick="cancelarReservaResidente('${r.id}')">Cancelar mi reservación</button>`;
   }
-  return `<tr><td>${esc(r.fecha||'')}</td><td>${esc(String(r.hora_inicio||'').slice(0,5))}–${esc(String(r.hora_fin||'').slice(0,5))}</td><td>${esc(r.area||'')}</td><td>${esc(r.unidad||'')}</td><td><span class="badge">${esc(r.estado||'')}</span></td><td>${esc(r.notas||'')}</td><td class="adminOnly">${acciones||'—'}</td></tr>`;
+  return `<tr><td>${esc(r.fecha||'')}</td><td>${esc(String(r.hora_inicio||'').slice(0,5))}–${esc(String(r.hora_fin||'').slice(0,5))}</td><td>${esc(r.area||'')}</td><td>${esc(r.unidad||'')}</td><td><span class="badge">${esc(r.estado||'')}</span></td><td>${esc(r.notas||'')}</td><td>${acciones||'—'}</td></tr>`;
  }).join('')||'<tr><td colspan="7" class="muted">No hay reservaciones.</td></tr>';
 }
 
@@ -7625,7 +7645,7 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizar
 </script>
 <script src="./disciplina.js?v=10"></script>
 <script src="./biometrico.js?v=1"></script>
-<script src="./asistente-ia.js?v=6"></script>
+<script src="./asistente-ia.js?v=7"></script>
 <script src="./pendientes-residente.js?v=3"></script>
 <script src="./aviso-cuotas-residente.js?v=1"></script>
 <script src="./acciones-menu.js?v=1"></script>
