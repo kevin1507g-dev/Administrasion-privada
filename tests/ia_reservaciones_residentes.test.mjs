@@ -21,7 +21,7 @@ assert.equal(intent("Anular una reserva"),"cancel");
 assert.equal(intent("Mis pagos"),null);
 assert.match(edge,/kind==="reservation_availability"/);
 assert.match(edge,/kind==="reservation_create"/);
-assert.match(edge,/kind==="reservation_cancel"/);
+assert.match(edge,/\["reservation_availability","reservation_create","reservation_cancel"\]/);
 assert.match(edge,/ctx\.db\.rpc\("ia_reservaciones_ocupadas"/);
 assert.match(edge,/ctx\.db\.rpc\("ia_residente_reservar"/);
 assert.match(edge,/ctx\.db\.rpc\("ia_residente_cancelar_reservacion"/);
