@@ -172,6 +172,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <link rel="stylesheet" href="./asistente-ia.css?v=4" />
 <link rel="stylesheet" href="./acciones-menu.css?v=1" />
 <link rel="stylesheet" href="./chat-destinos.css?v=2" />
+<link rel="stylesheet" href="./aviso-cuotas-residente.css?v=1" />
 <link rel="stylesheet" href="./pendientes-residente.css?v=1" />
 </head>
 <body>
@@ -3217,12 +3218,15 @@ async function enter(){
  // PRIORIDAD DE INICIO PARA RESIDENTES:
  // primero su conversación privada si el último mensaje administrativo
  // todavía no fue contestado. Control Digital se muestra al cerrar el chat.
- let chatInicialAbierto=false;
+ let chatInicialAbierto=false,cuotaInicialAbierta=false;
  if(profile.rol==='residente'){
   chatInicialAbierto=await window.residentePendientesAbrirChatInicial?.()===true;
-  if(!chatInicialAbierto)show('controlDigital');
+  if(!chatInicialAbierto){
+    cuotaInicialAbierta=window.residenteCuotasPendientesAbrir?.()===true;
+    if(!cuotaInicialAbierta)show('controlDigital');
+  }
  }
- if(!chatInicialAbierto)await abrirRutaNotificacion();
+ if(!chatInicialAbierto&&!cuotaInicialAbierta)await abrirRutaNotificacion();
 }
 async function loadAll(){
  const [ca,pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,inc,im,ia,en,cs,cm,nt,nl,pk,rs,dc,em]=await Promise.all([
@@ -5918,6 +5922,7 @@ function render(){
  renderGastos();
  renderMetodosPago();
  renderCuotasArchivadas();
+ window.residenteCuotasPendientesActualizar?.();
 }
 
 
@@ -7621,7 +7626,8 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizar
 <script src="./disciplina.js?v=10"></script>
 <script src="./biometrico.js?v=1"></script>
 <script src="./asistente-ia.js?v=6"></script>
-<script src="./pendientes-residente.js?v=2"></script>
+<script src="./pendientes-residente.js?v=3"></script>
+<script src="./aviso-cuotas-residente.js?v=1"></script>
 <script src="./acciones-menu.js?v=1"></script>
 </body></html>
 
