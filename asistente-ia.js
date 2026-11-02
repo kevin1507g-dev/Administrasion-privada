@@ -238,7 +238,14 @@ function addMessage(role,text,extras={}){
 async function call(payload){
  if(typeof sb==="undefined")throw Error("No existe conexión con Supabase.");
  const {data,error}=await sb.functions.invoke("asistente-residencial-ia",{body:payload});
- if(error)throw Error(error?.context?.error||error.message||"Error de conexión con el asistente.");
+ if(error){
+  let detail=error?.message||"Error de conexión con el asistente.";
+  // Mostrar errores JSON de validación de horario/casa enviados por el backend.
+  if(error?.context && typeof error.context.json==="function"){
+   try{const body=await error.context.clone().json();detail=body?.error||detail;}catch(_){}
+  }
+  throw Error(String(detail).slice(0,240));
+ }
  if(!data||data.error)throw Error(data?.error||"Respuesta inválida del servidor.");
  return data;
 }
