@@ -55,8 +55,9 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
   </div>
 
   <div id="formCard" class="card hidden">
-    <label>Número de casa</label>
-    <input id="casa" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Ej. 35" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+    <label for="casa">Número de casa <span aria-hidden="true" style="color:#fecaca">*</span> (obligatorio)</label>
+    <input id="casa" name="casa" type="text" inputmode="numeric" pattern="[0-9]+" required aria-required="true" aria-describedby="ayudaCasa" maxlength="10" autocomplete="off" placeholder="Ej. 35" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+    <p id="ayudaCasa" class="muted" style="margin:7px 0 12px;font-size:13px">Escribe el número de la casa a la que vas. Sin una casa válida no se enviará la solicitud.</p>
 
     <label>Tipo de solicitud</label>
     <select id="tipo">
@@ -158,10 +159,15 @@ async function enviarSolicitud(){
   const btn=document.getElementById('sendBtn');
 
   error.textContent='';
-  if(!/^[0-9]+$/.test(casa) || Number(casa)<=0){
-    error.textContent='Escribe un número de casa válido.';
+  if(!/^[0-9]{1,10}$/.test(casa) || Number(casa)<=0){
+    error.textContent='El número de casa es obligatorio. Escribe una casa válida antes de continuar.';
+    const campo=document.getElementById('casa');
+    campo.setAttribute('aria-invalid','true');
+    campo.focus();
+    campo.reportValidity?.();
     return;
   }
+  document.getElementById('casa').removeAttribute('aria-invalid');
 
   btn.disabled=true;
   btn.textContent='Enviando…';
