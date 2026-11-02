@@ -41,7 +41,7 @@ function restoreChat(){
   else chatOriginalParent.appendChild(panel);
  }finally{chatOriginalParent=null;chatOriginalNext=null;}
 }
-async function switchTab(target){
+async function switchTab(target,conversationToOpen=null){
  if(!opened||!refs.chatHost||chatLoading)return;
  const chat=target==="chat";
  chatSelected=chat;
@@ -63,7 +63,7 @@ async function switchTab(target){
   refs.chatHost.appendChild(panel);
   panel.classList.add("ia-embedded-chat");
   chatLoading=true;
-  try{await abrirChatFlotante();}catch(err){
+  try{await abrirChatFlotante(conversationToOpen);}catch(err){
    node("p",{className:"ia-chat-error",text:"No se pudo abrir el chat: "+String(err?.message||"inténtalo de nuevo.")},refs.chatHost);
   }finally{chatLoading=false;refreshChatTab();}
  }else{
@@ -283,5 +283,12 @@ function init(){
  window.setInterval(()=>{if(opened)refreshChatTab();},4500);
 }
 window.aiInitialize=init;
+// Abrir la conversación exacta desde el recordatorio de pendientes.
+// Nunca envía mensajes automáticamente: el residente debe pulsar Enviar.
+window.iaAbrirChatPendiente=async function(conversationId){
+ if(!opened)await open();
+ if(!opened)return;
+ await switchTab("chat",conversationId||null);
+};
 if(!document.getElementById("app")?.classList.contains("hidden"))init();
 })();
