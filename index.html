@@ -171,6 +171,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <link rel="stylesheet" href="./mp-sandbox.css?v=mp-lab1" />
 <link rel="stylesheet" href="./asistente-ia.css?v=4" />
 <link rel="stylesheet" href="./acciones-menu.css?v=1" />
+<link rel="stylesheet" href="./chat-destinos.css?v=1" />
 <link rel="stylesheet" href="./pendientes-residente.css?v=1" />
 </head>
 <body>
@@ -1645,6 +1646,15 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
       <option value="owner">Sistema Admin</option>
     </select>
     <p class="muted" style="font-size:12px;margin:6px 0 0">Cada conversación es privada y llega solamente al destinatario seleccionado.</p>
+  </div>
+  <div id="chatModoPicker" class="chatResidentPicker adminOnly hidden">
+    <label for="chatModoStaff">¿A quién quieres contactar?</label>
+    <select id="chatModoStaff" onchange="cambiarModoChatStaff()" aria-label="Seleccionar destinatario del chat"></select>
+    <p class="muted" id="chatModoAyuda" style="font-size:12px;margin:6px 0 0">Los mensajes individuales permanecen privados.</p>
+  </div>
+  <div id="chatStaffPicker" class="chatResidentPicker adminOnly hidden">
+    <label for="chatStaffAdminSelect">Conversaciones con administradores</label>
+    <select id="chatStaffAdminSelect" onchange="seleccionarChatStaffAdmin()"></select>
   </div>
   <div id="chatAdminPicker" class="chatResidentPicker adminOnly hidden">
     <label style="margin:0 0 6px">Residente</label>
