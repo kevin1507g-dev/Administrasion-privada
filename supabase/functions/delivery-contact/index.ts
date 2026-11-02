@@ -43,10 +43,12 @@ Deno.serve(async (req: Request) => {
     // La casa es obligatoria. No aceptar cadenas mixtas como "45abc",
     // ni asignar NULL si el número no existe en la privada.
     const casaIngresada = String(body?.casa ?? "").trim();
-    if (!/^[0-9]{1,10}$/.test(casaIngresada) || Number(casaIngresada) <= 0) {
-      return json({ error: "El número de casa es obligatorio y debe ser válido." }, 400);
+    // El portal atiende únicamente viviendas con número del 40 al 66,
+    // inclusive. Validar ANTES de insertar o generar notificaciones.
+    if (!/^(4[0-9]|5[0-9]|6[0-6])$/.test(casaIngresada)) {
+      return json({ error: "Solo se aceptan solicitudes para las casas de la 40 a la 66." }, 400);
     }
-    const casaNumero = casaIngresada.replace(/^0+/, "");
+    const casaNumero = casaIngresada;
 
     const tipoRaw = clean(body?.tipo, 30).toLowerCase();
     const tipo = ["comida", "paqueteria", "farmacia", "visita", "otro"].includes(tipoRaw)
