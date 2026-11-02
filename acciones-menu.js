@@ -136,6 +136,7 @@
     // No tocar celdas que incluyan controles más complejos (p.ej. formularios).
     const source=document.createElement('span');
     source.className=SOURCE_CLASS;
+    source.hidden=true;
     source.setAttribute('aria-hidden','true');
     // Los nodos originales permanecen dentro de la celda:
     // el onclick y el event bubbling continúan funcionando.
@@ -168,6 +169,7 @@
     area.className='ar-card-action-control';
     const source=document.createElement('span');
     source.className=SOURCE_CLASS;
+    source.hidden=true;
     source.setAttribute('aria-hidden','true');
     for(const button of buttons)source.appendChild(button);
     area.appendChild(source);
