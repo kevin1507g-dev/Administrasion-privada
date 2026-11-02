@@ -2925,6 +2925,15 @@ function destinoPorTipoNotificacion(tipo){
 function abrirDestinoNotificacion(destino,referencia,tipo){
   const seccion=destino||(['disciplina','disciplina_aclaracion','disciplina_respuesta'].includes(tipo)?'disciplina':destinoPorTipoNotificacion(tipo));
 
+  if(seccion==='chat_staff'){
+    const partes=String(referencia||'').split(':');
+    const id=partes[0]==='staff'?partes[1]:null;
+    if(id){
+      if(typeof window.iaAbrirChatPendiente==='function')window.iaAbrirChatPendiente('staff:'+id);
+      else abrirChatFlotante('staff:'+id);
+    }
+    return;
+  }
   if(seccion==='chat'){
     const partes=String(referencia||'').split(':');
     const conversacionId=partes[0]==='chat'?partes[1]:null;
@@ -4930,7 +4939,25 @@ async function abrirChatFlotante(conversacionId=null){
  panel.classList.remove('hidden');
  await cargarChatDatos();
  if(isAdminProfileRole(profile.rol)){
-  if(conversacionId){
+  configurarOpcionesChatStaff();
+  if(String(conversacionId||'').startsWith('staff:')){
+    const id=String(conversacionId).slice(6);
+    const staff=chatStaffConversaciones.find(c=>String(c.id)===id);
+    if(staff){
+      document.getElementById('chatModoStaff').value=profile.rol==='owner'?'admins':'sistema';
+      actualizarControlesChatStaff();
+      if(profile.rol==='owner'){
+        const select=document.getElementById('chatStaffAdminSelect');
+        if(select)select.value=staff.admin_id;
+      }
+      chatStaffActualId=staff.id;
+      chatConversacionActual=null;
+    }
+  }else if(conversacionId){
+    document.getElementById('chatModoStaff').value='residente';
+    actualizarControlesChatStaff();
+  }
+  if(conversacionId&&!String(conversacionId).startsWith('staff:')){
    const conv=chatConversaciones.find(c=>String(c.id)===String(conversacionId));
    if(conv)chatConversacionActual=conv.id;
   }else if(!chatConversacionActual){
@@ -4982,6 +5009,12 @@ function renderChatPanel(){
  const send=document.getElementById('chatSendBtn');
  if(!body||!titulo||!subtitulo||!input||!send)return;
  if(isAdminProfileRole(profile?.rol)){
+  configurarOpcionesChatStaff();
+  if(modoChatStaff()!=='residente'){
+    renderChatStaffPanel();
+    return;
+  }
+  send.textContent='Enviar mensaje';
   llenarSelectorChatAdmin();
   const value=document.getElementById('chatResidentSelect')?.value||'';
   const conv=value.startsWith('conv:')?chatConversaciones.find(c=>String(c.id)===value.slice(5)):null;
@@ -5072,6 +5105,8 @@ async function obtenerOCrearConversacionChat(){
 }
 async function enviarChatMensaje(){
   if(!user||!['owner','admin','residente'].includes(profile?.rol))return;
+  if(isAdminProfileRole(profile.rol)&&modoChatStaff()!=='residente')
+    return enviarChatDesdeStaff();
 
   const input=document.getElementById('chatInput');
   const mensaje=input?.value.trim()||'';
@@ -5112,6 +5147,8 @@ async function enviarChatMensaje(){
 }
 
 async function marcarChatActualLeido(){
+  if(isAdminProfileRole(profile?.rol)&&modoChatStaff()!=='residente')
+    return marcarStaffActualLeido();
   if(!chatConversacionActual||!user)return;
 
   const leidos=new Set(chatLecturas.map(x=>String(x.mensaje_id)));
