@@ -43,8 +43,8 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
     <form id="visitorPassForm" onsubmit="solicitarAccesoVisita(event)">
       <label for="vpNombre">Tu nombre (opcional, puedes escribirlo libremente)</label>
       <input id="vpNombre" maxlength="100" autocomplete="name" placeholder="Ej. Juan, familia o dejar vacío">
-      <label for="vpCasa">Número de casa</label>
-      <input id="vpCasa" required maxlength="20" autocomplete="off" placeholder="Ej. 35">
+      <label for="vpCasa">Número de casa (40 a 66)</label>
+      <input id="vpCasa" required inputmode="numeric" pattern="(4[0-9]|5[0-9]|6[0-6])" maxlength="2" autocomplete="off" placeholder="Ej. 45" title="Solo se aceptan casas de la 40 a la 66">
       <label for="vpCodigo">Código de visita</label>
       <input id="vpCodigo" required minlength="7" maxlength="16" pattern="([A-HJ-NP-Za-hj-np-z][0-9]{6}|[A-Fa-f0-9]{16})" autocapitalize="characters" autocomplete="off" placeholder="Ej. A123456">
       <button type="submit" class="primary" id="vpEnviar" style="margin-top:18px">🚪 Solicitar apertura del portón</button>
@@ -55,9 +55,9 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
   </div>
 
   <div id="formCard" class="card hidden">
-    <label for="casa">Número de casa <span aria-hidden="true" style="color:#fecaca">*</span> (obligatorio)</label>
-    <input id="casa" name="casa" type="text" inputmode="numeric" pattern="[0-9]+" required aria-required="true" aria-describedby="ayudaCasa" maxlength="10" autocomplete="off" placeholder="Ej. 35" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
-    <p id="ayudaCasa" class="muted" style="margin:7px 0 12px;font-size:13px">Escribe el número de la casa a la que vas. Sin una casa válida no se enviará la solicitud.</p>
+    <label for="casa">Número de casa <span aria-hidden="true" style="color:#fecaca">*</span> (obligatorio: 40 a 66)</label>
+    <input id="casa" name="casa" type="text" inputmode="numeric" pattern="(4[0-9]|5[0-9]|6[0-6])" required aria-required="true" aria-describedby="ayudaCasa" maxlength="2" autocomplete="off" placeholder="Ej. 45" title="Solo se aceptan casas de la 40 a la 66" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+    <p id="ayudaCasa" class="muted" style="margin:7px 0 12px;font-size:13px">Solo se reciben solicitudes para las casas de la <strong>40 a la 66</strong>. Fuera de ese rango no se enviarán ni se notificarán.</p>
 
     <label>Tipo de solicitud</label>
     <select id="tipo">
@@ -121,7 +121,12 @@ async function solicitarAccesoVisita(event){
  const nombre=document.getElementById('vpNombre').value.trim();
  const casa=document.getElementById('vpCasa').value.trim();
  const codigo=document.getElementById('vpCodigo').value.trim().toUpperCase();
- if(!casa||!/^([A-HJ-NP-Z][0-9]{6}|[A-F0-9]{16})$/.test(codigo)){status.textContent='Escribe la casa y un código válido (ej. A123456).';return;}
+ if(!/^(4[0-9]|5[0-9]|6[0-6])$/.test(casa)){
+  status.textContent='Solo se aceptan casas de la 40 a la 66.';
+  document.getElementById('vpCasa').focus();
+  return;
+ }
+ if(!/^([A-HJ-NP-Z][0-9]{6}|[A-F0-9]{16})$/.test(codigo)){status.textContent='Escribe un código válido (ej. A123456).';return;}
  vpBusy=true;btn.disabled=true;status.textContent='Verificando autorización...';
  try{
   const {data,error}=await sb.rpc('visitor_pass_request',{p_name:nombre,p_house:casa,p_code:codigo});
@@ -159,8 +164,8 @@ async function enviarSolicitud(){
   const btn=document.getElementById('sendBtn');
 
   error.textContent='';
-  if(!/^[0-9]{1,10}$/.test(casa) || Number(casa)<=0){
-    error.textContent='El número de casa es obligatorio. Escribe una casa válida antes de continuar.';
+  if(!/^(4[0-9]|5[0-9]|6[0-6])$/.test(casa)){
+    error.textContent='El número de casa es obligatorio y debe estar entre la 40 y la 66.';
     const campo=document.getElementById('casa');
     campo.setAttribute('aria-invalid','true');
     campo.focus();
