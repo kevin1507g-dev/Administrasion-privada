@@ -42,7 +42,7 @@ function restoreChat(){
  }finally{chatOriginalParent=null;chatOriginalNext=null;}
 }
 async function switchTab(target,conversationToOpen=null){
- if(!opened||!refs.chatHost||chatLoading)return;
+ if(!opened||!refs.chatHost||chatLoading)return false;
  const chat=target==="chat";
  chatSelected=chat;
  refs.aiTab.setAttribute("aria-selected",String(!chat));
@@ -55,16 +55,20 @@ async function switchTab(target,conversationToOpen=null){
  if(chat){
   if(typeof abrirChatFlotante!=="function"||typeof cerrarChatFlotante!=="function"){
    refs.chatHost.textContent="El chat privado no está disponible en esta sesión.";
-   return;
+   return false;
   }
   const panel=document.getElementById("chatPanel");
-  if(!panel){refs.chatHost.textContent="No se encontró el módulo de mensajes.";return;}
+  if(!panel){refs.chatHost.textContent="No se encontró el módulo de mensajes.";return false;}
   if(!chatOriginalParent){chatOriginalParent=panel.parentNode;chatOriginalNext=panel.nextSibling;}
   refs.chatHost.appendChild(panel);
   panel.classList.add("ia-embedded-chat");
   chatLoading=true;
-  try{await abrirChatFlotante(conversationToOpen);}catch(err){
+  try{
+   await abrirChatFlotante(conversationToOpen);
+   return true;
+  }catch(err){
    node("p",{className:"ia-chat-error",text:"No se pudo abrir el chat: "+String(err?.message||"inténtalo de nuevo.")},refs.chatHost);
+   return false;
   }finally{chatLoading=false;refreshChatTab();}
  }else{
   if(typeof cerrarChatFlotante==="function")cerrarChatFlotante();
@@ -176,13 +180,16 @@ async function loadHistory(){
   refs.history.value=conversationId||"";
  }catch(e){status("No se pudo cargar el historial: "+e.message);}
 }
-async function open(){
+async function open(startTab="ia",selectedConversationId=null){
  opened=!opened;
  refs.panel.hidden=!opened;
  refs.launch.setAttribute("aria-expanded",String(opened));
  document.body.classList.toggle("ia-open",opened);
  if(opened){
   viewport();
+  // Si existe un chat pendiente, abrirlo directamente, sin cargar la IA
+  // ni esperar llamadas al modelo. El mensaje real se muestra primero.
+  if(startTab==="chat")return await switchTab("chat",selectedConversationId);
   try{
    const st=await call({kind:"status"});
    const rol=st.role==="owner"?"Sistema Admin":st.role==="admin"?"Administrador":"Residente";
@@ -202,6 +209,9 @@ async function open(){
   if("speechSynthesis" in window)window.speechSynthesis.cancel();
   try{recognizer?.stop();}catch{}
   refs.launch.focus();
+  // Al salir del chat inicial se muestra Control Digital, sin quitar el
+  // pendiente: volverá a aparecer al iniciar sesión si no respondió.
+  window.residentePendientesAlCerrarChatInicial?.();
  }
 }
 function startListening(){
@@ -286,9 +296,9 @@ window.aiInitialize=init;
 // Abrir la conversación exacta desde el recordatorio de pendientes.
 // Nunca envía mensajes automáticamente: el residente debe pulsar Enviar.
 window.iaAbrirChatPendiente=async function(conversationId){
- if(!opened)await open();
- if(!opened)return;
- await switchTab("chat",conversationId||null);
+ if(!mount)init();
+ if(!opened)return await open("chat",conversationId||null);
+ return await switchTab("chat",conversationId||null);
 };
 if(!document.getElementById("app")?.classList.contains("hidden"))init();
 })();
