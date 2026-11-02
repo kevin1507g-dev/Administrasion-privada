@@ -169,6 +169,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </style>
 <link rel="stylesheet" href="./ui-modern.css?v=owner-circular22" />
 <link rel="stylesheet" href="./mp-sandbox.css?v=mp-lab1" />
+<link rel="stylesheet" href="./asistente-ia.css?v=1" />
 </head>
 <body>
 <div id="login" class="login"><div class="card">
@@ -3175,6 +3176,7 @@ async function enter(){
  // puede abrir otra seccion despues, conservando el acceso directo.
  if(profile.rol==='residente') show('controlDigital');
  await abrirRutaNotificacion();
+ if(typeof window.aiInitialize==='function')window.aiInitialize();
 }
 async function loadAll(){
  const [ca,pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,inc,im,ia,en,cs,cm,nt,nl,pk,rs,dc,em]=await Promise.all([
@@ -7247,5 +7249,6 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizar
 </script>
 <script src="./disciplina.js?v=10"></script>
 <script src="./biometrico.js?v=1"></script>
+<script src="./asistente-ia.js?v=1"></script>
 </body></html>
 
