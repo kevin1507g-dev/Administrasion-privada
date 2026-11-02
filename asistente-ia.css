@@ -107,3 +107,22 @@ body.ia-open{overflow:hidden!important}
 #chatDestinoResidente label{display:block;font-weight:700}
 #chatDestinoRol{width:100%;max-width:100%;min-height:44px;background:#163640;color:#f0f9f6;border:1px solid #40857b;border-radius:10px;font-size:16px;padding:8px 10px}
 #chatDestinoRol:focus-visible{outline:3px solid #41dab5;outline-offset:2px}
+
+
+/* Reservaciones guiadas en el asistente residencial: formulario táctil para iPhone. */
+.ia-reserva-wizard{display:flex;flex-direction:column;gap:10px;margin-top:12px;padding:12px;border:1px solid #579f8d;border-radius:13px;background:rgba(26,77,70,.23);max-width:100%;box-sizing:border-box}
+.ia-reserva-wizard>strong{font-size:15px;color:inherit}
+.ia-reserva-wizard>p{margin:0;font-size:13px;line-height:1.45}
+.ia-reserva-field{display:flex;flex-direction:column;gap:5px;min-width:0;font-size:13px;font-weight:650}
+.ia-reserva-field input,.ia-reserva-field select{
+ box-sizing:border-box;max-width:100%;width:100%;min-height:43px;border:1px solid #7b9d9a;border-radius:10px;
+ background:#13303b;color:#fff;padding:9px 10px;font:normal 16px system-ui,-apple-system,sans-serif;color-scheme:dark}
+.ia-reserva-field select{white-space:normal}
+.ia-reserva-feedback{font-size:12px;overflow-wrap:anywhere;color:#b7ead9;line-height:1.45;min-height:1.2em}
+.ia-reserva-occupied{font-size:12px;line-height:1.4;white-space:normal;overflow-wrap:anywhere}
+.ia-reserva-actions{display:flex;flex-wrap:wrap;gap:8px}
+.ia-reserva-wizard button{min-height:43px;border-radius:10px;padding:9px 12px;white-space:normal;text-align:center;font-size:13px;line-height:1.35;cursor:pointer}
+.ia-reserva-primary{background:#078569!important;color:#fff!important;border:1px solid #24bc9c!important}
+.ia-reserva-danger{background:#872f3e!important;color:#fff!important;border:1px solid #db6880!important}
+.ia-reserva-wizard button:disabled{cursor:default;opacity:.55}
+.ia-reserva-wizard input:focus-visible,.ia-reserva-wizard select:focus-visible,.ia-reserva-wizard button:focus-visible{outline:3px solid #42ebc1;outline-offset:2px}

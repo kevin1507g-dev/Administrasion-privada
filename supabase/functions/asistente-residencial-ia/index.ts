@@ -75,6 +75,33 @@ async function plan(message,ctx,history,options){
  try{r=JSON.parse(data.choices?.[0]?.message?.content||"{}");}catch{r={};}
  return {mode:"modelo",route:{tool:tools.includes(r.tool)?r.tool:"ayuda",house:/^\d{1,5}$/.test(String(r.house||""))?String(r.house):"",action:actions.includes(r.action)?r.action:null,target_id:corto(r.target_id,70)}};
 }
+
+function reservationIntent(message){
+ const m=message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+ if(!/\b(reserv|reservacion|reservaciones|apartar|apartado)\w*/.test(m))return null;
+ if(/\b(cancel|anul|dar de baja)\w*/.test(m))return "cancel";
+ if(/\b(quiero|necesito|solicitar|hacer|crear|registrar|apart|ayud|puedo|como|disponib|agendar)\w*/.test(m))
+   return "create";
+ return null;
+}
+async function reservationAssistance(ctx,intent,message){
+ if(ctx.p.rol!=="residente")return null;
+ if(!ctx.p.casa_id) return {answer:"Tu cuenta no tiene una casa asignada. Solicita a Administración que la actualice antes de reservar."};
+ const booked=await ok(ctx.db.from("reservaciones")
+  .select("id,fecha,hora_inicio,hora_fin,notas,estado,area")
+  .eq("casa_id",ctx.p.casa_id).eq("creado_por",ctx.uid)
+  .order("fecha",{ascending:false}).limit(100));
+ if(intent==="cancel"){
+  const canCancel=booked.filter(x=>["pendiente","aprobada"].includes(x.estado));
+  if(!canCancel.length)return {answer:"No encontré reservaciones tuyas pendientes o aprobadas para cancelar. Si el evento aprobado ya comenzó, debes contactar a Administración.",reservation:{mode:"cancel",items:[]}};
+  return {answer:"Estas son tus reservaciones. Elige cuál deseas cancelar y confirma. No podrás cancelar por tu cuenta un evento aprobado que ya empezó.",reservation:{
+   mode:"cancel",items:canCancel.map(x=>({id:x.id,fecha:x.fecha,inicio:String(x.hora_inicio).slice(0,5),fin:String(x.hora_fin).slice(0,5),estado:x.estado,notas:corto(x.notas,80)}))
+  }};
+ }
+ const guess=(message.match(/\b20\d{2}-\d{2}-\d{2}\b/)||[])[0]||"";
+ return {answer:"Te ayudo a solicitar una reservación del portón para tu evento. Selecciona fecha, horario del mismo día y motivo; puedes revisar los horarios ocupados. Al confirmar, la reservación quedará pendiente de aprobación por Administración y no abrirá el portón automáticamente.",reservation:{mode:"create",suggested_date:guess}};
+}
+
 async function optionsFor(ctx){
  if(ctx.p.rol!=="owner")return {};
  const [e,r,c]=await Promise.all([
@@ -241,6 +268,34 @@ Deno.serve(async(req)=>{
    if(error)throw Error(error.message);
    return reply({ok:true,config:data});
   }
+  if(["reservation_availability","reservation_create","reservation_cancel"].includes(kind)){
+   if(ctx.p.rol!=="residente"||!ctx.p.casa_id)throw Error("Solo un residente con casa asignada puede solicitar o cancelar sus reservas.");
+   if(kind==="reservation_availability"){
+    const fecha=String(body.fecha||"");
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha))return reply({error:"Indica una fecha válida (AAAA-MM-DD)."},400);
+    const {data,error}=await ctx.db.rpc("ia_reservaciones_ocupadas",{p_fecha:fecha});
+    if(error)return reply({error:corto(error.message,220)},400);
+    return reply({ok:true,ocupados:data||[]});
+   }
+   if(kind==="reservation_create"){
+    const fecha=String(body.fecha||""),inicio=String(body.inicio||""),fin=String(body.fin||"");
+    const notas=String(body.notas||"").trim(),solicitud=String(body.solicitud_id||"");
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha)||
+      !/^\d{2}:\d{2}$/.test(inicio)||!/^\d{2}:\d{2}$/.test(fin)||
+      notas.length>300||!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(solicitud))
+      return reply({error:"Completa correctamente fecha, horario y notas."},400);
+    const {data,error}=await ctx.db.rpc("ia_residente_reservar",{
+      p_fecha:fecha,p_inicio:inicio,p_fin:fin,p_notas:notas,p_solicitud_id:solicitud
+    });
+    if(error)return reply({error:corto(error.message,220)},400);
+    return reply({ok:true,result:data});
+   }
+   const id=String(body.reservacion_id||"");
+   if(!/^[0-9a-f-]{36}$/i.test(id))return reply({error:"Selecciona una reservación válida."},400);
+   const {data,error}=await ctx.db.rpc("ia_residente_cancelar_reservacion",{p_reservacion_id:id});
+   if(error)return reply({error:corto(error.message,220)},400);
+   return reply({ok:true,result:data});
+  }
   if(kind==="history"){
    const cs=await ok(ctx.db.from("ia_conversaciones").select("id,titulo,updated_at").order("updated_at",{ascending:false}).limit(25));
    const cid=body.conversationId?await convo(ctx,String(body.conversationId)):null;
@@ -269,11 +324,14 @@ Deno.serve(async(req)=>{
   const prior=await ok(ctx.db.from("ia_mensajes").select("rol,contenido").eq("conversacion_id",cid).order("id",{ascending:false}).limit(6));
   const opts=await optionsFor(ctx);
   const orderedPrior=prior.reverse();
+  const intent=ctx.p.rol==="residente"?reservationIntent(message):null;
   const direct=consultaDirecta(message);
-  const planned=direct?{route:{tool:direct,house:"",action:null,target_id:""},mode:"consulta_precisa"}:
+  const planned=intent?{route:{tool:"reservaciones",house:"",action:null,target_id:""},mode:"reserva_guiada"}:
+    direct?{route:{tool:direct,house:"",action:null,target_id:""},mode:"consulta_precisa"}:
     await plan(message,ctx,orderedPrior,opts);
   const {route,mode}=planned;
-  const answer=route.action?await propose(ctx,route,opts):await runQuery(ctx,route.tool,route.house,orderedPrior);
+  const answer=intent?await reservationAssistance(ctx,intent,message):
+    route.action?await propose(ctx,route,opts):await runQuery(ctx,route.tool,route.house,orderedPrior);
   if(!ctx.admin)throw Error("No está configurado el servicio de historial.");
   const {error:userErr}=await ctx.db.from("ia_mensajes").insert({conversacion_id:cid,usuario_id:ctx.uid,rol:"user",contenido:message});
   if(userErr)throw Error(userErr.message);
