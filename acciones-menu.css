@@ -19,7 +19,7 @@ td.ar-action-cell .ar-action-trigger.ar-open{
 }
 td.ar-action-cell .ar-action-trigger:focus-visible{outline:3px solid var(--g,#36d4a4)!important;outline-offset:2px!important}
 .ar-action-popup{
- position:fixed!important;inset:auto!important;display:flex!important;flex-direction:column!important;
+ position:fixed!important;display:flex!important;flex-direction:column!important;
  gap:4px!important;box-sizing:border-box!important;overflow-x:hidden!important;overflow-y:auto!important;
  min-width:190px!important;max-width:calc(100vw - 18px)!important;
  margin:0!important;padding:7px!important;
@@ -58,4 +58,24 @@ td.ar-action-cell .ar-action-trigger:focus-visible{outline:3px solid var(--g,#36
 }
 @media(prefers-reduced-motion:reduce){
  .ar-action-popup,.ar-action-popup *{transition:none!important;animation:none!important}
+}
+
+/* Opciones en tarjetas de Avisos y multas: solo botones administrativos,
+   no formularios ni acciones físicas del portón. */
+.ar-card-action-control{display:flex!important;justify-content:flex-end!important;margin-top:9px!important}
+.ar-card-action-control .ar-action-trigger{
+ display:inline-flex!important;align-items:center!important;justify-content:center!important;
+ width:42px!important;min-width:42px!important;height:42px!important;min-height:42px!important;
+ padding:0!important;margin:0!important;border-radius:12px!important;
+ border:1px solid var(--ui-line,rgba(150,180,215,.28))!important;
+ background:var(--ui-raised,#20344d)!important;color:var(--t,#f7fbff)!important;
+ font-size:28px!important;line-height:1!important;cursor:pointer!important;
+ box-shadow:none!important;transform:none!important;
+}
+.ar-card-action-control .ar-action-trigger:hover,
+.ar-card-action-control .ar-action-trigger.ar-open{
+ background:var(--g,#0b997e)!important;color:#fff!important;
+}
+.ar-card-action-control .ar-action-trigger:focus-visible{
+ outline:3px solid var(--g,#36d4a4)!important;outline-offset:2px!important;
 }
