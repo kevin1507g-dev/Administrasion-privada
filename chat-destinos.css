@@ -1,0 +1,18 @@
+/* Tres destinos del chat administrativo; compatible con chat embebido en IA. */
+#chatModoPicker,#chatStaffPicker{flex:0 0 auto!important}
+#chatModoPicker label,#chatStaffPicker label{display:block!important;margin:0 0 7px!important;font-size:13px!important;font-weight:750!important;color:#d8f7eb!important}
+#chatModoStaff,#chatStaffAdminSelect{
+ box-sizing:border-box!important;width:100%!important;max-width:100%!important;
+ min-height:44px!important;padding:10px 11px!important;font-size:16px!important;
+ line-height:1.3!important;border:1px solid #458579!important;border-radius:11px!important;
+ background:#123b40!important;color:#f4fff9!important;
+}
+#chatModoStaff:focus-visible,#chatStaffAdminSelect:focus-visible{outline:3px solid #3ce5c1!important;outline-offset:2px!important}
+#chatModoAyuda{color:#b5d7cc!important;line-height:1.42!important}
+.chatResidentPicker{flex:0 0 auto}
+.ia-chat-host #chatModoPicker,.ia-chat-host #chatStaffPicker{padding:9px 12px!important;background:#0d2931!important}
+.ia-chat-host #chatModoPicker label,.ia-chat-host #chatStaffPicker label{font-size:12px!important}
+@media(max-width:700px){
+ #chatModoStaff,#chatStaffAdminSelect{min-height:46px!important}
+ #chatModoPicker,#chatStaffPicker{padding:8px 10px!important}
+}
