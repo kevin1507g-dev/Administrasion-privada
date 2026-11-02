@@ -221,7 +221,11 @@
         items[next].focus();
       }
     });
-    window.addEventListener('scroll',()=>closeMenu(),true);
+    window.addEventListener('scroll',event=>{
+      // Permitir desplazar un listado largo de opciones sin cerrarlo.
+      if(pop && pop.contains(event.target))return;
+      closeMenu();
+    },true);
     window.addEventListener('resize',()=>closeMenu());
     window.visualViewport?.addEventListener('resize',()=>closeMenu());
     const observer=new MutationObserver(records=>{
