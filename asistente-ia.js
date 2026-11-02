@@ -103,6 +103,8 @@ async function open(){
   try{
    const st=await call({kind:"status"});
    status((st.model_enabled?"Modelo disponible":"Modelo no configurado; consultas limitadas")+" · "+(st.role==="owner"?"Sistema Admin":st.role));
+   refs.headTitle.textContent=(st.icon||"✦")+" "+(st.name||"Asistente Residencial IA");
+   refs.config.hidden=st.role!=="owner";
   }catch(e){status("Error: "+e.message);}
   await loadHistory();
  }else if("speechSynthesis" in window)window.speechSynthesis.cancel();
@@ -125,11 +127,13 @@ function init(){
  refs.panel=node("section",{className:"ia-panel"},mount);
  refs.panel.hidden=true;refs.panel.setAttribute("aria-label","Asistente Residencial IA");
  const head=node("header",{className:"ia-head"},refs.panel);
- node("strong",{text:"✦ Asistente Residencial IA"},head);
+ refs.headTitle=node("strong",{text:"✦ Asistente Residencial IA"},head);
  const close=node("button",{type:"button",className:"ia-close",text:"×",aria:"Cerrar asistente"},head);
  const controls=node("div",{className:"ia-top-controls"},refs.panel);
  refs.history=node("select",{aria:"Historial de conversaciones"},controls);
  const newBtn=node("button",{type:"button",text:"＋ Nueva",aria:"Nueva conversación"},controls);
+ refs.alerts=node("button",{type:"button",text:"🔔 Alertas",aria:"Alertas de IA"},controls);
+ refs.config=node("button",{type:"button",text:"⚙",aria:"Configurar nombre e icono"},controls);refs.config.hidden=true;
  refs.status=node("p",{className:"ia-status",text:"Verificando acceso…"},refs.panel);
  refs.messages=node("div",{className:"ia-messages"},refs.panel);refs.messages.setAttribute("role","log");refs.messages.setAttribute("aria-live","polite");
  const compose=node("div",{className:"ia-compose"},refs.panel);
@@ -139,6 +143,25 @@ function init(){
  const speak=node("button",{type:"button",text:"🔇",aria:"Activar lectura en voz alta"},actionsRow);
  refs.send=node("button",{type:"button",className:"ia-send",text:"Enviar"},actionsRow);
  refs.launch.onclick=open;close.onclick=open;refs.send.onclick=send;refs.mic.onclick=startListening;
+ refs.alerts.onclick=async()=>{
+  try{
+   const a=await call({kind:"alerts"});
+   addMessage("assistant",a.alerts?.length?"Alertas recientes de la plataforma:":"No tienes alertas registradas.");
+   for(const item of (a.alerts||[]).slice(0,15))addMessage("assistant",String(item.titulo||"Alerta")+": "+String(item.detalle||""));
+  }catch(e){status("No se pudieron consultar las alertas: "+e.message);}
+ };
+ refs.config.onclick=async()=>{
+  if(refs.config.hidden)return;
+  const name=prompt("Nombre del asistente (5 a 45 caracteres):",refs.headTitle.textContent.replace(/^[✦🤖🏠🛡️]+\\s*/u,""));
+  if(name===null)return;
+  const icon=prompt("Icono del asistente: ✦, 🤖, 🏠 o 🛡️","✦");
+  if(icon===null)return;
+  if(!confirm("¿Guardar este nombre e icono para toda la plataforma?"))return;
+  try{
+   const c=await call({kind:"configure",name:name.trim(),icon:icon.trim()});
+   refs.headTitle.textContent=c.config.icono+" "+c.config.nombre;status("Configuración guardada.");
+  }catch(e){status("No se guardó la configuración: "+e.message);}
+ };
  speak.onclick=()=>{voiceEnabled=!voiceEnabled;speak.textContent=voiceEnabled?"🔊":"🔇";speak.setAttribute("aria-label",voiceEnabled?"Desactivar voz":"Activar voz");if(!voiceEnabled&&"speechSynthesis" in window)window.speechSynthesis.cancel();};
  refs.text.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}};
  newBtn.onclick=async()=>{conversationId=null;await loadHistory();refs.text.focus();};
