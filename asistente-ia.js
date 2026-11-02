@@ -64,7 +64,7 @@ async function switchTab(target){
   panel.classList.add("ia-embedded-chat");
   chatLoading=true;
   try{await abrirChatFlotante();}catch(err){
-   refs.chatHost.textContent="No se pudo abrir el chat: "+String(err?.message||"inténtalo de nuevo.");
+   node("p",{className:"ia-chat-error",text:"No se pudo abrir el chat: "+String(err?.message||"inténtalo de nuevo.")},refs.chatHost);
   }finally{chatLoading=false;refreshChatTab();}
  }else{
   if(typeof cerrarChatFlotante==="function")cerrarChatFlotante();
