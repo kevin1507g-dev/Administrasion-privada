@@ -79,7 +79,7 @@ async function switchTab(target,conversationToOpen=null){
 function starters(){
  const wrap=node('div',{className:'ia-starters'},refs.messages);
  const own=typeof profile!=='undefined'&&profile?.rol==='residente';
- const questions=own?['Quiero reservar el portón','Cancelar mi reservación','¿Cuánto debo?','Mis pagos']:
+ const questions=own?['Reportar incidente','Mis reportes de incidentes','Quiero reservar el portón','Cancelar mi reservación','¿Cuánto debo?','Mis pagos']:
   ['¿De qué casa soy?','Pendientes de toda la privada','Casas con más adeudos'];
  for(const q of questions){const b=node('button',{type:'button',text:q},wrap);b.onclick=()=>{refs.text.value=q;send();};}
 }
@@ -191,6 +191,95 @@ function reservationWizard(parent,config){
  }
 }
 
+
+async function openIncidentFollowup(id){
+ // Usar el módulo de seguimiento existente, con permisos RLS del residente.
+ if(opened)await open();
+ if(typeof show==="function")show("incidentes");
+ if(typeof loadAll==="function")await loadAll();
+ if(id && typeof abrirIncidente==="function")abrirIncidente(id);
+}
+function incidentWizard(parent,config){
+ const wrap=node("div",{className:"ia-incidente-wizard"},parent);
+ const mode=config.mode;
+ node("strong",{text:mode==="create"?"⚠️ Crear reporte privado":"📋 Mis reportes privados"},wrap);
+ const feedback=node("p",{className:"ia-incidente-feedback",text:""},wrap);
+ feedback.setAttribute("role","status");
+ if(mode==="list"){
+  if(!Array.isArray(config.items)||!config.items.length){
+   node("p",{text:"No tienes reportes creados por tu cuenta."},wrap);return;
+  }
+  for(const item of config.items.slice(0,30)){
+   const row=node("div",{className:"ia-incidente-row"},wrap);
+   const info=node("div",{},row);
+   node("strong",{text:String(item.titulo||"Incidente").slice(0,160)},info);
+   node("small",{text:String(item.categoria||"Otro")+" · "+String(item.estado||"nuevo")+" · "+
+     String(item.fecha||"").slice(0,10)},info);
+   const btn=node("button",{type:"button",text:"Ver seguimiento"},row);
+   btn.onclick=async()=>{btn.disabled=true;try{await openIncidentFollowup(item.id);}catch(e){feedback.textContent=e.message;}finally{btn.disabled=false;}};
+  }
+  return;
+ }
+ node("p",{text:"Solo Administración y Sistema Admin podrán consultar tu identidad y el reporte. Los demás residentes no lo verán."},wrap);
+ let requestId=crypto.randomUUID();
+ const markChanged=()=>{requestId=crypto.randomUUID();feedback.textContent="";};
+ const field=(name,label,choices)=>{
+  const holder=node("label",{className:"ia-incidente-field"},wrap);
+  node("span",{text:label},holder);
+  let control;
+  if(Array.isArray(choices)){
+   control=node("select",{},holder);
+   for(const option of choices){
+    const value=Array.isArray(option)?option[0]:option;
+    const text=Array.isArray(option)?option[1]:option;
+    const opt=node("option",{text},control);opt.value=value;
+   }
+  }else{
+   control=node(name==="descripcion"?"textarea":"input",{},holder);
+   if(name!=="descripcion")control.type="text";
+  }
+  control.setAttribute("aria-label",label);
+  control.addEventListener("change",markChanged);
+  return control;
+ };
+ const category=field("categoria","Categoría",[
+  "Convivencia","Ruido","Estacionamiento","Mascotas","Seguridad","Daños","Reglamento","Otro"
+ ]);
+ const priority=field("prioridad","Prioridad",[
+  ["normal","Normal"],["alta","Alta"],["urgente","Urgente"]
+ ]);
+ const person=field("persona","Persona involucrada (opcional)");
+ person.maxLength=120;person.placeholder="Descripción breve, si es relevante";
+ const title=field("titulo","Asunto del reporte");
+ title.maxLength=160;title.minLength=6;title.placeholder="Ej. Ruido constante durante la noche";
+ const description=field("descripcion","Descripción del incidente");
+ description.maxLength=3000;description.minLength=15;
+ description.rows=4;description.placeholder="Explica qué ocurrió, cuándo y dónde. Escribe solo lo que sabes.";
+ // Actualizar identificador de envío en cuanto se modifica el texto.
+ for(const el of [person,title,description])el.addEventListener("input",markChanged);
+ node("small",{text:"Las fotos o documentos se pueden adjuntar después de enviar el reporte, desde Incidentes → Seguimiento."},wrap);
+ node("small",{text:"Si existe un peligro inmediato, comunícate directamente con los servicios de emergencia; esta función no es atención en tiempo real."},wrap);
+ const save=node("button",{type:"button",className:"ia-incidente-submit",text:"Enviar reporte a Administración"},wrap);
+ save.onclick=async()=>{
+  const titulo=title.value.trim(),descripcion=description.value.trim();
+  if(titulo.length<6||titulo.length>160||descripcion.length<15||descripcion.length>3000){
+   feedback.textContent="Escribe un asunto de 6 a 160 caracteres y una descripción de 15 a 3000 caracteres.";return;
+  }
+  if(!window.confirm("¿Enviar este reporte privado a Administración y Sistema Admin? Podrás consultar su seguimiento."))return;
+  save.disabled=true;feedback.textContent="Guardando reporte privado…";
+  try{
+   const r=await call({kind:"incident_create",categoria:category.value,prioridad:priority.value,
+    persona:person.value.trim(),titulo,descripcion,solicitud_id:requestId});
+   if(!r.result?.ok||!r.result?.id)throw Error("El servidor no confirmó el registro.");
+   feedback.textContent="✓ Reporte registrado y enviado a Administración.";
+   addMessage("assistant","Tu reporte «"+titulo+"» fue enviado de forma privada. Estado: Nuevo. Administración y Sistema Admin recibirán la notificación.");
+   wrap.querySelectorAll("input,textarea,select,button").forEach(x=>x.disabled=true);
+   const follow=node("button",{type:"button",className:"ia-incidente-followup",text:"📎 Ver seguimiento y adjuntar evidencias"},wrap);
+   follow.onclick=async()=>{follow.disabled=true;try{await openIncidentFollowup(r.result.id);}catch(e){feedback.textContent=e.message;}finally{follow.disabled=false;}};
+  }catch(e){feedback.textContent="No se pudo enviar: "+e.message;save.disabled=false;}
+ };
+}
+
 function addMessage(role,text,extras={}){
  const container=node("div",{className:"ia-message ia-"+role},refs.messages);
  node("div",{className:"ia-message-text",text:String(text||"")},container);
@@ -208,6 +297,9 @@ function addMessage(role,text,extras={}){
  }
  if(extras.reservation && typeof extras.reservation==="object"){
   reservationWizard(container,extras.reservation);
+ }
+ if(extras.incident && typeof extras.incident==="object"){
+  incidentWizard(container,extras.incident);
  }
  if(extras.open_chat){
   const openChat=node("button",{type:"button",className:"ia-open-chat",text:"💬 Abrir chat privado"},container);
