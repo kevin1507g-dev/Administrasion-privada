@@ -18,7 +18,7 @@ async function context(req){
  const {data:u,error:e}=await db.auth.getUser(jwt);
  if(e||!u?.user)throw Error("La sesión ya no es válida.");
  const {data:p,error:pe}=await db.from("profiles").select("id,rol,casa_id,nombre,activo,estado_registro").eq("id",u.user.id).single();
- if(pe||!p||p.activo!==true||p.estado_registro!=="aprobado"||!roles.includes(p.rol))throw Error("La cuenta no está autorizada.");
+ if(pe||!p||p.activo!==true||(p.estado_registro&&p.estado_registro!=="aprobado")||!roles.includes(p.rol))throw Error("La cuenta no está autorizada.");
  return {db,admin:secret?createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}}):null,p,uid:u.user.id};
 }
 async function convo(ctx,id){
@@ -149,7 +149,22 @@ Deno.serve(async(req)=>{
  try{
   const ctx=await context(req),body=await req.json().catch(()=>({}));
   const kind=String(body.kind||"message");
-  if(kind==="status")return reply({ok:true,role:ctx.p.rol,name:"Asistente Residencial IA",model_enabled:!!Deno.env.get("OPENAI_API_KEY")});
+  if(kind==="status"){
+   const config=await ok(ctx.db.from("ia_configuracion").select("nombre,icono").eq("id",true).limit(1));
+   return reply({ok:true,role:ctx.p.rol,name:config[0]?.nombre||"Asistente Residencial IA",icon:config[0]?.icono||"✦",model_enabled:!!Deno.env.get("OPENAI_API_KEY")});
+  }
+  if(kind==="alerts"){
+   const alerts=await ok(ctx.db.from("ia_alertas").select("id,tipo,titulo,detalle,fecha,created_at").order("created_at",{ascending:false}).limit(25));
+   return reply({ok:true,alerts});
+  }
+  if(kind==="configure"){
+   if(ctx.p.rol!=="owner")throw Error("Solo Sistema Admin puede configurar el asistente.");
+   const nombre=String(body.name||"").trim(),icon=String(body.icon||"✦");
+   if(nombre.length<5||nombre.length>45||!["✦","🤖","🏠","🛡️"].includes(icon))throw Error("Nombre o icono no permitido.");
+   const {data,error}=await ctx.db.from("ia_configuracion").update({nombre,icono:icon,updated_at:new Date().toISOString()}).eq("id",true).select("nombre,icono").single();
+   if(error)throw Error(error.message);
+   return reply({ok:true,config:data});
+  }
   if(kind==="history"){
    const cs=await ok(ctx.db.from("ia_conversaciones").select("id,titulo,updated_at").order("updated_at",{ascending:false}).limit(25));
    const cid=body.conversationId?await convo(ctx,String(body.conversationId)):null;
