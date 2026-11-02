@@ -34,9 +34,9 @@
   function actionElements(source){
     return [...source.querySelectorAll('button,a[href],[role="button"]')].filter(el=>
       !el.matches('.ar-action-trigger,[data-ar-skip]') &&
-      !el.closest('.ar-action-cell .ar-action-trigger') &&
-      !el.closest('[hidden],[aria-hidden="true"]') &&
-      // CSS oculta el propio origen, no se usa getComputedStyle.
+      // La fuente tiene aria-hidden y display:none para no duplicar botones
+      // accesibles; eso NO debe excluir a las acciones originales.
+      !el.hidden && el.getAttribute('aria-hidden')!=='true' &&
       el.style.display!=='none' && !el.classList.contains('hidden')
     );
   }
@@ -141,6 +141,11 @@
     // el onclick y el event bubbling continúan funcionando.
     while(cell.firstChild)source.appendChild(cell.firstChild);
     cell.appendChild(source);
+    const trigger=createTrigger(cell);
+    cell.appendChild(trigger);
+    cell.classList.add(CELL_CLASS);
+  }
+  function createTrigger(cell){
     const trigger=document.createElement('button');
     trigger.type='button';
     trigger.className=BUTTON_CLASS;
@@ -153,8 +158,22 @@
       event.stopPropagation();
       openMenu(trigger,cell);
     });
-    cell.appendChild(trigger);
-    cell.classList.add(CELL_CLASS);
+    return trigger;
+  }
+  function processCard(card){
+    if(card.dataset.arActionCard==='1')return;
+    const buttons=[...card.children].filter(el=>el.tagName==='BUTTON'&&!el.matches('[data-ar-skip]'));
+    if(!buttons.length)return;
+    const area=document.createElement('div');
+    area.className='ar-card-action-control';
+    const source=document.createElement('span');
+    source.className=SOURCE_CLASS;
+    source.setAttribute('aria-hidden','true');
+    for(const button of buttons)source.appendChild(button);
+    area.appendChild(source);
+    area.appendChild(createTrigger(area));
+    card.appendChild(area);
+    card.dataset.arActionCard='1';
   }
   function refresh(){
     pending=false;
@@ -171,6 +190,8 @@
         }
       }
     });
+    document.querySelectorAll('#disciplinaLista > article.card, #avisosLista > .card.notice')
+      .forEach(processCard);
     if(activeTrigger && !activeTrigger.isConnected)closeMenu();
   }
   function schedule(){
