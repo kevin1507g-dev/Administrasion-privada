@@ -7,6 +7,11 @@
 "use strict";
 let root=null,card=null,bubble=null,closeButton=null,lastSignature="",minimizedSignature="";
 let isExpanded=false,updateTimer=null,openingChat=false;
+// Cada mensaje pendiente se abre una sola vez por sesión, evitando un bucle
+// si el residente cierra el chat sin responder. Al iniciar de nuevo, se abrirá.
+let autoChatReady=false,autoChatOpening=false,initialChatNeedsControl=false;
+let currentResidentId=null;
+const shownMessagesThisSession=new Set();
 
 function obtenerPendientesResidente({uid,rol,conversaciones,mensajes,notificaciones:avisos,lecturas}){
  const empty={avisos:[],chats:[],signature:""};
@@ -139,17 +144,62 @@ function draw(state){
  }
  element("small","rp-pending-foot","Puedes minimizar el recordatorio sin marcar nada como leído.",card);
 }
+
+function syncResident(){
+ const uid=isResident()?String(user.id):null;
+ if(uid!==currentResidentId){
+  currentResidentId=uid;
+  shownMessagesThisSession.clear();
+  autoChatReady=false;autoChatOpening=false;initialChatNeedsControl=false;
+ }
+}
+async function abrirConversacionPendiente(state){
+ if(!autoChatReady||autoChatOpening||!isResident()||document.hidden||
+   document.body.classList.contains("ia-open"))return false;
+ const next=(state.chats||[]).find(c=>!shownMessagesThisSession.has(c.id+":"+c.mensajeId));
+ if(!next)return false;
+ const key=next.id+":"+next.mensajeId;
+ shownMessagesThisSession.add(key);
+ autoChatOpening=true;
+ try{
+  if(typeof window.iaAbrirChatPendiente!=="function")return false;
+  return await window.iaAbrirChatPendiente(next.id)===true;
+ }catch(e){
+  console.warn("No se pudo abrir automáticamente la conversación pendiente:",e);
+  return false;
+ }finally{autoChatOpening=false;}
+}
+
 function update(){
  if(document.hidden)return;
  if(updateTimer!==null)return;
  updateTimer=window.setTimeout(()=>{
   updateTimer=null;
+  syncResident();
   if(!isResident()){if(root)root.hidden=true;return;}
   init();
-  draw(pendingState());
+  const state=pendingState();
+  draw(state);
+  // Nuevo mensaje: abrir la conversación una sola vez por mensaje/sesión.
+  if(autoChatReady&&state.chats.length)void abrirConversacionPendiente(state);
  },80);
 }
-window.residentePendientesIniciar=()=>{init();update();};
+window.residentePendientesIniciar=()=>{syncResident();init();update();};
+window.residentePendientesAbrirChatInicial=async()=>{
+ syncResident();
+ if(!isResident())return false;
+ autoChatReady=true;
+ const state=pendingState();
+ if(!state.chats.length)return false;
+ const abierto=await abrirConversacionPendiente(state);
+ if(abierto)initialChatNeedsControl=true;
+ return abierto;
+};
+window.residentePendientesAlCerrarChatInicial=()=>{
+ if(!initialChatNeedsControl)return;
+ initialChatNeedsControl=false;
+ if(isResident()&&typeof show==="function")show("controlDigital");
+};
 window.residentePendientesActualizar=update;
 window.addEventListener("pageshow",update);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)update();});

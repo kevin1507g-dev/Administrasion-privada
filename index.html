@@ -171,7 +171,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <link rel="stylesheet" href="./mp-sandbox.css?v=mp-lab1" />
 <link rel="stylesheet" href="./asistente-ia.css?v=4" />
 <link rel="stylesheet" href="./acciones-menu.css?v=1" />
-<link rel="stylesheet" href="./chat-destinos.css?v=1" />
+<link rel="stylesheet" href="./chat-destinos.css?v=2" />
 <link rel="stylesheet" href="./pendientes-residente.css?v=1" />
 </head>
 <body>
@@ -1661,6 +1661,11 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     <select id="chatResidentSelect" onchange="seleccionarChatResidente()"></select>
   </div>
 
+  <div id="chatRespuestaPendiente" class="chatRespuestaPendiente hidden" role="status" aria-live="polite">
+    <strong id="chatRespuestaPendienteRemitente"></strong>
+    <p id="chatRespuestaPendienteTexto"></p>
+    <small>Este mensaje seguirá pendiente hasta que envíes una respuesta.</small>
+  </div>
   <div id="chatBody" class="chatBody">
     <div class="muted">Cargando mensajes…</div>
   </div>
@@ -3206,12 +3211,18 @@ async function enter(){
  sincronizarAccesibilidadMenu();
  iniciarNotificacionesEnVivo();
  prepararBotonChatMovible();
- // Los residentes ven el control virtual al entrar. Una ruta de notificacion
- // puede abrir otra seccion despues, conservando el acceso directo.
- if(profile.rol==='residente') show('controlDigital');
- await abrirRutaNotificacion();
  if(typeof window.aiInitialize==='function')window.aiInitialize();
  window.residentePendientesIniciar?.();
+
+ // PRIORIDAD DE INICIO PARA RESIDENTES:
+ // primero su conversación privada si el último mensaje administrativo
+ // todavía no fue contestado. Control Digital se muestra al cerrar el chat.
+ let chatInicialAbierto=false;
+ if(profile.rol==='residente'){
+  chatInicialAbierto=await window.residentePendientesAbrirChatInicial?.()===true;
+  if(!chatInicialAbierto)show('controlDigital');
+ }
+ if(!chatInicialAbierto)await abrirRutaNotificacion();
 }
 async function loadAll(){
  const [ca,pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,inc,im,ia,en,cs,cm,nt,nl,pk,rs,dc,em]=await Promise.all([
@@ -5007,6 +5018,8 @@ function seleccionarChatResidente(){
  marcarChatActualLeido();
 }
 function renderChatPanel(){
+ const avisoPendiente=document.getElementById('chatRespuestaPendiente');
+ if(avisoPendiente)avisoPendiente.classList.add('hidden');
  const body=document.getElementById('chatBody');
  const titulo=document.getElementById('chatTitulo');
  const subtitulo=document.getElementById('chatSubtitulo');
@@ -5043,6 +5056,18 @@ function renderChatPanel(){
   const conv=chatConversaciones.find(c=>String(c.residente_id)===String(user.id)&&
     (c.destinatario_rol||'general')===dest);
   chatConversacionActual=conv?.id||null;
+  // Mostrar el mensaje real pendiente. Marcarlo como leído no equivale a
+  // contestarlo; solo una nueva respuesta del residente elimina este aviso.
+  if(avisoPendiente&&conv&&['admin','owner'].includes(dest)){
+    const msgs=chatMensajes.filter(m=>String(m.conversacion_id)===String(conv.id));
+    const ultimo=msgs[msgs.length-1];
+    if(ultimo&&String(ultimo.autor_id)!==String(user.id)){
+      avisoPendiente.classList.remove('hidden');
+      document.getElementById('chatRespuestaPendienteRemitente').textContent=
+        '💬 Mensaje pendiente de '+etiquetaChatDestino(dest);
+      document.getElementById('chatRespuestaPendienteTexto').textContent=ultimo.mensaje||'';
+    }
+  }
   titulo.textContent='💬 '+etiquetaChatDestino(dest);
   subtitulo.textContent='Conversación privada con '+etiquetaChatDestino(dest);
   input.disabled=dest==='general';
@@ -7595,8 +7620,8 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizar
 </script>
 <script src="./disciplina.js?v=10"></script>
 <script src="./biometrico.js?v=1"></script>
-<script src="./asistente-ia.js?v=5"></script>
-<script src="./pendientes-residente.js?v=1"></script>
+<script src="./asistente-ia.js?v=6"></script>
+<script src="./pendientes-residente.js?v=2"></script>
 <script src="./acciones-menu.js?v=1"></script>
 </body></html>
 

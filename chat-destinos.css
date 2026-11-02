@@ -16,3 +16,21 @@
  #chatModoStaff,#chatStaffAdminSelect{min-height:46px!important}
  #chatModoPicker,#chatStaffPicker{padding:8px 10px!important}
 }
+
+/* Mensaje administrativo que aún requiere respuesta del residente. */
+#chatRespuestaPendiente.chatRespuestaPendiente{
+ flex:0 0 auto!important;margin:8px 10px 2px!important;padding:11px 12px!important;
+ background:#153f3c!important;color:#f3fff9!important;
+ border:1px solid #34bd95!important;border-radius:12px!important;
+ box-shadow:0 4px 15px rgba(0,0,0,.17)!important;
+ max-height:min(26dvh,195px)!important;overflow-y:auto!important;overscroll-behavior:contain;
+ overflow-wrap:anywhere!important;white-space:normal!important;
+}
+#chatRespuestaPendiente.chatRespuestaPendiente.hidden{display:none!important}
+#chatRespuestaPendienteRemitente{display:block!important;color:#aaf9d6!important;font-size:13px!important;line-height:1.3!important;margin:0 0 6px!important}
+#chatRespuestaPendienteTexto{font-size:14px!important;line-height:1.45!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important;margin:0 0 8px!important}
+#chatRespuestaPendiente small{display:block!important;color:#cae8de!important;font-size:11px!important;line-height:1.4!important}
+.ia-chat-host #chatRespuestaPendiente.chatRespuestaPendiente{max-height:min(22dvh,160px)!important}
+@media(max-width:700px){
+ #chatRespuestaPendiente.chatRespuestaPendiente{margin:7px 8px 0!important;padding:10px 11px!important}
+}
