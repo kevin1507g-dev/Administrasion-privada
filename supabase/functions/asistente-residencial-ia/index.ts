@@ -102,6 +102,36 @@ async function reservationAssistance(ctx,intent,message){
  return {answer:"Te ayudo a solicitar una reservación del portón para tu evento. Selecciona fecha, horario del mismo día y motivo; puedes revisar los horarios ocupados. Al confirmar, la reservación quedará pendiente de aprobación por Administración y no abrirá el portón automáticamente.",reservation:{mode:"create",suggested_date:guess}};
 }
 
+function incidentIntent(message){
+ const m=message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+  .replace(/[¿?¡!.,]/g," ").replace(/\s+/g," ").trim();
+ // Mantenimiento y avisos/multas utilizan sus módulos propios.
+ if(/\b(mantenimiento|multa|aviso de multa)\b/.test(m))return null;
+ if(!/\b(incidente|incidentes|reportar|reporte|reportes|queja|denuncia)\b/.test(m))return null;
+ if(/\b(mis reportes|mis incidentes|seguimiento|consultar|ver reportes|ver incidentes|estado de|como va|estatus|reportes enviados|reporte enviado)\b/.test(m))return "list";
+ if(/\b(crear|levantar|registrar|reportar|nuevo|enviar|hacer|quiero|necesito|ayudame|poner)\b/.test(m))return "create";
+ // La persona que dice "incidente" o "reporte de incidente" recibe ayuda de creación.
+ if(/\b(incidente|incidentes)\b/.test(m))return "create";
+ return null;
+}
+async function incidentAssistance(ctx,intent){
+ if(ctx.p.rol!=="residente")return null;
+ if(!ctx.p.casa_id)return {answer:"Tu cuenta no tiene casa asignada. Solicita a Administración que actualice tu perfil antes de reportar."};
+ if(intent==="list"){
+  const cases=await ok(ctx.db.from("incidentes")
+   .select("id,categoria,prioridad,titulo,estado,created_at")
+   .eq("reportado_por",ctx.uid).order("created_at",{ascending:false}).limit(30));
+  const items=cases.map(x=>({id:x.id,categoria:x.categoria,
+   prioridad:x.prioridad,titulo:corto(x.titulo,120),estado:x.estado,fecha:x.created_at}));
+  return {answer:items.length?
+   "Estos son tus reportes privados. Puedes abrir cada uno para ver el estado, escribir seguimiento o adjuntar fotografías y archivos.":
+   "Todavía no tienes reportes de incidentes creados por tu cuenta. Puedes decir «Reportar incidente» para iniciar uno.",
+   incident:{mode:"list",items}};
+ }
+ return {answer:"Te ayudaré a levantar un reporte privado de incidente. Selecciona categoría, prioridad, asunto y descripción; opcionalmente indica una persona involucrada. Al confirmar se notificará a Administración y Sistema Admin. Podrás agregar fotografías, archivos y mensajes de seguimiento desde Incidentes. Si existe peligro inmediato, comunícate directamente con los servicios de emergencia; este reporte no es un canal de atención urgente en tiempo real.",
+  incident:{mode:"create"}};
+}
+
 async function optionsFor(ctx){
  if(ctx.p.rol!=="owner")return {};
  const [e,r,c]=await Promise.all([
@@ -296,6 +326,27 @@ Deno.serve(async(req)=>{
    if(error)return reply({error:corto(error.message,220)},400);
    return reply({ok:true,result:data});
   }
+  if(kind==="incident_create"){
+   if(ctx.p.rol!=="residente"||!ctx.p.casa_id)
+    return reply({error:"Solo un residente con casa asignada puede crear este reporte."},403);
+   const categoria=String(body.categoria||"");
+   const prioridad=String(body.prioridad||"");
+   const persona=String(body.persona||"").trim();
+   const titulo=String(body.titulo||"").trim();
+   const descripcion=String(body.descripcion||"").trim();
+   const solicitud=String(body.solicitud_id||"");
+   if(!["Convivencia","Ruido","Estacionamiento","Mascotas","Seguridad","Daños","Reglamento","Otro"].includes(categoria)
+     ||!["normal","alta","urgente"].includes(prioridad)
+     ||titulo.length<6||titulo.length>160||descripcion.length<15||descripcion.length>3000
+     ||persona.length>120||!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(solicitud))
+     return reply({error:"Completa correctamente categoría, prioridad, asunto y descripción."},400);
+   const {data,error}=await ctx.db.rpc("ia_residente_crear_incidente",{
+    p_categoria:categoria,p_prioridad:prioridad,p_persona:persona,
+    p_titulo:titulo,p_descripcion:descripcion,p_solicitud_id:solicitud
+   });
+   if(error)return reply({error:corto(error.message,220)},400);
+   return reply({ok:true,result:data});
+  }
   if(kind==="history"){
    const cs=await ok(ctx.db.from("ia_conversaciones").select("id,titulo,updated_at").order("updated_at",{ascending:false}).limit(25));
    const cid=body.conversationId?await convo(ctx,String(body.conversationId)):null;
@@ -325,12 +376,15 @@ Deno.serve(async(req)=>{
   const opts=await optionsFor(ctx);
   const orderedPrior=prior.reverse();
   const intent=ctx.p.rol==="residente"?reservationIntent(message):null;
+  const incidentIntentValue=ctx.p.rol==="residente"?incidentIntent(message):null;
   const direct=consultaDirecta(message);
   const planned=intent?{route:{tool:"reservaciones",house:"",action:null,target_id:""},mode:"reserva_guiada"}:
+    incidentIntentValue?{route:{tool:"ayuda",house:"",action:null,target_id:""},mode:"incidente_guiado"}:
     direct?{route:{tool:direct,house:"",action:null,target_id:""},mode:"consulta_precisa"}:
     await plan(message,ctx,orderedPrior,opts);
   const {route,mode}=planned;
   const answer=intent?await reservationAssistance(ctx,intent,message):
+    incidentIntentValue?await incidentAssistance(ctx,incidentIntentValue):
     route.action?await propose(ctx,route,opts):await runQuery(ctx,route.tool,route.house,orderedPrior);
   if(!ctx.admin)throw Error("No está configurado el servicio de historial.");
   const {error:userErr}=await ctx.db.from("ia_mensajes").insert({conversacion_id:cid,usuario_id:ctx.uid,rol:"user",contenido:message});
