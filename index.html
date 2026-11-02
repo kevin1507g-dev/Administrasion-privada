@@ -169,7 +169,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </style>
 <link rel="stylesheet" href="./ui-modern.css?v=owner-circular22" />
 <link rel="stylesheet" href="./mp-sandbox.css?v=mp-lab1" />
-<link rel="stylesheet" href="./asistente-ia.css?v=3" />
+<link rel="stylesheet" href="./asistente-ia.css?v=4" />
 </head>
 <body>
 <div id="login" class="login"><div class="card">
@@ -1636,6 +1636,14 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
     <button type="button" class="mini" onclick="cerrarChatFlotante()" aria-label="Cerrar mensajes">✕</button>
   </div>
 
+  <div id="chatDestinoResidente" class="chatResidentPicker residentOnly hidden">
+    <label for="chatDestinoRol" style="margin:0 0 6px">¿Con quién quieres hablar?</label>
+    <select id="chatDestinoRol" onchange="seleccionarDestinoChatResidente()">
+      <option value="admin">Administración</option>
+      <option value="owner">Sistema Admin</option>
+    </select>
+    <p class="muted" style="font-size:12px;margin:6px 0 0">Cada conversación es privada y llega solamente al destinatario seleccionado.</p>
+  </div>
   <div id="chatAdminPicker" class="chatResidentPicker adminOnly hidden">
     <label style="margin:0 0 6px">Residente</label>
     <select id="chatResidentSelect" onchange="seleccionarChatResidente()"></select>
@@ -4615,217 +4623,210 @@ function renderChatBadge(){
   badge.classList.toggle('hidden',total===0);
 }
 
+function etiquetaChatDestino(rol){
+ return rol==='owner'?'Sistema Admin':rol==='admin'?'Administración':'Historial general';
+}
+function selectorDestinoChatResidente(){
+ const sel=document.getElementById('chatDestinoRol');
+ const box=document.getElementById('chatDestinoResidente');
+ if(!sel||!box||profile?.rol!=='residente')return;
+ box.classList.remove('hidden');
+ const general=chatConversaciones.some(c=>String(c.residente_id)===String(user?.id) &&
+  (c.destinatario_rol||'general')==='general');
+ if(general && ![...sel.options].some(x=>x.value==='general')){
+  sel.add(new Option('Historial general (anterior)','general'));
+ }
+ if(!general){
+  const op=[...sel.options].find(x=>x.value==='general');
+  if(op)op.remove();
+  if(sel.value==='general')sel.value='admin';
+ }
+}
+function seleccionarDestinoChatResidente(){
+ if(profile?.rol!=='residente')return;
+ const dest=document.getElementById('chatDestinoRol')?.value||'admin';
+ const conv=chatConversaciones.find(c=>
+   String(c.residente_id)===String(user.id) && (c.destinatario_rol||'general')===dest);
+ chatConversacionActual=conv?.id||null;
+ renderChatPanel();
+ marcarChatActualLeido();
+}
 function llenarSelectorChatAdmin(){
-  if(!isAdminProfileRole(profile?.rol))return;
-  const picker=document.getElementById('chatAdminPicker');
-  const select=document.getElementById('chatResidentSelect');
-  if(!picker||!select)return;
-
-  picker.classList.remove('hidden');
-
-  const residentes=residentesDisponiblesChat();
-  const actual=select.value;
-
-  select.innerHTML='<option value="">Selecciona un residente</option>'+
-    residentes.map(r=>
-      '<option value="'+r.id+'">Casa '+esc(r.unidad||'')+' — '+esc(r.nombre||'')+'</option>'
-    ).join('');
-
-  if(actual && [...select.options].some(o=>o.value===actual)){
-    select.value=actual;
-  }else if(chatConversacionActual){
-    const conv=chatConversaciones.find(c=>String(c.id)===String(chatConversacionActual));
-    if(conv && [...select.options].some(o=>o.value===String(conv.residente_id))){
-      select.value=String(conv.residente_id);
-    }
+ if(!isAdminProfileRole(profile?.rol))return;
+ const picker=document.getElementById('chatAdminPicker');
+ const select=document.getElementById('chatResidentSelect');
+ if(!picker||!select)return;
+ picker.classList.remove('hidden');
+ const old=select.value;
+ const propias=chatConversaciones.filter(c=>
+   (c.destinatario_rol||'general')===profile.rol ||
+   (c.destinatario_rol||'general')==='general');
+ const residentes=residentesDisponiblesChat();
+ const options=['<option value="">Selecciona un residente o conversación</option>'];
+ for(const r of residentes){
+  const convs=propias.filter(c=>String(c.residente_id)===String(r.id));
+  for(const c of convs){
+   options.push('<option value="conv:'+esc(String(c.id))+'">Casa '+esc(r.unidad||'')+
+    ' — '+esc(r.nombre||'')+' · '+esc(etiquetaChatDestino(c.destinatario_rol||'general'))+'</option>');
   }
+  if(!convs.some(c=>c.destinatario_rol===profile.rol)){
+   options.push('<option value="new:'+esc(String(r.id))+'">Casa '+esc(r.unidad||'')+
+     ' — '+esc(r.nombre||'')+' · Nueva conversación ('+
+     esc(etiquetaChatDestino(profile.rol))+')</option>');
+  }
+ }
+ select.innerHTML=options.join('');
+ const desired=old||('conv:'+(chatConversacionActual||''));
+ select.value=[...select.options].some(x=>x.value===desired)?desired:'';
 }
 
 async function abrirChatFlotante(conversacionId=null){
-  if(!user||!['owner','admin','residente'].includes(profile?.rol))return;
-
-  const panel=document.getElementById('chatPanel');
-  if(!panel)return;
-
-  panel.classList.remove('hidden');
-  await cargarChatDatos();
-
-  if(isAdminProfileRole(profile.rol)){
-    llenarSelectorChatAdmin();
-
-    if(conversacionId){
-      const conv=chatConversaciones.find(c=>String(c.id)===String(conversacionId));
-      if(conv){
-        chatConversacionActual=conv.id;
-        const select=document.getElementById('chatResidentSelect');
-        if(select)select.value=String(conv.residente_id);
-      }
-    }else if(!chatConversacionActual){
-      const conNoLeidos=chatConversaciones.find(c=>
-        chatMensajes.some(m=>
-          String(m.conversacion_id)===String(c.id) &&
-          String(m.autor_id)!==String(user.id) &&
-          !chatLecturas.some(l=>String(l.mensaje_id)===String(m.id))
-        )
-      );
-      if(conNoLeidos){
-        chatConversacionActual=conNoLeidos.id;
-        const select=document.getElementById('chatResidentSelect');
-        if(select)select.value=String(conNoLeidos.residente_id);
-      }
-    }
-  }else{
-    const conv=chatConversaciones.find(c=>String(c.residente_id)===String(user.id));
-    chatConversacionActual=conv?.id||null;
+ if(!user||!['owner','admin','residente'].includes(profile?.rol))return;
+ const panel=document.getElementById('chatPanel');
+ if(!panel)return;
+ panel.classList.remove('hidden');
+ await cargarChatDatos();
+ if(isAdminProfileRole(profile.rol)){
+  if(conversacionId){
+   const conv=chatConversaciones.find(c=>String(c.id)===String(conversacionId));
+   if(conv)chatConversacionActual=conv.id;
+  }else if(!chatConversacionActual){
+   const leidos=new Set(chatLecturas.map(l=>String(l.mensaje_id)));
+   const unread=chatMensajes.find(m=>String(m.autor_id)!==String(user.id)&&
+     !leidos.has(String(m.id)));
+   chatConversacionActual=unread?.conversacion_id||null;
   }
-
-  renderChatPanel();
-  await marcarChatActualLeido();
+  llenarSelectorChatAdmin();
+  const select=document.getElementById('chatResidentSelect');
+  if(select&&chatConversacionActual){
+   const value='conv:'+chatConversacionActual;
+   if([...select.options].some(x=>x.value===value))select.value=value;
+  }
+ }else{
+  selectorDestinoChatResidente();
+  const select=document.getElementById('chatDestinoRol');
+  if(conversacionId){
+   const conv=chatConversaciones.find(c=>String(c.id)===String(conversacionId)&&
+     String(c.residente_id)===String(user.id));
+   if(conv&&select)select.value=conv.destinatario_rol||'general';
+  }
+  const canal=select?.value||'admin';
+  const conv=chatConversaciones.find(c=>String(c.residente_id)===String(user.id)&&
+    (c.destinatario_rol||'general')===canal);
+  chatConversacionActual=conv?.id||null;
+ }
+ renderChatPanel();
+ await marcarChatActualLeido();
 }
-
 function cerrarChatFlotante(){
   document.getElementById('chatPanel')?.classList.add('hidden');
 }
 
 function seleccionarChatResidente(){
-  if(!isAdminProfileRole(profile?.rol))return;
-
-  const rid=document.getElementById('chatResidentSelect')?.value||'';
-  const conv=chatConversaciones.find(c=>String(c.residente_id)===String(rid));
-  chatConversacionActual=conv?.id||null;
-
-  renderChatPanel();
-  marcarChatActualLeido();
+ if(!isAdminProfileRole(profile?.rol))return;
+ const value=document.getElementById('chatResidentSelect')?.value||'';
+ const id=value.startsWith('conv:')?value.slice(5):'';
+ const conv=chatConversaciones.find(c=>String(c.id)===id);
+ chatConversacionActual=conv?.id||null;
+ renderChatPanel();
+ marcarChatActualLeido();
 }
-
 function renderChatPanel(){
-  const body=document.getElementById('chatBody');
-  const titulo=document.getElementById('chatTitulo');
-  const subtitulo=document.getElementById('chatSubtitulo');
-  const input=document.getElementById('chatInput');
-  const send=document.getElementById('chatSendBtn');
-  if(!body||!titulo||!subtitulo||!input||!send)return;
-
-  if(isAdminProfileRole(profile?.rol)){
-    llenarSelectorChatAdmin();
-    const rid=document.getElementById('chatResidentSelect')?.value||'';
-    const residente=profiles.find(p=>String(p.id)===String(rid));
-
-    titulo.textContent='💬 Mensajes privados';
-    subtitulo.textContent=residente
-      ? (residente.nombre+' · Casa '+(residente.unidad||''))
-      : 'Selecciona un residente';
-
-    input.disabled=!residente;
-    send.disabled=!residente;
-
-    if(!residente){
-      body.innerHTML='<div class="muted">Selecciona un residente para iniciar o continuar una conversación.</div>';
-      return;
-    }
-  }else{
-    document.getElementById('chatAdminPicker')?.classList.add('hidden');
-    titulo.textContent='💬 Administración';
-    subtitulo.textContent='Conversación privada';
-
-    input.disabled=false;
-    send.disabled=false;
-
-    if(!chatConversacionActual){
-      body.innerHTML='<div class="muted">Escribe tu primer mensaje para contactar a la administración.</div>';
-      return;
-    }
+ const body=document.getElementById('chatBody');
+ const titulo=document.getElementById('chatTitulo');
+ const subtitulo=document.getElementById('chatSubtitulo');
+ const input=document.getElementById('chatInput');
+ const send=document.getElementById('chatSendBtn');
+ if(!body||!titulo||!subtitulo||!input||!send)return;
+ if(isAdminProfileRole(profile?.rol)){
+  llenarSelectorChatAdmin();
+  const value=document.getElementById('chatResidentSelect')?.value||'';
+  const conv=value.startsWith('conv:')?chatConversaciones.find(c=>String(c.id)===value.slice(5)):null;
+  const rid=conv?.residente_id||(value.startsWith('new:')?value.slice(4):'');
+  const resident=profiles.find(p=>String(p.id)===String(rid));
+  chatConversacionActual=conv?.id||null;
+  titulo.textContent='💬 Mensajes privados';
+  subtitulo.textContent=resident?resident.nombre+' · Casa '+(resident.unidad||'')+
+   ' · '+etiquetaChatDestino(conv?.destinatario_rol||profile.rol):'Selecciona un residente';
+  input.disabled=!resident;
+  send.disabled=!resident;
+  if(!resident){
+   body.innerHTML='<div class="muted">Selecciona a quién responder o inicia una conversación.</div>';
+   return;
   }
-
-  const mensajes=chatConversacionActual
-    ? chatMensajes.filter(m=>String(m.conversacion_id)===String(chatConversacionActual))
-    : [];
-
-  body.innerHTML=mensajes.map(m=>{
-    const mio=String(m.autor_id)===String(user.id);
-    const autor=profiles.find(p=>String(p.id)===String(m.autor_id));
-    let etiqueta='Administración';
-
-    if(mio){
-      etiqueta='Tú';
-    }else if(isAdminProfileRole(profile?.rol)){
-      etiqueta=autor?.nombre||'Residente';
-    }
-
-    return '<div class="chatMsg '+(mio?'mine':'')+'">'+
-      '<div class="chatBubble">'+
-        '<div>'+esc(m.mensaje||'')+'</div>'+
-        '<div class="chatMeta">'+esc(etiqueta)+' · '+esc(fechaHora(m.created_at))+'</div>'+
-      '</div>'+
-    '</div>';
-  }).join('')||'<div class="muted">Aún no hay mensajes. Escribe el primero.</div>';
-
-  requestAnimationFrame(()=>{body.scrollTop=body.scrollHeight;});
+ }else{
+  document.getElementById('chatAdminPicker')?.classList.add('hidden');
+  selectorDestinoChatResidente();
+  const dest=document.getElementById('chatDestinoRol')?.value||'admin';
+  const conv=chatConversaciones.find(c=>String(c.residente_id)===String(user.id)&&
+    (c.destinatario_rol||'general')===dest);
+  chatConversacionActual=conv?.id||null;
+  titulo.textContent='💬 '+etiquetaChatDestino(dest);
+  subtitulo.textContent='Conversación privada con '+etiquetaChatDestino(dest);
+  input.disabled=dest==='general';
+  send.disabled=dest==='general';
+  if(!chatConversacionActual){
+   body.innerHTML='<div class="muted">Aún no hay mensajes. Escribe para iniciar esta conversación privada.</div>';
+   return;
+  }
+ }
+ const mensajes=chatConversacionActual
+  ?chatMensajes.filter(m=>String(m.conversacion_id)===String(chatConversacionActual)):[];
+ body.innerHTML=mensajes.map(m=>{
+  const mio=String(m.autor_id)===String(user.id);
+  const autor=profiles.find(p=>String(p.id)===String(m.autor_id));
+  const conv=chatConversaciones.find(c=>String(c.id)===String(m.conversacion_id));
+  const etiqueta=mio?'Tú':isAdminProfileRole(profile?.rol)
+    ?(autor?.nombre||'Residente'):etiquetaChatDestino(autor?.rol||conv?.destinatario_rol||'admin');
+  return '<div class="chatMsg '+(mio?'mine':'')+'"><div class="chatBubble"><div>'+
+   esc(m.mensaje||'')+'</div><div class="chatMeta">'+esc(etiqueta)+' · '+
+   esc(fechaHora(m.created_at))+'</div></div></div>';
+ }).join('')||'<div class="muted">No hay mensajes todavía.</div>';
+ requestAnimationFrame(()=>{body.scrollTop=body.scrollHeight;});
 }
-
 async function obtenerOCrearConversacionChat(){
-  if(profile?.rol==='residente'){
-    let conv=chatConversaciones.find(c=>String(c.residente_id)===String(user.id));
-    if(conv)return conv.id;
-
-    const {data,error}=await sb.from('chat_conversaciones')
-      .insert({residente_id:user.id})
-      .select('*')
-      .single();
-
-    if(error){
-      const existente=await sb.from('chat_conversaciones')
-        .select('*')
-        .eq('residente_id',user.id)
-        .maybeSingle();
-
-      if(existente.data){
-        conv=existente.data;
-      }else{
-        alert('No se pudo iniciar la conversación con administración: '+error.message);
-        return null;
-      }
-    }else{
-      conv=data;
-    }
-
-    chatConversaciones.unshift(conv);
-    return conv.id;
-  }
-
-  if(!isAdminProfileRole(profile?.rol))return null;
-
-  const rid=document.getElementById('chatResidentSelect')?.value||'';
-  if(!rid)return null;
-
-  let conv=chatConversaciones.find(c=>String(c.residente_id)===String(rid));
-  if(conv)return conv.id;
-
+ if(profile?.rol==='residente'){
+  const destino=document.getElementById('chatDestinoRol')?.value||'admin';
+  const existing=chatConversaciones.find(c=>String(c.residente_id)===String(user.id) &&
+   (c.destinatario_rol||'general')===destino);
+  if(existing)return existing.id;
+  if(!['admin','owner'].includes(destino))return null;
   const {data,error}=await sb.from('chat_conversaciones')
-    .insert({residente_id:rid})
-    .select('*')
-    .single();
-
+   .insert({residente_id:user.id,destinatario_rol:destino}).select('*').single();
+  let conv=data;
   if(error){
-    const existente=await sb.from('chat_conversaciones')
-      .select('*')
-      .eq('residente_id',rid)
-      .maybeSingle();
-
-    if(existente.data){
-      conv=existente.data;
-    }else{
-      alert('No se pudo iniciar la conversación: '+error.message);
-      return null;
-    }
-  }else{
-    conv=data;
+   const encontrado=await sb.from('chat_conversaciones').select('*')
+    .eq('residente_id',user.id).eq('destinatario_rol',destino).maybeSingle();
+   if(!encontrado.data){alert('No se pudo iniciar la conversación: '+error.message);return null;}
+   conv=encontrado.data;
   }
-
-  chatConversaciones.unshift(conv);
+  if(!chatConversaciones.some(c=>c.id===conv.id))chatConversaciones.unshift(conv);
   return conv.id;
+ }
+ if(!isAdminProfileRole(profile?.rol))return null;
+ const value=document.getElementById('chatResidentSelect')?.value||'';
+ if(value.startsWith('conv:')){
+  const existing=chatConversaciones.find(c=>String(c.id)===value.slice(5));
+  return existing?.id||null;
+ }
+ if(!value.startsWith('new:'))return null;
+ const rid=value.slice(4);
+ if(!residentesDisponiblesChat().some(p=>String(p.id)===rid))return null;
+ const role=profile.rol;
+ const old=chatConversaciones.find(c=>String(c.residente_id)===rid&&c.destinatario_rol===role);
+ if(old)return old.id;
+ const {data,error}=await sb.from('chat_conversaciones')
+  .insert({residente_id:rid,destinatario_rol:role}).select('*').single();
+ let conv=data;
+ if(error){
+  const encontrado=await sb.from('chat_conversaciones').select('*')
+   .eq('residente_id',rid).eq('destinatario_rol',role).maybeSingle();
+  if(!encontrado.data){alert('No se pudo iniciar la conversación: '+error.message);return null;}
+  conv=encontrado.data;
+ }
+ if(!chatConversaciones.some(c=>c.id===conv.id))chatConversaciones.unshift(conv);
+ return conv.id;
 }
-
 async function enviarChatMensaje(){
   if(!user||!['owner','admin','residente'].includes(profile?.rol))return;
 
@@ -4856,8 +4857,14 @@ async function enviarChatMensaje(){
 
   if(input)input.value='';
   chatConversacionActual=convId;
-
   await cargarChatDatos();
+  if(isAdminProfileRole(profile?.rol)){
+    const select=document.getElementById('chatResidentSelect');
+    if(select){
+      llenarSelectorChatAdmin();
+      select.value='conv:'+convId;
+    }
+  }
   renderChatPanel();
 }
 
@@ -7249,6 +7256,6 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizar
 </script>
 <script src="./disciplina.js?v=10"></script>
 <script src="./biometrico.js?v=1"></script>
-<script src="./asistente-ia.js?v=3"></script>
+<script src="./asistente-ia.js?v=4"></script>
 </body></html>
 

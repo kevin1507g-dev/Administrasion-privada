@@ -150,7 +150,7 @@ async function runQuery(ctx,tool,house,prior=[]){
  if(tool==="esp32"){const {data,error}=await ctx.db.rpc("digital_access_status");if(error)throw Error(error.message);return {answer:(data.online?"ESP32 con conexión reciente. ":"ESP32 sin conexión reciente. ")+corto(data.reason,230)+" No confirma la posición física del portón.",data:{online:!!data.online,event_active:!!data.event_active}};}
  if(tool==="chat"){
   // Consulta con el JWT del usuario y las políticas RLS preexistentes, sin service role.
-  let cs=ctx.db.from("chat_conversaciones").select("id,residente_id,updated_at").order("updated_at",{ascending:false}).limit(60);
+  let cs=ctx.db.from("chat_conversaciones").select("id,residente_id,destinatario_rol,updated_at").order("updated_at",{ascending:false}).limit(60);
   if(ctx.p.rol==="residente")cs=cs.eq("residente_id",ctx.uid);
   let conversations=await ok(cs);
   if(id&&ctx.p.rol!=="residente"){
@@ -171,11 +171,13 @@ async function runQuery(ctx,tool,house,prior=[]){
    names=new Map(residents.map(x=>[x.id,"Casa "+(x.unidad||"—")+" · "+(x.nombre||"Residente")]));
   }
   const convOwners=new Map(conversations.map(x=>[x.id,x.residente_id]));
+  const convChannels=new Map(conversations.map(x=>[x.id,x.destinatario_rol||"general"]));
+  const labelChannel=x=>x==="owner"?"Sistema Admin":x==="admin"?"Administración":"Historial general";
   return {
-   answer:"Chat privado: "+conversations.length+" conversación(es) y "+unread.length+" mensaje(s) sin leer entre los últimos "+messages.length+" consultados. "+(ctx.p.rol==="residente"?"Solo tu conversación con administración.":"Puedes seleccionar a un residente en la pestaña Mensajes.")+" La IA no envía mensajes automáticamente.",
+   answer:"Chat privado: "+conversations.length+" conversación(es) y "+unread.length+" mensaje(s) sin leer entre los últimos "+messages.length+" consultados. "+(ctx.p.rol==="residente"?"Tus conversaciones con Administración y Sistema Admin están separadas.":"Solo se muestran las conversaciones de tu rol y el historial general.")+" La IA no envía mensajes automáticamente.",
    open_chat:true,
    data:{conversaciones:conversations.length,no_leidos:unread.length},
-   table:newest.map(x=>({conversacion:ctx.p.rol==="residente"?"Administración":names.get(convOwners.get(x.conversacion_id))||"Residente",de:x.autor_id===ctx.uid?"Tú":"Otro participante",mensaje:corto(x.mensaje,160),fecha:x.created_at}))
+   table:newest.map(x=>({conversacion:ctx.p.rol==="residente"?labelChannel(convChannels.get(x.conversacion_id)):(names.get(convOwners.get(x.conversacion_id))||"Residente")+" · "+labelChannel(convChannels.get(x.conversacion_id)),de:x.autor_id===ctx.uid?"Tú":"Otro participante",mensaje:corto(x.mensaje,160),fecha:x.created_at}))
   };
  }
 
