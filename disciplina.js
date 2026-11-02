@@ -3,6 +3,7 @@
 const esc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const byId=(x)=>document.getElementById(x);
 const admin=()=>['admin','owner'].includes(window.profile?.rol||profile?.rol);
+const sistemaAdmin=()=>me()?.rol==='owner';
 const me=()=>window.profile||profile;
 let casos=[],avisos=[],multas=[],aclaraciones=[];
 async function query(table,fields='*'){const {data,error}=await sb.from(table).select(fields);if(error)throw error;return data||[];}
@@ -36,6 +37,7 @@ function render(){
  (admin()&&c.estado==='abierto'&&warns.length===3&&!fine?'<button class="mini danger" data-fine="'+esc(c.id)+'">Autorizar multa</button> ':'')+
  (!admin()?'<button class="mini" data-clarify="'+esc(c.id)+'">Presentar aclaración</button> ':'')+
  (admin()?'<button class="mini" data-pdf="'+esc(c.id)+'">📄 Descargar PDF</button> ':'')+
+ (sistemaAdmin()?'<button class="mini danger" data-delete-report="'+esc(c.id)+'">🗑️ Eliminar reporte</button> ':'')+
  (notes.length?'<h4>Aclaraciones</h4>'+questions:'')+'</article>';
  }).join('');
 }
@@ -200,9 +202,36 @@ async function descargarPDF(casoId){
  doc.save('Avisos-Multas-Casa-'+name+'-'+c.id.slice(0,8)+'.pdf');
 }
 
-const areaHandler=async function(e){
- const el=e.target.closest('button[data-warn],button[data-fine],button[data-clarify],button[data-answer],button[data-pdf]');if(!el)return;
+async function eliminarReporteDisciplina(casoId){
+ if(!sistemaAdmin())return alert('Solo Sistema Admin puede eliminar reportes.');
+ const caso=casos.find(c=>c.id===casoId);
+ if(!caso)return alert('Reporte no encontrado. Actualiza el listado.');
+ const casa=(typeof casas!=='undefined'?casas:[]).find(h=>h.id===caso.casa_id);
+ const a=avisos.filter(x=>x.caso_id===casoId).length;
+ const m=multas.filter(x=>x.caso_id===casoId).length;
+ const ac=aclaraciones.filter(x=>x.caso_id===casoId).length;
+ const titulo='Casa '+(casa?.numero||casa?.nombre||'sin número')+' · '+(caso.motivo||'Reporte');
+ if(!confirm('¿Eliminar definitivamente este reporte?\\n\\n'+titulo+
+   '\\nSe eliminarán '+a+' aviso(s), '+m+' multa(s) y '+ac+
+   ' aclaración(es) asociadas. Esta acción no se puede deshacer.'))return;
+ const area=byId('disciplinaLista');
+ const btn=area?.querySelector('[data-delete-report="'+casoId+'"]');
+ if(btn){btn.disabled=true;btn.textContent='Eliminando…';}
  try{
+  const {data,error}=await sb.rpc('sistema_admin_eliminar_reporte_disciplina',{p_caso_id:casoId});
+  if(error)throw error;
+  if(!data?.ok)throw Error('El servidor no confirmó la eliminación.');
+  await load();
+ }catch(e){
+  if(btn){btn.disabled=false;btn.textContent='🗑️ Eliminar reporte';}
+  alert('No se pudo eliminar el reporte: '+(e.message||'Intenta de nuevo.'));
+ }
+}
+
+const areaHandler=async function(e){
+ const el=e.target.closest('button[data-warn],button[data-fine],button[data-clarify],button[data-answer],button[data-pdf],button[data-delete-report]');if(!el)return;
+ try{
+  if(el.dataset.deleteReport){await eliminarReporteDisciplina(el.dataset.deleteReport);return;}
   if(el.dataset.pdf){descargarPDF(el.dataset.pdf);return;}
   if(el.dataset.warn){const text=prompt('Describe el aviso. Quedará registrado y visible para la casa.');if(text===null)return;if(text.trim().length<5)return alert('Escribe al menos 5 caracteres.');await runRpc('disciplina_registrar_aviso',{p_caso_id:el.dataset.warn,p_mensaje:text});}
   if(el.dataset.fine){const monto=prompt('Monto de la multa en pesos (requiere fundamento en el reglamento):');if(monto===null)return;const n=Number(monto);if(!Number.isFinite(n)||n<=0)return alert('Monto inválido.');const fundamento=prompt('Indica el fundamento reglamentario y la razón de la multa:');if(fundamento===null)return;if(fundamento.trim().length<5)return alert('Escribe un fundamento válido.');if(!confirm('¿Autorizar multa de $'+n.toFixed(2)+'? Esta acción quedará registrada.'))return;await runRpc('disciplina_autorizar_multa',{p_caso_id:el.dataset.fine,p_monto:n,p_fundamento:fundamento});}
