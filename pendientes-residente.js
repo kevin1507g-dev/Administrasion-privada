@@ -198,7 +198,11 @@ window.residentePendientesAbrirChatInicial=async()=>{
 window.residentePendientesAlCerrarChatInicial=()=>{
  if(!initialChatNeedsControl)return;
  initialChatNeedsControl=false;
- if(isResident()&&typeof show==="function")show("controlDigital");
+ if(!isResident())return;
+ // Después del chat pendiente, mostrar cuota sin pagar ANTES de Control Digital.
+ // Cerrar cualquiera de los avisos permite seguir al control sin bloquear accesos.
+ if(window.residenteCuotasPendientesAbrir?.()===true)return;
+ if(typeof show==="function")show("controlDigital");
 };
 window.residentePendientesActualizar=update;
 window.addEventListener("pageshow",update);
