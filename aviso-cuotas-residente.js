@@ -5,7 +5,7 @@
  */
 (function(){
 "use strict";
-let root=null,content=null,reminder=null,currentUid=null,visible=false;
+let root=null,content=null,currentUid=null,visible=false,autoReady=false;
 const notifiedThisSession=new Set();
 
 function modeloAvisoCuotas({uid,rol,casaId,numero,resumen,errorCarga=false}){
@@ -114,11 +114,13 @@ function syncUser(){
  if(uid!==currentUid){
   currentUid=uid;
   notifiedThisSession.clear();
+  autoReady=false;
   close();
  }
 }
 function abrir({forzar=false}={}){
  syncUser();
+ autoReady=true;
  const model=modeloActual();
  if(!model)return false;
  if(!forzar&&notifiedThisSession.has(model.firma))return false;
@@ -132,10 +134,14 @@ function abrir({forzar=false}={}){
 }
 function update(){
  syncUser();
- if(!visible)return;
+ if(!autoReady)return;
  const model=modeloActual();
- if(!model){close();return;}
- render(model); // se actualiza con pagos parciales sin reabrirla.
+ if(!model){if(visible)close();return;}
+ if(visible){render(model);return;} // pagos parciales: actualizar sin reabrir
+ // Si aparece una cuota nueva mientras la plataforma está abierta, mostrar
+ // el recordatorio una sola vez para esa combinación de cuotas pendientes.
+ if(!document.hidden&&!document.body.classList.contains("ia-open")&&
+    !notifiedThisSession.has(model.firma))abrir();
 }
 window.residenteCuotasPendientesAbrir=abrir;
 window.residenteCuotasPendientesActualizar=update;
