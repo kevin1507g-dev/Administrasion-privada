@@ -2491,7 +2491,7 @@ let incidenteAdjuntos=[];
 let incidenteAdjuntosBusy=false;
 let chatConversaciones=[], chatMensajes=[], chatLecturas=[];
 let chatStaffConversaciones=[],chatStaffMensajes=[],chatStaffLecturas=[];
-let chatStaffActualId=null,chatEnvioStaffBusy=false;
+let chatStaffActualId=null,chatEnvioStaffBusy=false,chatStaffLoadedUserId=null;
 let chatConversacionActual=null, chatPolling=null, chatDragMovio=false;
 let contactoActualId=null;
 const VAPID_PUBLIC_KEY =
@@ -4686,6 +4686,11 @@ function seleccionarChatStaffAdmin(){
  marcarChatActualLeido();
 }
 async function cargarStaffChatDatos(){
+ if(chatStaffLoadedUserId!==user?.id){
+  chatStaffLoadedUserId=user?.id||null;
+  chatStaffConversaciones=[];chatStaffMensajes=[];chatStaffLecturas=[];
+  chatStaffActualId=null;
+ }
  if(!isAdminProfileRole(profile?.rol)){
   chatStaffConversaciones=[];chatStaffMensajes=[];chatStaffLecturas=[];
   return;
@@ -5031,6 +5036,7 @@ function renderChatPanel(){
    return;
   }
  }else{
+  send.textContent='Enviar mensaje';
   document.getElementById('chatAdminPicker')?.classList.add('hidden');
   selectorDestinoChatResidente();
   const dest=document.getElementById('chatDestinoRol')?.value||'admin';
