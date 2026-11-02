@@ -42,7 +42,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     // La casa es obligatoria. No aceptar cadenas mixtas como "45abc",
     // ni asignar NULL si el número no existe en la privada.
-    const casaIngresada = clean(body?.casa, 10);
+    const casaIngresada = String(body?.casa ?? "").trim();
     if (!/^[0-9]{1,10}$/.test(casaIngresada) || Number(casaIngresada) <= 0) {
       return json({ error: "El número de casa es obligatorio y debe ser válido." }, 400);
     }
