@@ -101,6 +101,10 @@ function addMessage(role,text,extras={}){
    for(const k of keys)node("td",{text:String(item?.[k]??"—").slice(0,150)},r);
   }
  }
+ if(extras.open_chat){
+  const openChat=node("button",{type:"button",className:"ia-open-chat",text:"💬 Abrir chat privado"},container);
+  openChat.onclick=()=>switchTab("chat");
+ }
  if(extras.proposal){
   const p=extras.proposal;
   const box=node("div",{className:"ia-confirm"},container);
@@ -218,6 +222,8 @@ function init(){
  refs.panel=node("section",{className:"ia-panel"},mount);
  refs.panel.hidden=true;refs.panel.setAttribute("aria-label","Asistente Residencial IA");
  refs.panel.setAttribute("role","dialog");refs.panel.setAttribute("aria-modal","true");
+ const originalChatButton=document.getElementById("chatFloatingBtn");
+ if(originalChatButton)originalChatButton.classList.add("ia-chat-migrated");
  const head=node("header",{className:"ia-head"},refs.panel);
  const brand=node("div",{className:"ia-brand"},head);
  refs.brandAvatar=node("span",{className:"ia-avatar",text:"✦"},brand);
@@ -225,7 +231,7 @@ function init(){
  refs.headTitle=node("strong",{className:"ia-head-title",text:"Asistente Residencial IA"},brandText);
  refs.headSubtitle=node("span",{className:"ia-head-subtitle",text:"Consultas seguras"},brandText);
  const close=node("button",{type:"button",className:"ia-close",text:"×",aria:"Cerrar asistente"},head);
- const tabs=node("div",{className:"ia-tabs",role:"tablist"},refs.panel);
+ const tabs=node("div",{className:"ia-tabs"},refs.panel);tabs.setAttribute("role","tablist");
  refs.aiTab=node("button",{type:"button",className:"ia-tab",text:"✦ Asistente",aria:"Conversar con la IA"},tabs);
  refs.chatTab=node("button",{type:"button",className:"ia-tab",text:"💬 Mensajes",aria:"Abrir chat privado"},tabs);
  refs.aiTab.setAttribute("role","tab");refs.chatTab.setAttribute("role","tab");
