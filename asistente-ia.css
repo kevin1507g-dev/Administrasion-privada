@@ -96,3 +96,8 @@ body.ia-open{overflow:hidden!important}
  .ia-tabs{padding:7px 10px 4px}
  .ia-tabs .ia-tab{min-height:42px}
 }
+
+/* Un solo acceso flotante: Mensajes vive dentro de la IA cuando está disponible. */
+#chatFloatingBtn.ia-chat-migrated{display:none!important}
+.ia-chat-host .ia-embedded-chat .chatHeader button[aria-label="Cerrar mensajes"]{display:none!important}
+.ia-message .ia-open-chat{align-self:flex-start;margin-top:3px;padding:9px 11px!important;min-height:38px;border-radius:10px!important;border:1px solid #2fbd9b!important;background:#145f4c!important;color:#fff!important;font-size:13px!important;font-weight:700}
