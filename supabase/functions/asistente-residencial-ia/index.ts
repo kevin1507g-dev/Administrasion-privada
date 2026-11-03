@@ -211,19 +211,37 @@ async function runQuery(ctx,tool,house,prior=[]){
  const specs={
  eventos:["eventos","id,titulo,fecha,hora,lugar,estado","fecha"],
  reservaciones:["reservaciones","id,unidad,fecha,hora_inicio,hora_fin,estado,casa_id","fecha"],
- controles:["controles_residenciales","numero_control,estado,casa_id,bloqueo_owner","numero_control"],
+ controles:["controles_residenciales","numero_control,unidad,estado,casa_id,bloqueo_owner","numero_control"],
  huellas:["solicitudes_huella","dedo,estado,created_at,casa_id","created_at"],
  disciplina:["disciplina_casos","id,motivo,estado,creado_at,casa_id","creado_at"]
  };
  if(specs[tool]){
-  const [table,fields,column]=specs[tool];let q=ctx.db.from(table).select(fields).order(column,{ascending:false}).limit(45);
+  const [table,fields,column]=specs[tool];
+  let q=ctx.db.from(table).select(fields).order(column,{ascending:false}).limit(tool==="controles"?100:45);
   if(id&&table!=="eventos")q=q.eq("casa_id",id);
   const data=await ok(q);
   const label=tool==="eventos"?"eventos":tool==="reservaciones"?"reservaciones":tool==="controles"?"controles":tool==="huellas"?"solicitudes de huella":"expedientes de avisos y multas";
   const scope=table==="eventos"?"de toda la privada":id?"de la casa consultada":"de toda la privada";
-  const rows=data.map(x=>{const y={...x};delete y.casa_id;delete y.numero_control;return y;});
+  let rows;
+  if(tool==="controles"){
+   // Convertir el identificador interno casa_id al número real de casa.
+   // Siempre se consulta con el JWT/RLS del usuario, sin elevar permisos.
+   const casaIds=[...new Set(data.map(x=>x.casa_id).filter(Boolean))];
+   const casasControl=casaIds.length
+    ?await ok(ctx.db.from("casas").select("id,numero").in("id",casaIds))
+    :[];
+   const casasPorId=new Map(casasControl.map(x=>[String(x.id),x.numero]));
+   rows=data.map(x=>({
+    numero_control:x.numero_control??"—",
+    numero_casa:casasPorId.get(String(x.casa_id))??x.unidad??"—",
+    estado:x.estado,
+    bloqueo_owner:x.bloqueo_owner
+   }));
+  }else{
+   rows=data.map(x=>{const y={...x};delete y.casa_id;delete y.numero_control;return y;});
+  }
   const detail=tool==="controles"?" ("+data.filter(x=>x.estado==="activo").length+" activos, "+data.filter(x=>x.estado==="suspendido").length+" suspendidos)":tool==="huellas"?" ("+data.filter(x=>x.estado==="pendiente_captura").length+" pendientes de captura)":"";
-  return {answer:data.length?"Encontré "+data.length+" "+label+" "+scope+detail+".":"No encontré "+label+" "+scope+".",scope,table:rows};
+  return {answer:data.length?"Encontré "+data.length+" "+label+" "+scope+detail+".":"No encontré "+label+" "+scope+".",scope,table:rows,...(tool==="controles"?{tableType:"controles"}:{})};
  }
  if(tool==="pendientes"){
   const [a,b,c]=await Promise.all([
