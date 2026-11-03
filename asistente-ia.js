@@ -199,9 +199,11 @@ function addMessage(role,text,extras={}){
   const table=node("table",{},tableWrap);
   const keys=Object.keys(extras.table[0]).slice(0,6);
   const head=node("thead",{},table),hrow=node("tr",{},head);
-  for(const k of keys)node("th",{text:k},hrow);
+  const controlHeaders={numero_control:"Número de control",numero_casa:"Número de casa",
+   estado:"Estado",bloqueo_owner:"Bloqueo Sistema Admin"};
+  for(const k of keys)node("th",{text:extras.tableType==="controles"?(controlHeaders[k]||k):k},hrow);
   const tbody=node("tbody",{},table);
-  for(const item of extras.table.slice(0,25)){
+  for(const item of extras.table.slice(0,extras.tableType==="controles"?100:25)){
    const r=node("tr",{},tbody);
    for(const k of keys)node("td",{text:String(item?.[k]??"—").slice(0,150)},r);
   }
