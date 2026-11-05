@@ -69,10 +69,31 @@ Deno.serve(async (req:Request)=>{
    const autorizada=(empresas||[]).some((e:any)=>
     companyKey(String(e.nombre))===companyKey(empresa) &&
     hhmm>=String(e.hora_inicio||"").slice(0,5) && hhmm<String(e.hora_fin||"").slice(0,5));
-   if(autorizada)return reply({ok:true,autorizada:true});
+   const solicitudToken=String(body?.solicitud_token||"");
+   const escalacion=autorizada&&solicitudToken.length>0;
+   // Normalmente las empresas autorizadas siguen el flujo del residente.
+   // Si pasaron 2 minutos SIN respuesta, el token original de esa solicitud
+   // permite escalar a Sistema Admin; no concede ninguna orden de apertura.
+   if(autorizada&&!escalacion)return reply({ok:true,autorizada:true});
+   if(escalacion&&!uuid(solicitudToken))
+    return reply({error:"Solicitud de reparto no válida."},400);
 
    const {data:house,error:houseError}=await admin.from("casas").select("id").eq("numero",casa).eq("activo",true).maybeSingle();
    if(houseError||!house)return reply({error:"Casa no disponible para recibir solicitudes."},400);
+   if(escalacion){
+    const {data:delivery,error:deliveryError}=await admin.from("entregas_contacto")
+     .select("id,casa_id,tipo,empresa,repartidor,mensaje,estado,created_at,expires_at,portero_modo_mixto")
+     .eq("public_token",solicitudToken).maybeSingle();
+    if(deliveryError)return reply({error:"No se pudo verificar la solicitud pendiente."},503);
+    const valid=delivery&&delivery.casa_id===house.id&&delivery.tipo===tipo&&
+     companyKey(String(delivery.empresa||""))===companyKey(empresa)&&
+     companyKey(String(delivery.repartidor||""))===companyKey(repartidor)&&
+     String(delivery.mensaje||"").trim()===motivo&&
+     delivery.estado==="esperando"&&delivery.portero_modo_mixto===true&&
+     Date.now()>=new Date(delivery.created_at).getTime()+120000&&
+     Date.now()<new Date(delivery.expires_at).getTime();
+    if(!valid)return reply({error:"Este chat requiere una solicitud vigente y 2 minutos sin respuesta del residente."},403);
+   }
    const {data:owners,error:ownerError}=await admin.from("profiles")
     .select("id").eq("rol","owner").eq("activo",true).eq("estado_registro","aprobado")
     .order("created_at",{ascending:true}).limit(1);
@@ -98,10 +119,12 @@ Deno.serve(async (req:Request)=>{
     chat_id:chat.id,autor:"repartidor",mensaje:motivo
    });
    if(messageError)return reply({error:"No se pudo iniciar la conversación."},503);
-   await notify(admin,owners[0].id,"💬 Chat especial: empresa no autorizada",
-    "Casa "+casa+" · "+empresa+" · "+repartidor+". Solicita atención de Sistema Admin.",
+   await notify(admin,owners[0].id,
+    escalacion?"💬 Repartidor sin respuesta: atención de Sistema Admin":"💬 Chat especial: empresa no autorizada",
+    "Casa "+casa+" · "+empresa+" · "+repartidor+
+      (escalacion?". El residente no respondió en 2 minutos.":". Solicita atención de Sistema Admin."),
     "portero_chat:"+chat.id+":"+owners[0].id);
-   return reply({ok:true,autorizada:false,chat_token:token,expires_at:chat.expires_at});
+   return reply({ok:true,autorizada:false,escalado:escalacion,chat_token:token,expires_at:chat.expires_at});
   }
 
   if(action==="poll"||action==="send"){
