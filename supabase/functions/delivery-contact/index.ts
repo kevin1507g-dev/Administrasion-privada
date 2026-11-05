@@ -97,14 +97,22 @@ Deno.serve(async (req: Request) => {
       ? tipoRaw
       : "otro";
 
-    const empresa = clean(body?.empresa, 80) || null;
-    // El nombre es obligatorio incluso para clientes que ignoren la validación visual.
+    const empresaIngresada = String(body?.empresa ?? "").trim();
+    if (!empresaIngresada || empresaIngresada.length > 80) {
+      return json({ error: "La empresa o plataforma es obligatoria (máximo 80 caracteres). Si es una visita particular, escribe Particular." }, 400);
+    }
+    const empresa = empresaIngresada;
+    // Todos los campos del Portero son obligatorios incluso para clientes que ignoren el formulario.
     const nombreIngresado = String(body?.repartidor ?? "").trim();
     if (!nombreIngresado || nombreIngresado.length > 80) {
       return json({ error: "Es obligatorio escribir el nombre del repartidor o visitante (máximo 80 caracteres)." }, 400);
     }
     const repartidor = nombreIngresado;
-    const mensaje = clean(body?.mensaje, 240) || null;
+    const mensajeIngresado = String(body?.mensaje ?? "").trim();
+    if (!mensajeIngresado || mensajeIngresado.length > 240) {
+      return json({ error: "El motivo de la entrega o visita es obligatorio (máximo 240 caracteres)." }, 400);
+    }
+    const mensaje = mensajeIngresado;
     const porteroMixto = body?.portero_mixto === true;
 
     const forwarded = req.headers.get("x-forwarded-for") || "";
