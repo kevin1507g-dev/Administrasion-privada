@@ -68,8 +68,8 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
       </select>
       <label for="porteroEmpresa">Empresa / plataforma (opcional)</label>
       <input id="porteroEmpresa" maxlength="80" autocomplete="organization" placeholder="Ej. Uber Eats, Amazon">
-      <label for="porteroNombre">Tu nombre (opcional)</label>
-      <input id="porteroNombre" maxlength="80" autocomplete="name" placeholder="Nombre de repartidor">
+      <label for="porteroNombre">Tu nombre completo * (obligatorio)</label>
+      <input id="porteroNombre" required maxlength="80" autocomplete="name" placeholder="Nombre del repartidor o visitante">
       <label for="porteroMensaje">¿Qué vienes a entregar? (opcional)</label>
       <textarea id="porteroMensaje" maxlength="240" placeholder="Ej. Un pedido de comida"></textarea>
       <label for="porteroAutorizacion">¿Tienes un código de acceso autorizado para esta casa?</label>
@@ -95,8 +95,8 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
     <h2>🔑 Tengo un código de visita</h2>
     <p class="muted">Si un residente te compartió un código, escribe el número de casa y el código para solicitar la apertura del portón durante el horario autorizado.</p>
     <form id="visitorPassForm" onsubmit="solicitarAccesoVisita(event)">
-      <label for="vpNombre">Tu nombre (opcional, puedes escribirlo libremente)</label>
-      <input id="vpNombre" maxlength="100" autocomplete="name" placeholder="Ej. Juan, familia o dejar vacío">
+      <label for="vpNombre">Tu nombre completo * (obligatorio)</label>
+      <input id="vpNombre" required maxlength="100" autocomplete="name" placeholder="Ej. Juan Pérez">
       <label for="vpCasa">Número de casa (40 a 66)</label>
       <input id="vpCasa" required inputmode="numeric" pattern="(4[0-9]|5[0-9]|6[0-6])" maxlength="2" autocomplete="off" placeholder="Ej. 45" title="Solo se aceptan casas de la 40 a la 66">
       <label for="vpCodigo">Código de visita</label>
@@ -125,8 +125,8 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
     <label>Empresa / plataforma (opcional)</label>
     <input id="empresa" maxlength="80" placeholder="Ej. Uber Eats, Amazon, DHL">
 
-    <label>Nombre del repartidor o visitante (opcional)</label>
-    <input id="repartidor" maxlength="80" placeholder="Tu nombre">
+    <label for="repartidor">Nombre del repartidor o visitante * (obligatorio)</label>
+    <input id="repartidor" required maxlength="80" autocomplete="name" placeholder="Tu nombre">
 
     <label>Mensaje (opcional)</label>
     <textarea id="mensaje" maxlength="240" placeholder="Ej. Traigo un pedido grande"></textarea>
@@ -199,6 +199,7 @@ function datosPortero(){
 async function pedirConfirmacionPortero(){
  if(porteroBusy)return;
  const d=datosPortero();
+ if(!d.repartidor){porteroEstado('Es obligatorio escribir tu nombre antes de solicitar acceso.');document.getElementById('porteroNombre').focus();return;}
  if(!/^(4[0-9]|5[0-9]|6[0-6])$/.test(d.casa)){
   porteroEstado('La casa debe encontrarse entre la 40 y la 66.');
   return;
@@ -227,6 +228,7 @@ async function procesarPortero(event){
  event.preventDefault();
  if(porteroBusy)return;
  const d=datosPortero();
+ if(!d.repartidor){porteroEstado('Es obligatorio escribir tu nombre antes de continuar.');document.getElementById('porteroNombre').focus();return;}
  if(!/^(4[0-9]|5[0-9]|6[0-6])$/.test(d.casa)){
   porteroEstado('Solo se atienden casas de la 40 a la 66.');return;
  }
@@ -271,6 +273,7 @@ async function solicitarAccesoVisita(event){
  const nombre=document.getElementById('vpNombre').value.trim();
  const casa=document.getElementById('vpCasa').value.trim();
  const codigo=document.getElementById('vpCodigo').value.trim().toUpperCase();
+ if(!nombre){status.textContent='Es obligatorio escribir tu nombre antes de solicitar la apertura.';document.getElementById('vpNombre').focus();return;}
  if(!/^(4[0-9]|5[0-9]|6[0-6])$/.test(casa)){
   status.textContent='Solo se aceptan casas de la 40 a la 66.';
   document.getElementById('vpCasa').focus();
@@ -325,6 +328,7 @@ async function enviarSolicitud(opciones={}){
     return;
   }
   document.getElementById('casa').removeAttribute('aria-invalid');
+  if(!repartidor){error.textContent='Es obligatorio escribir el nombre del repartidor o visitante.';document.getElementById('repartidor').focus();return;}
 
   btn.disabled=true;
   btn.textContent='Enviando…';
