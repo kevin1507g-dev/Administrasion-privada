@@ -4379,7 +4379,7 @@ async function actualizarSolicitudesEntrega(){
  try{
   const currentUser=user.id;
   const {data,error}=await sb.from('entregas_contacto')
-   .select('id,casa_id,tipo,empresa,repartidor,mensaje,estado,respuesta,respondido_por,respondido_at,created_at,expires_at')
+   .select('id,casa_id,tipo,empresa,repartidor,mensaje,portero_ia_indicador,portero_ia_nota,estado,respuesta,respondido_por,respondido_at,created_at,expires_at')
    .order('created_at',{ascending:false}).limit(100);
   if(error)throw error;
   if(user?.id!==currentUser)return;
@@ -4409,6 +4409,9 @@ function renderEntregas(){
         '</div>'+
         '<div style="margin-top:8px"><strong>'+esc(quien)+'</strong></div>'+
         (e.mensaje?'<div class="muted" style="margin-top:6px">'+esc(e.mensaje)+'</div>':'')+
+        (e.portero_ia_nota
+          ?'<div class="muted" style="margin-top:9px;border-left:3px solid '+(e.portero_ia_indicador==='revisar'?'#f59e0b':'#38bdf8')+';padding-left:9px">🤖 Evaluación IA (orientativa): '+esc(e.portero_ia_nota)+'<p class="muted">No verifica identidad ni empresa.</p></div>'
+          :'<div class="muted" style="margin-top:8px">🔎 Sin autorización previa; requiere confirmación del residente.</div>')+
         '<p class="muted">Dar acceso solicita un pulso al ESP32. Requiere equipo conectado, acceso habilitado para residentes y no tener cuotas con 10 días o más de atraso.</p>'+
         '<div class="actions" style="margin-top:12px">'+
           '<button class="primary" onclick="responderEntrega(\''+e.id+'\',\'voy_por_el_pedido\')">🚶 '+(e.tipo==='visita'?'Voy a recibirte':'Voy por el pedido')+'</button>'+
