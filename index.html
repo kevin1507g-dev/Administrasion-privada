@@ -2072,6 +2072,128 @@ async function actualizarMetricasOwner(){
  }
 }
 
+let chatsEspecialesOwner=[];
+let chatEspecialOwnerActual=null;
+let chatEspecialOwnerTimer=null;
+let chatEspecialListaTimer=null;
+let chatEspecialListaBusy=false;
+const chatEspecialMostrados=new Set();
+async function chatEspecialApi(body){
+ const {data,error}=await sb.functions.invoke('delivery-owner-chat',{body});
+ if(error||data?.error)throw Error(data?.error||error?.message||'Chat no disponible.');
+ return data||{};
+}
+function iniciarChatsEspecialesOwner(){
+ if(profile?.rol!=='owner'||chatEspecialListaTimer)return;
+ cargarChatsEspecialesOwner();
+ chatEspecialListaTimer=setInterval(cargarChatsEspecialesOwner,10000);
+}
+async function cargarChatsEspecialesOwner(){
+ if(profile?.rol!=='owner'||chatEspecialListaBusy)return;
+ chatEspecialListaBusy=true;
+ try{
+  const data=await chatEspecialApi({action:'owner_list'});
+  chatsEspecialesOwner=Array.isArray(data.items)?data.items:[];
+  const list=document.getElementById('ownerChatEspecialLista');
+  if(list){
+   list.replaceChildren();
+   if(!chatsEspecialesOwner.length)list.textContent='No hay conversaciones especiales.';
+   for(const chat of chatsEspecialesOwner){
+    const btn=document.createElement('button');
+    const unread=chat.estado==='abierto'&&new Date(chat.expires_at)>new Date()&&
+      (!chat.last_owner_read_at||new Date(chat.last_visitor_at)>new Date(chat.last_owner_read_at));
+    btn.type='button';btn.className='ownerChatEspecialOpcion';
+    btn.textContent=(unread?'🔴 Nuevo · ':'')+'Casa '+chat.casa_numero+' · '+chat.empresa+
+      ' · '+chat.repartidor+' · '+(chat.estado==='abierto'?'Abierto':'Finalizado');
+    btn.onclick=()=>abrirChatEspecialOwner(chat.id);
+    list.appendChild(btn);
+   }
+  }
+  const pendientes=chatsEspecialesOwner.filter(c=>c.estado==='abierto'&&
+   new Date(c.expires_at)>new Date()&&(!c.last_owner_read_at||new Date(c.last_visitor_at)>new Date(c.last_owner_read_at)));
+  const badge=document.getElementById('ownerChatEspecialNumero');
+  if(badge){badge.hidden=!pendientes.length;badge.textContent=String(pendientes.length);}
+  const dialog=document.getElementById('ownerChatEspecialDialog');
+  if(!dialog?.open){
+   const next=pendientes.find(c=>!chatEspecialMostrados.has(c.id+':'+c.last_visitor_at));
+   if(next){
+    chatEspecialMostrados.add(next.id+':'+next.last_visitor_at);
+    abrirChatEspecialOwner(next.id);
+   }
+  }
+ }catch(e){
+  const list=document.getElementById('ownerChatEspecialLista');
+  if(list)list.textContent='No se pudieron actualizar los chats: '+(e.message||'Error de conexión');
+ }finally{chatEspecialListaBusy=false;}
+}
+async function abrirChatEspecialOwner(chatId){
+ if(profile?.rol!=='owner')return;
+ const chat=chatsEspecialesOwner.find(c=>c.id===(chatId||chatsEspecialesOwner[0]?.id));
+ if(!chat){if(!chatEspecialListaBusy)await cargarChatsEspecialesOwner();return;}
+ chatEspecialOwnerActual=chat.id;
+ const dialog=document.getElementById('ownerChatEspecialDialog');
+ const data=document.getElementById('ownerChatEspecialDatos');
+ data.textContent='Casa '+chat.casa_numero+' · '+chat.empresa+' · '+chat.repartidor+
+   ' · '+chat.motivo+'. La conversación no autoriza la apertura del portón.';
+ if(!dialog.open)dialog.showModal();
+ await leerChatEspecialOwner();
+ if(chatEspecialOwnerTimer)clearInterval(chatEspecialOwnerTimer);
+ chatEspecialOwnerTimer=setInterval(leerChatEspecialOwner,5000);
+}
+function pintarChatEspecialOwner(messages){
+ const box=document.getElementById('ownerChatEspecialMensajes');
+ const seguirAbajo=box.scrollHeight-box.scrollTop-box.clientHeight<85;
+ box.replaceChildren();
+ for(const m of (messages||[])){
+  const bubble=document.createElement('div');
+  bubble.className='ownerChatEspecialMensaje'+(m.autor==='owner'?' propietario':'');
+  const who=document.createElement('small');
+  who.textContent=m.autor==='owner'?'Sistema Admin':'Repartidor';
+  const msg=document.createElement('div');msg.textContent=String(m.mensaje||'');
+  bubble.append(who,msg);box.appendChild(bubble);
+ }
+ if(seguirAbajo)box.scrollTop=box.scrollHeight;
+}
+async function leerChatEspecialOwner(){
+ if(profile?.rol!=='owner'||!chatEspecialOwnerActual)return;
+ try{
+  const data=await chatEspecialApi({action:'owner_read',chat_id:chatEspecialOwnerActual});
+  pintarChatEspecialOwner(data.messages);
+  const active=data.estado==='abierto';
+  document.getElementById('ownerChatEspecialTexto').disabled=!active;
+  document.getElementById('ownerChatEspecialEnviar').disabled=!active;
+  document.getElementById('ownerChatEspecialEstado').textContent=active?
+    'Puedes responder. El chat no abre el portón.':'Conversación finalizada.';
+ }catch(e){
+  document.getElementById('ownerChatEspecialEstado').textContent=e.message||'Error al consultar.';
+ }
+}
+async function enviarChatEspecialOwner(event){
+ event?.preventDefault();
+ if(profile?.rol!=='owner'||!chatEspecialOwnerActual)return;
+ const input=document.getElementById('ownerChatEspecialTexto'),mensaje=input.value.trim();
+ if(!mensaje)return;
+ const btn=document.getElementById('ownerChatEspecialEnviar');btn.disabled=true;
+ try{
+  const data=await chatEspecialApi({action:'owner_reply',chat_id:chatEspecialOwnerActual,mensaje});
+  input.value='';pintarChatEspecialOwner(data.messages);
+ }catch(e){document.getElementById('ownerChatEspecialEstado').textContent=e.message||'No se pudo enviar.';}
+ finally{btn.disabled=false;}
+}
+async function cerrarConversacionEspecialOwner(){
+ if(profile?.rol!=='owner'||!chatEspecialOwnerActual)return;
+ if(!confirm('¿Finalizar el chat? El repartidor ya no podrá enviar más mensajes.'))return;
+ try{
+  await chatEspecialApi({action:'owner_close',chat_id:chatEspecialOwnerActual});
+  ocultarChatEspecialOwner();await cargarChatsEspecialesOwner();
+ }catch(e){document.getElementById('ownerChatEspecialEstado').textContent=e.message||'No se pudo cerrar.';}
+}
+function ocultarChatEspecialOwner(){
+ if(chatEspecialOwnerTimer)clearInterval(chatEspecialOwnerTimer);
+ chatEspecialOwnerTimer=null;chatEspecialOwnerActual=null;
+ const dialog=document.getElementById('ownerChatEspecialDialog');
+ if(dialog?.open)dialog.close();
+}
 let empresasRepartoCargando=false;
 function empresaRepartoMensaje(mensaje){
  const el=document.getElementById('empresaRepartoEstado');
