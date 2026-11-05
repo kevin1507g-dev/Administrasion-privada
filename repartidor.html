@@ -49,22 +49,24 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
     <form id="porteroForm" onsubmit="procesarPortero(event)">
       <label for="porteroCasa">Número de casa (40 a 66) *</label>
       <input id="porteroCasa" inputmode="numeric" pattern="(4[0-9]|5[0-9]|6[0-6])" maxlength="2" autocomplete="off" required>
-      <label for="porteroTipo">¿Qué tipo de entrega realizas?</label>
-      <select id="porteroTipo">
+      <label for="porteroTipo">¿Qué tipo de entrega realizas? *</label>
+      <select id="porteroTipo" required>
+        <option value="" disabled selected>Selecciona una opción</option>
         <option value="comida">🍔 Comida</option>
         <option value="paqueteria">📦 Paquetería</option>
         <option value="farmacia">💊 Farmacia</option>
         <option value="visita">🚶 Visita</option>
         <option value="otro">🛵 Otra entrega</option>
       </select>
-      <label for="porteroEmpresa">Empresa / plataforma (opcional)</label>
-      <input id="porteroEmpresa" maxlength="80" autocomplete="organization">
+      <label for="porteroEmpresa">Empresa / plataforma *</label>
+      <input id="porteroEmpresa" required maxlength="80" autocomplete="organization">
       <label for="porteroNombre">Tu nombre completo * (obligatorio)</label>
       <input id="porteroNombre" required maxlength="80" autocomplete="name" placeholder="Nombre del repartidor o visitante">
-      <label for="porteroMensaje">¿Qué vienes a entregar? (opcional)</label>
-      <textarea id="porteroMensaje" maxlength="240"></textarea>
-      <label for="porteroAutorizacion">¿Tienes un código de acceso autorizado para esta casa?</label>
-      <select id="porteroAutorizacion" onchange="porteroAlternarCodigo()">
+      <label for="porteroMensaje">¿Qué vienes a entregar? *</label>
+      <textarea id="porteroMensaje" required maxlength="240"></textarea>
+      <label for="porteroAutorizacion">¿Tienes un código de acceso autorizado para esta casa? *</label>
+      <select id="porteroAutorizacion" required onchange="porteroAlternarCodigo()">
+        <option value="" disabled selected>Selecciona una opción</option>
         <option value="sin_codigo">No, necesito autorización del residente</option>
         <option value="con_codigo">Sí, el residente me compartió un código</option>
       </select>
@@ -104,8 +106,9 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
     <input id="casa" name="casa" type="text" inputmode="numeric" pattern="(4[0-9]|5[0-9]|6[0-6])" required aria-required="true" aria-describedby="ayudaCasa" maxlength="2" autocomplete="off" title="Solo se aceptan casas de la 40 a la 66" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
     <p id="ayudaCasa" class="muted" style="margin:7px 0 12px;font-size:13px">Solo se reciben solicitudes para las casas de la <strong>40 a la 66</strong>. Fuera de ese rango no se enviarán ni se notificarán.</p>
 
-    <label>Tipo de solicitud</label>
-    <select id="tipo">
+    <label for="tipo">Tipo de solicitud *</label>
+    <select id="tipo" required>
+      <option value="" disabled selected>Selecciona una opción</option>
       <option value="comida">🍔 Comida</option>
       <option value="paqueteria">📦 Paquetería</option>
       <option value="farmacia">💊 Farmacia</option>
@@ -113,14 +116,14 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
       <option value="otro">🛵 Otra entrega</option>
     </select>
 
-    <label>Empresa / plataforma (opcional)</label>
-    <input id="empresa" maxlength="80">
+    <label for="empresa">Empresa / plataforma *</label>
+    <input id="empresa" required maxlength="80">
 
     <label for="repartidor">Nombre del repartidor o visitante * (obligatorio)</label>
     <input id="repartidor" required maxlength="80" autocomplete="name" placeholder="Tu nombre">
 
-    <label>Mensaje (opcional)</label>
-    <textarea id="mensaje" maxlength="240"></textarea>
+    <label for="mensaje">Motivo de entrega *</label>
+    <textarea id="mensaje" required maxlength="240"></textarea>
 
     <p class="muted portero-small">Tu descripción de entrega puede analizarse automáticamente para orientar al residente, sin identificarte ni autorizar la apertura.</p>
     <button id="sendBtn" class="primary" style="margin-top:18px" onclick="enviarSolicitud()">🔔 Contactar residente</button>
@@ -183,6 +186,7 @@ function datosPortero(){
   empresa:document.getElementById('porteroEmpresa').value.trim(),
   repartidor:document.getElementById('porteroNombre').value.trim(),
   mensaje:document.getElementById('porteroMensaje').value.trim(),
+  autorizacion:document.getElementById('porteroAutorizacion').value,
   conCodigo:document.getElementById('porteroAutorizacion').value==='con_codigo',
   codigo:document.getElementById('porteroCodigo').value.trim().toUpperCase()
  };
@@ -190,7 +194,11 @@ function datosPortero(){
 async function pedirConfirmacionPortero(){
  if(porteroBusy)return;
  const d=datosPortero();
+ if(!d.tipo){porteroEstado('Selecciona el tipo de entrega.');document.getElementById('porteroTipo').focus();return;}
+ if(!d.empresa){porteroEstado('La empresa o plataforma es obligatoria. Si es una visita particular, escribe Particular.');document.getElementById('porteroEmpresa').focus();return;}
  if(!d.repartidor){porteroEstado('Es obligatorio escribir tu nombre antes de solicitar acceso.');document.getElementById('porteroNombre').focus();return;}
+ if(!d.mensaje){porteroEstado('Describe qué vienes a entregar o el motivo de tu visita.');document.getElementById('porteroMensaje').focus();return;}
+ if(!['sin_codigo','con_codigo'].includes(d.autorizacion)){porteroEstado('Indica si tienes código de acceso.');document.getElementById('porteroAutorizacion').focus();return;}
  if(!/^(4[0-9]|5[0-9]|6[0-6])$/.test(d.casa)){
   porteroEstado('La casa debe encontrarse entre la 40 y la 66.');
   return;
@@ -219,7 +227,11 @@ async function procesarPortero(event){
  event.preventDefault();
  if(porteroBusy)return;
  const d=datosPortero();
+ if(!d.tipo){porteroEstado('Selecciona el tipo de entrega.');document.getElementById('porteroTipo').focus();return;}
+ if(!d.empresa){porteroEstado('La empresa o plataforma es obligatoria. Si es una visita particular, escribe Particular.');document.getElementById('porteroEmpresa').focus();return;}
  if(!d.repartidor){porteroEstado('Es obligatorio escribir tu nombre antes de continuar.');document.getElementById('porteroNombre').focus();return;}
+ if(!d.mensaje){porteroEstado('Describe qué vienes a entregar o el motivo de tu visita.');document.getElementById('porteroMensaje').focus();return;}
+ if(!['sin_codigo','con_codigo'].includes(d.autorizacion)){porteroEstado('Indica si tienes código de acceso.');document.getElementById('porteroAutorizacion').focus();return;}
  if(!/^(4[0-9]|5[0-9]|6[0-6])$/.test(d.casa)){
   porteroEstado('Solo se atienden casas de la 40 a la 66.');return;
  }
@@ -319,7 +331,10 @@ async function enviarSolicitud(opciones={}){
     return;
   }
   document.getElementById('casa').removeAttribute('aria-invalid');
+  if(!tipo){error.textContent='Selecciona el tipo de entrega.';document.getElementById('tipo').focus();return;}
+  if(!empresa){error.textContent='Es obligatorio escribir la empresa o plataforma. Para visitas particulares, escribe Particular.';document.getElementById('empresa').focus();return;}
   if(!repartidor){error.textContent='Es obligatorio escribir el nombre del repartidor o visitante.';document.getElementById('repartidor').focus();return;}
+  if(!mensaje){error.textContent='Es obligatorio escribir el motivo de la entrega o visita.';document.getElementById('mensaje').focus();return;}
 
   btn.disabled=true;
   btn.textContent='Enviando…';
