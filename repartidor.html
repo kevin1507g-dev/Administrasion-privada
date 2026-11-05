@@ -727,7 +727,7 @@ function actualizarTiempo(){
     const msIa=Math.max(0,new Date(porteroIntervencionAt).getTime()-Date.now());
     document.getElementById('waitTitle').textContent='⏳ Esperando respuesta del residente';
     document.getElementById('waitText').textContent=
-      'Revisión del Portero IA en '+Math.max(0,Math.ceil(msIa/1000))+' segundos. Sin acreditación verificable no se abrirá el portón.';
+      'Revisión del Portero IA en '+Math.max(0,Math.ceil(msIa/1000))+' segundos. Si no hay respuesta, se abrirá el chat de Sistema Admin. Esta espera no abre el portón.';
     return;
   }
   document.getElementById('waitText').textContent=
