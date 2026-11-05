@@ -154,11 +154,3 @@ body.ia-open{overflow:hidden!important}
 .ia-special-actions button:first-child{background:#087b64!important}
 .ia-special-actions button:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:370px){.ia-tabs-three .ia-tab{font-size:11px!important;padding:8px 2px!important}}
-
-/* Acción manual de Sistema Admin: no se muestra fuera del chat especial. */
-.ia-special-actions button:nth-child(2):not([hidden]){
- background:#145f50!important;
- border:1px solid #49c8a4!important;
- font-weight:750!important;
-}
-.ia-special-actions button[hidden]{display:none!important}
