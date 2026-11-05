@@ -49,6 +49,8 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 .casaNombreDialog::backdrop{background:rgba(2,6,23,.78)}
 .casaNombreDialog .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
 .casaNombreDialog .err{color:#fecaca}
+.casaNombreMobileEdit{display:none}
+@media(max-width:700px){.casaNombreMobileEdit{display:inline-block;margin-left:8px}.casaNombreMobileEdit button{padding:6px 9px;font-size:12px}.casaNombreDesktopEdit{display:none}}
 
 .modalBox{width:min(560px,100%); max-height:90vh; overflow:auto}
 
@@ -6797,11 +6799,11 @@ function renderCasas(){
 
       return '<tr>'+
         '<td><strong>Casa '+esc(c.numero||'')+'</strong></td>'+
-        '<td>'+esc(c.nombre||'')+'</td>'+
+        '<td>'+esc(c.nombre||'—')+'<span class="casaNombreMobileEdit">'+editarBtn+'</span></td>'+
         '<td>'+esc(nombresCasa(c.id)||'Sin residente')+'</td>'+
         '<td>'+esc(cubierto)+'</td>'+
         '<td><span class="badge">'+(c.activo!==false?'✅ Activa':'⛔ Inactiva')+'</span></td>'+
-        '<td><div class="actions">'+editarBtn+estadoBtn+eliminarBtn+'</div></td>'+
+        '<td><div class="actions"><span class="casaNombreDesktopEdit">'+editarBtn+'</span>'+estadoBtn+eliminarBtn+'</div></td>'+
       '</tr>';
     }).join('')||'<tr><td colspan="6" class="muted">No hay casas registradas.</td></tr>';
 }
