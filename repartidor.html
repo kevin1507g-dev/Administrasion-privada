@@ -90,8 +90,15 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
 
   <div class="card hidden" id="ownerDeliveryChatCard">
     <h2>💬 Chat especial con Sistema Admin</h2>
-    <p class="muted">Tu empresa no está autorizada para esta modalidad o está fuera del horario permitido. Puedes comunicarte directamente con Sistema Admin. Este chat no abre el portón.</p>
+    <p class="muted">Tu empresa no está autorizada para esta modalidad o está fuera del horario permitido. Puedes comunicarte directamente con Sistema Admin. Solo Sistema Admin puede autorizar una apertura manual desde su panel. Espera la confirmación antes de pasar.</p>
     <div id="ownerDeliveryChatMessages" class="ownerChatMessages" role="log" aria-live="polite">Conectando con Sistema Admin…</div>
+    <div id="ownerDeliveryExitArea" class="hidden" style="border:1px solid #28555a;border-radius:14px;padding:13px;margin:12px 0">
+      <strong>✅ Sistema Admin emitió una orden de apertura</strong>
+      <p class="muted">Comprueba que el portón haya abierto y el paso esté libre. Tienes 7 minutos desde la autorización para confirmar tu salida. El portón NO permanece abierto durante ese tiempo.</p>
+      <div id="ownerDeliveryExitClock" role="timer" style="font-size:25px;font-weight:750;text-align:center;margin:10px 0">07:00</div>
+      <button type="button" class="primary" id="ownerDeliveryExitButton" onclick="reportarSalidaChatEspecial()">✅ Ya estoy fuera de la privada</button>
+      <p class="muted" role="status" id="ownerDeliveryExitStatus"></p>
+    </div>
     <form id="ownerDeliveryChatForm" onsubmit="enviarMensajeChatPortero(event)">
       <label for="ownerDeliveryChatText">Mensaje a Sistema Admin</label>
       <textarea id="ownerDeliveryChatText" rows="3" maxlength="600" required></textarea>
@@ -326,10 +333,16 @@ let ownerDeliveryChatToken=null;
 let ownerDeliveryChatTimer=null;
 let ownerDeliveryChatBusy=false;
 let ownerDeliveryChatExpiresAt=null;
+let ownerDeliveryChatAutorizadoAt=null;
+let ownerDeliveryChatSalidaAt=null;
+let ownerDeliveryChatExitTimer=null;
+let ownerDeliveryChatExitBusy=false;
 function detenerChatPortero(){
  if(ownerDeliveryChatTimer)clearInterval(ownerDeliveryChatTimer);
- ownerDeliveryChatTimer=null;ownerDeliveryChatToken=null;
+ if(ownerDeliveryChatExitTimer)clearInterval(ownerDeliveryChatExitTimer);
+ ownerDeliveryChatTimer=null;ownerDeliveryChatExitTimer=null;ownerDeliveryChatToken=null;
  ownerDeliveryChatExpiresAt=null;ownerDeliveryChatBusy=false;
+ ownerDeliveryChatAutorizadoAt=null;ownerDeliveryChatSalidaAt=null;ownerDeliveryChatExitBusy=false;
 }
 function abrirChatPortero(token,expiresAt){
  detenerChatPortero();
@@ -337,10 +350,13 @@ function abrirChatPortero(token,expiresAt){
  ownerDeliveryChatExpiresAt=expiresAt||null;
  document.getElementById('ownerDeliveryChatCard').classList.remove('hidden');
  document.getElementById('ownerDeliveryChatStatus').textContent='Esperando la respuesta de Sistema Admin.';
+ document.getElementById('ownerDeliveryExitArea').classList.add('hidden');
+ document.getElementById('ownerDeliveryExitStatus').textContent='';
  document.getElementById('ownerDeliveryChatText').disabled=false;
  document.getElementById('ownerDeliveryChatSend').disabled=false;
  consultarChatPortero();
  ownerDeliveryChatTimer=setInterval(consultarChatPortero,5000);
+ ownerDeliveryChatExitTimer=setInterval(actualizarRelojChatEspecial,1000);
 }
 function mostrarChatPortero(mensajes){
  const box=document.getElementById('ownerDeliveryChatMessages');
@@ -350,7 +366,7 @@ function mostrarChatPortero(mensajes){
   const bubble=document.createElement('div');
   bubble.className='ownerChatBubble'+(m.autor==='owner'?' owner':'');
   const by=document.createElement('small');
-  by.textContent=m.autor==='owner'?'Sistema Admin':'Repartidor';
+  by.textContent=m.autor==='owner'?'Sistema Admin':m.autor==='sistema'?'Portero IA':'Repartidor';
   const txt=document.createElement('div');
   txt.textContent=String(m.mensaje||'');
   bubble.append(by,txt);
@@ -366,6 +382,10 @@ async function consultarChatPortero(){
   });
   if(error||data?.error)throw Error(data?.error||error?.message||'Error');
   mostrarChatPortero(data.messages);
+  ownerDeliveryChatAutorizadoAt=data.autorizado_at||null;
+  ownerDeliveryChatSalidaAt=data.salida_reportada_at||null;
+  document.getElementById('ownerDeliveryExitArea').classList.toggle('hidden',!ownerDeliveryChatAutorizadoAt);
+  actualizarRelojChatEspecial();
   if(data.estado!=='abierto'){
    document.getElementById('ownerDeliveryChatStatus').textContent='Conversación finalizada. Si tienes un código válido puedes regresar al menú de visitas.';
    document.getElementById('ownerDeliveryChatText').disabled=true;
@@ -376,6 +396,42 @@ async function consultarChatPortero(){
  }catch{
   document.getElementById('ownerDeliveryChatStatus').textContent='No se pudo actualizar el chat. Comprobando conexión…';
  }
+}
+function actualizarRelojChatEspecial(){
+ if(!ownerDeliveryChatToken||!ownerDeliveryChatAutorizadoAt)return;
+ const start=Date.parse(ownerDeliveryChatAutorizadoAt);
+ if(!Number.isFinite(start))return;
+ const restante=Math.max(0,start+7*60*1000-Date.now());
+ const sec=Math.ceil(restante/1000);
+ document.getElementById('ownerDeliveryExitClock').textContent=
+  ownerDeliveryChatSalidaAt?'Salida reportada':String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');
+ const btn=document.getElementById('ownerDeliveryExitButton');
+ btn.classList.toggle('hidden',!!ownerDeliveryChatSalidaAt);
+ btn.disabled=!restante||!!ownerDeliveryChatSalidaAt||ownerDeliveryChatExitBusy;
+ const st=document.getElementById('ownerDeliveryExitStatus');
+ if(ownerDeliveryChatSalidaAt)st.textContent='✅ Registramos que declaraste estar fuera de la privada. Esto no confirma tu ubicación física.';
+ else if(!restante)st.textContent='El plazo terminó. Si necesitas ayuda, contacta a Sistema Admin. No se envió ninguna orden de cierre.';
+}
+async function reportarSalidaChatEspecial(){
+ if(!ownerDeliveryChatToken||!ownerDeliveryChatAutorizadoAt||ownerDeliveryChatSalidaAt||ownerDeliveryChatExitBusy)return;
+ const st=document.getElementById('ownerDeliveryExitStatus');
+ ownerDeliveryChatExitBusy=true;actualizarRelojChatEspecial();
+ st.textContent='Guardando tu confirmación de salida…';
+ try{
+  const tokenActual=ownerDeliveryChatToken;
+  const {data,error}=await sb.functions.invoke('delivery-owner-chat',{
+   body:{action:'report_exit',token:tokenActual}
+  });
+  if(error||data?.error){
+   let msg=data?.error||error?.message||'No se pudo registrar la salida.';
+   try{const response=await error?.context?.json?.();if(response?.error)msg=response.error;}catch(_){}
+   throw Error(msg);
+  }
+  if(tokenActual!==ownerDeliveryChatToken)return;
+  ownerDeliveryChatSalidaAt=data.salida_at||new Date().toISOString();
+  st.textContent='✅ Registramos que declaraste estar fuera de la privada.';
+ }catch(e){st.textContent=e?.message||'No se pudo registrar la salida.';}
+ finally{ownerDeliveryChatExitBusy=false;actualizarRelojChatEspecial();}
 }
 async function enviarMensajeChatPortero(event){
  event?.preventDefault();
