@@ -2156,7 +2156,7 @@ function pintarChatEspecialOwner(messages){
   const bubble=document.createElement('div');
   bubble.className='ownerChatEspecialMensaje'+(m.autor==='owner'?' propietario':'');
   const who=document.createElement('small');
-  who.textContent=m.autor==='owner'?'Sistema Admin':'Repartidor';
+  who.textContent=m.autor==='owner'?'Sistema Admin':m.autor==='sistema'?'Portero IA':'Repartidor';
   const msg=document.createElement('div');msg.textContent=String(m.mensaje||'');
   bubble.append(who,msg);box.appendChild(bubble);
  }
@@ -3247,6 +3247,35 @@ function destinoPorTipoNotificacion(tipo){
 function abrirDestinoNotificacion(destino,referencia,tipo){
   const seccion=destino||(['disciplina','disciplina_aclaracion','disciplina_respuesta'].includes(tipo)?'disciplina':destinoPorTipoNotificacion(tipo));
 
+  // La revisión de 2 minutos es una conversación de Sistema Admin, NO
+  // una apertura física ni una notificación genérica del panel Entregas.
+  if(seccion==='portero_owner_chat'||tipo==='portero_chat_owner'||tipo==='portero_ia_intervencion'){
+    if(profile?.rol!=='owner')return;
+    const referenciaPartes=String(referencia||'').split(':');
+    const chatId=referenciaPartes[0]==='portero_chat'?referenciaPartes[1]:null;
+    const entregaId=referenciaPartes[0]==='portero_ia'?referenciaPartes[1]:null;
+    (async()=>{
+      try{
+        let id=chatId;
+        if(!id&&entregaId){
+          const lista=await chatEspecialApi({action:'owner_list'});
+          id=(lista.items||[]).find(c=>c.entrega_id===entregaId)?.id||null;
+        }
+        if(typeof window.iaAbrirChatEspecial==='function'){
+          await window.iaAbrirChatEspecial(id);
+        }else{
+          show('ownerPanel');
+          await cargarChatsEspecialesOwner();
+        }
+      }catch(e){
+        console.warn('No se pudo abrir el chat del portero:',e);
+        if(typeof window.iaAbrirChatEspecial==='function')window.iaAbrirChatEspecial(null);
+        else show('ownerPanel');
+      }
+    })();
+    return;
+  }
+
   if(seccion==='chat_staff'){
     const partes=String(referencia||'').split(':');
     const id=partes[0]==='staff'?partes[1]:null;
@@ -3301,7 +3330,9 @@ async function abrirRutaNotificacion(){
   const seccion=partes[0];
   const id=partes[1]||null;
 
-  if(seccion==='chat'){
+  if(seccion==='portero_owner_chat'&&profile?.rol==='owner'){
+    setTimeout(()=>window.iaAbrirChatEspecial?.(id||null),0);
+  }else if(seccion==='chat'){
     setTimeout(()=>abrirChatFlotante(id||null),0);
   }else if(document.getElementById(seccion)){
     show(seccion);
