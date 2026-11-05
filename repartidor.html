@@ -86,6 +86,7 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
         <input id="porteroCodigo" maxlength="16" minlength="7" autocomplete="off" autocapitalize="characters" pattern="([A-HJ-NP-Za-hj-np-z][0-9]{6}|[A-Fa-f0-9]{16})" placeholder="Ej. A123456">
         <p class="muted portero-small">El código se verifica en el servidor, asociado a la casa y dentro de su horario válido.</p>
       </div>
+      <p class="muted portero-small" style="margin-top:14px">El tipo de entrega, la empresa declarada y el motivo pueden recibir una revisión automatizada por IA. Esa revisión no confirma tu identidad ni decide la apertura.</p>
       <button id="porteroEnviar" type="submit" class="primary" style="margin-top:18px">🔎 Verificar y continuar</button>
       <p id="porteroEstado" class="portero-status" role="status" aria-live="polite" hidden></p>
       <button type="button" id="porteroPedirConfirmacion" class="hidden" style="margin-top:12px" onclick="pedirConfirmacionPortero()">🔔 Solicitar permiso al residente</button>
@@ -134,6 +135,7 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
     <label>Mensaje (opcional)</label>
     <textarea id="mensaje" maxlength="240" placeholder="Ej. Traigo un pedido grande"></textarea>
 
+    <p class="muted portero-small">Tu descripción de entrega puede analizarse automáticamente para orientar al residente, sin identificarte ni autorizar la apertura.</p>
     <button id="sendBtn" class="primary" style="margin-top:18px" onclick="enviarSolicitud()">🔔 Contactar residente</button>
     <div id="error" style="margin-top:12px;color:#fecaca"></div>
     <button type="button" class="back" onclick="volverASeleccion()">← Cambiar tipo de acceso</button>
