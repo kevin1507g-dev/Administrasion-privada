@@ -2,7 +2,7 @@
 (function(){
 "use strict";
 let mount=null,opened=false,busy=false,conversationId=null,voiceEnabled=false,recognizer=null,chatOriginalParent=null,chatOriginalNext=null,chatSelected=false,chatLoading=false;
-let specialSelected=false,specialCurrent=null,specialChats=[],specialUnread=0,specialPolling=null,specialLoading=false,specialReading=false,specialSending=false,specialAuthorizing=false;
+let specialSelected=false,specialCurrent=null,specialChats=[],specialUnread=0,specialPolling=null,specialLoading=false,specialReading=false,specialSending=false;
 const refs={};
 function node(tag,opts={},parent){
  const n=document.createElement(tag);
@@ -121,8 +121,6 @@ async function showSpecialConversation(chatId){
  refs.specialTitle.textContent="Casa "+entry.casa_numero+" · "+entry.repartidor;
  refs.specialDetails.textContent=entry.empresa+" · "+entry.motivo+" · Solo mensajes; no abre el portón.";
  refs.specialSend.disabled=entry.estado!=="abierto"||new Date(entry.expires_at).getTime()<=Date.now();
- refs.specialAuthorize.hidden=!!entry.autorizado_at||entry.estado!=="abierto"||new Date(entry.expires_at).getTime()<=Date.now();
- refs.specialAuthorize.disabled=refs.specialAuthorize.hidden;
  refs.specialInput.disabled=refs.specialSend.disabled;
  refs.specialStatus.textContent="Cargando mensajes…";
  await readSpecialConversation();
@@ -141,12 +139,10 @@ async function readSpecialConversation(){
   const authorized=!!data.autorizado_at;
   refs.specialInput.disabled=!active;
   refs.specialSend.disabled=!active;
-  refs.specialAuthorize.hidden=!active||authorized;
-  refs.specialAuthorize.disabled=!active||authorized||specialAuthorizing;
   refs.specialStatus.textContent=authorized?
    "✅ Sistema Admin emitió la orden de apertura. El repartidor tiene 7 minutos para reportar su salida; el portón NO se mantiene abierto. "+
      (data.salida_reportada_at?"Salida declarada registrada.":"Verifica físicamente la apertura y el paso libre."):
-    active?"Puedes conversar y autorizar manualmente. La autorización requiere confirmar y utiliza los controles del ESP32.":"Conversación finalizada.";
+    active?"Puedes conversar con el repartidor. Este chat no autoriza aperturas.":"Conversación finalizada.";
   const c=specialChats.find(c=>c.id===current);
   if(c)c.last_owner_read_at=new Date().toISOString();
   setSpecialCount(countPendingSpecial(specialChats));
@@ -172,38 +168,6 @@ async function replySpecialConversation(event){
   specialSending=false;
   if(current===specialCurrent && new Date(specialChats.find(c=>c.id===current)?.expires_at).getTime()>Date.now())
    refs.specialSend.disabled=false;
- }
-}
-async function authorizeSpecialConversation(){
- if(!ownerSession()||!specialCurrent||specialAuthorizing)return;
- const c=specialChats.find(x=>x.id===specialCurrent);
- if(!c||c.autorizado_at||c.estado!=="abierto"||new Date(c.expires_at).getTime()<=Date.now())return;
- const aviso="¿AUTORIZAR APERTURA DEL PORTÓN para casa "+c.casa_numero+
-  " y repartidor "+c.repartidor+"?\\n\\nSe enviará una orden física al ESP32. Comprueba que el portón y el paso estén despejados. "+
-  "El portón NO permanecerá abierto 7 minutos. Esta operación queda registrada.";
- if(!window.confirm(aviso))return;
- const current=specialCurrent;
- specialAuthorizing=true;
- refs.specialAuthorize.disabled=true;
- refs.specialStatus.textContent="Verificando ESP32 y enviando la orden de apertura…";
- try{
-  // La RPC solo acepta la sesión autenticada del propietario, nunca el token
-  // público del repartidor. Aplica todos los bloqueos del control actual.
-  const {data,error}=await sb.rpc("portero_owner_autorizar",{p_chat_id:current});
-  if(error||!data?.ok)throw Error(data?.message||error?.message||"No fue posible autorizar la apertura.");
-  if(specialCurrent!==current)return;
-  if(c)c.autorizado_at=data.autorizado_at;
-  refs.specialStatus.textContent="✅ Orden de apertura enviada. Verifica físicamente que el portón abrió y que está libre el paso.";
-  await readSpecialConversation();
- }catch(e){
-  if(specialCurrent===current)refs.specialStatus.textContent="No se envió la apertura: "+(e?.message||"Intenta nuevamente.");
- }finally{
-  specialAuthorizing=false;
-  if(specialCurrent===current){
-   const entry=specialChats.find(x=>x.id===current);
-   refs.specialAuthorize.hidden=!!entry?.autorizado_at;
-   refs.specialAuthorize.disabled=!!entry?.autorizado_at;
-  }
  }
 }
 async function closeSpecialConversation(){
@@ -616,8 +580,6 @@ function init(){
  refs.specialInput.maxLength=600;refs.specialInput.rows=2;refs.specialInput.required=true;refs.specialInput.placeholder="Escribe tu respuesta…";
  const specialActions=node("div",{className:"ia-special-actions"},specialForm);
  refs.specialSend=node("button",{type:"submit",text:"Responder"},specialActions);
- refs.specialAuthorize=node("button",{type:"button",text:"🔓 Autorizar entrada"},specialActions);
- refs.specialAuthorize.onclick=authorizeSpecialConversation;
  const endSpecial=node("button",{type:"button",text:"Finalizar chat"},specialActions);endSpecial.onclick=closeSpecialConversation;
  refs.specialStatus=node("p",{className:"ia-special-feedback"},refs.specialConversation);
  refs.compose=node("div",{className:"ia-compose"},refs.panel);
