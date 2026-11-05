@@ -45,6 +45,11 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
   padding:20px; z-index:9999;
 }
 .modal.hidden{display:none!important}
+.casaNombreDialog{width:min(440px,calc(100vw - 28px));max-height:calc(100dvh - 32px);overflow-y:auto;border:1px solid #475569;border-radius:18px;background:#111827;color:#f8fafc;padding:22px;box-shadow:0 24px 70px #000a}
+.casaNombreDialog::backdrop{background:rgba(2,6,23,.78)}
+.casaNombreDialog .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.casaNombreDialog .err{color:#fecaca}
+
 .modalBox{width:min(560px,100%); max-height:90vh; overflow:auto}
 
 .chatFloatBtn{
@@ -485,6 +490,22 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <section id="casas" class="adminOnly"><h2>🏠 Casas</h2>
 <div class="card"><h3>Agregar casa</h3><div class="form"><div><label>Número / Unidad</label><input id="casaNumeroInput" placeholder="Ej. 24"></div><div><label>Nombre (opcional)</label><input id="casaNombre" placeholder="Ej. Casa esquina"></div></div><button class="primary" style="margin-top:12px" onclick="addCasa()">➕ Agregar casa</button></div>
 <div class="card table" style="margin-top:14px"><table><thead><tr><th>Casa</th><th>Nombre</th><th>Residentes</th><th>Pagado hasta</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="casasRows"></tbody></table></div></section>
+
+<dialog id="editarNombreCasaDialog" class="casaNombreDialog" aria-labelledby="editarNombreCasaTitulo">
+  <form id="editarNombreCasaForm" onsubmit="guardarNombreCasa(event)">
+    <h3 id="editarNombreCasaTitulo">✏️ Editar nombre de casa</h3>
+    <p id="editarNombreCasaDescripcion" class="muted">El número de casa y sus accesos no cambiarán.</p>
+    <input type="hidden" id="editarNombreCasaId">
+    <label for="editarNombreCasaInput">Nombre de la casa</label>
+    <input id="editarNombreCasaInput" type="text" maxlength="100" placeholder="Ej. Casa esquina" autocomplete="off">
+    <p class="muted" style="font-size:.85rem">Puedes dejarlo vacío si deseas quitar el nombre.</p>
+    <p id="editarNombreCasaEstado" class="err" role="status" aria-live="polite" hidden></p>
+    <div class="actions" style="margin-top:16px">
+      <button type="button" onclick="cerrarEditorNombreCasa()">Cancelar</button>
+      <button id="editarNombreCasaGuardar" class="primary" type="submit">Guardar nombre</button>
+    </div>
+  </form>
+</dialog>
 
 <section id="solicitudes" class="adminOnly"><h2>📝 Solicitudes de registro</h2>
 <div class="card">
@@ -6627,6 +6648,77 @@ async function addCasa(){
  if(!isAdminProfileRole(profile?.rol))return;const numero=document.getElementById('casaNumeroInput').value.trim(),nombre=document.getElementById('casaNombre').value.trim()||null;if(!numero)return alert('Escribe el número de la casa.');
  const {error}=await sb.from('casas').insert({numero,nombre,activo:true});if(error)return alert('No se pudo crear la casa: '+error.message);document.getElementById('casaNumeroInput').value='';document.getElementById('casaNombre').value='';await loadAll();
 }
+let casaNombreGuardando=false;
+
+function editarNombreCasa(id){
+  if(!isAdminProfileRole(profile?.rol))return alert('Solo administración puede editar nombres.');
+  const casa=casaPorId(id);
+  if(!casa)return alert('No se encontró la casa.');
+  const dialog=document.getElementById('editarNombreCasaDialog');
+  const input=document.getElementById('editarNombreCasaInput');
+  const hidden=document.getElementById('editarNombreCasaId');
+  const descripcion=document.getElementById('editarNombreCasaDescripcion');
+  const estado=document.getElementById('editarNombreCasaEstado');
+  if(!dialog||!input||!hidden)return alert('No se pudo abrir el editor de nombre.');
+  hidden.value=String(casa.id);
+  input.value=String(casa.nombre||'');
+  descripcion.textContent='Casa '+casa.numero+' · Solo se modificará el nombre, no el número ni los accesos.';
+  if(estado){estado.textContent='';estado.hidden=true;}
+  if(!dialog.open)dialog.showModal();
+  input.focus();
+}
+
+function cerrarEditorNombreCasa(){
+  if(casaNombreGuardando)return;
+  document.getElementById('editarNombreCasaDialog')?.close();
+}
+
+async function guardarNombreCasa(event){
+  event?.preventDefault();
+  if(casaNombreGuardando)return;
+  if(!isAdminProfileRole(profile?.rol))return alert('Solo administración puede editar nombres.');
+  const id=document.getElementById('editarNombreCasaId')?.value;
+  const input=document.getElementById('editarNombreCasaInput');
+  const estado=document.getElementById('editarNombreCasaEstado');
+  const boton=document.getElementById('editarNombreCasaGuardar');
+  const casa=casaPorId(id);
+  if(!casa||!input)return alert('No se encontró la casa.');
+  const nombre=input.value.trim();
+  if(nombre.length>100){
+    if(estado){estado.hidden=false;estado.textContent='El nombre admite como máximo 100 caracteres.';}
+    return;
+  }
+  if(nombre===String(casa.nombre||'').trim()){
+    cerrarEditorNombreCasa();
+    return;
+  }
+  casaNombreGuardando=true;
+  if(boton){boton.disabled=true;boton.textContent='Guardando…';}
+  if(estado){estado.hidden=true;estado.textContent='';}
+  try{
+    // La única columna que se edita es "nombre". No tocar número, cuotas,
+    // residentes, estado, pagos ni controles.
+    const {data,error}=await sb.from('casas')
+      .update({nombre:nombre||null})
+      .eq('id',id)
+      .select('id,nombre')
+      .single();
+    if(error)throw error;
+    if(!data||String(data.id)!==String(id))throw Error('El servidor no confirmó la actualización.');
+    casa.nombre=data.nombre;
+    renderCasas();
+    document.getElementById('editarNombreCasaDialog')?.close();
+  }catch(e){
+    if(estado){
+      estado.hidden=false;
+      estado.textContent='No se pudo guardar el nombre: '+(e.message||'Intenta de nuevo.');
+    }
+  }finally{
+    casaNombreGuardando=false;
+    if(boton){boton.disabled=false;boton.textContent='Guardar nombre';}
+  }
+}
+
 async function cambiarEstadoCasa(id,activo){
   if(!isAdminProfileRole(profile?.rol))return;
   const {error}=await sb.from('casas').update({activo}).eq('id',id);
@@ -6699,6 +6791,7 @@ function renderCasas(){
         ? '<button onclick="cambiarEstadoCasa(\''+c.id+'\',false)">Desactivar</button>'
         : '<button class="primary" onclick="cambiarEstadoCasa(\''+c.id+'\',true)">Activar</button>';
 
+      const editarBtn='<button type="button" onclick="editarNombreCasa(\''+c.id+'\')">✏️ Editar nombre</button>';
       const eliminarBtn='<button class="danger" onclick="eliminarCasa(\''+c.id+'\')">🗑️ Eliminar</button>';
       const cubierto=c.pagado_hasta?'✅ '+textoMesPagado(c.pagado_hasta):'—';
 
@@ -6708,7 +6801,7 @@ function renderCasas(){
         '<td>'+esc(nombresCasa(c.id)||'Sin residente')+'</td>'+
         '<td>'+esc(cubierto)+'</td>'+
         '<td><span class="badge">'+(c.activo!==false?'✅ Activa':'⛔ Inactiva')+'</span></td>'+
-        '<td><div class="actions">'+estadoBtn+eliminarBtn+'</div></td>'+
+        '<td><div class="actions">'+editarBtn+estadoBtn+eliminarBtn+'</div></td>'+
       '</tr>';
     }).join('')||'<tr><td colspan="6" class="muted">No hay casas registradas.</td></tr>';
 }
