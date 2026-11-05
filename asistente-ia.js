@@ -2,6 +2,7 @@
 (function(){
 "use strict";
 let mount=null,opened=false,busy=false,conversationId=null,voiceEnabled=false,recognizer=null,chatOriginalParent=null,chatOriginalNext=null,chatSelected=false,chatLoading=false;
+let specialSelected=false,specialCurrent=null,specialChats=[],specialUnread=0,specialPolling=null,specialLoading=false,specialReading=false,specialSending=false;
 const refs={};
 function node(tag,opts={},parent){
  const n=document.createElement(tag);
@@ -31,6 +32,169 @@ function refreshChatTab(){
  refs.chatTab.textContent="💬 Mensajes"+(n?" ("+(n>99?"99+":n)+")":"");
  refs.chatTab.setAttribute("aria-label","Chat privado"+(n?", "+n+" mensajes sin leer":""));
 }
+function ownerSession(){
+ return typeof profile!=="undefined" && profile?.rol==="owner";
+}
+function setSpecialCount(n){
+ specialUnread=ownerSession()?Math.max(0,Math.min(99,Number(n)||0)):0;
+ if(refs.specialTab){
+  refs.specialTab.textContent="🚚 Especiales"+(specialUnread?" ("+specialUnread+")":"");
+  refs.specialTab.setAttribute("aria-label","Chats especiales de repartidores"+(specialUnread?", "+specialUnread+" pendientes":""));
+ }
+ if(refs.specialBadge){
+  refs.specialBadge.hidden=!specialUnread;
+  refs.specialBadge.textContent=String(specialUnread);
+ }
+ if(refs.launch){
+  refs.launch.setAttribute("aria-label","Abrir Asistente Residencial IA"+(specialUnread?", "+specialUnread+" chats especiales pendientes":""));
+ }
+}
+function countPendingSpecial(items){
+ return (items||[]).filter(c=>c.estado==="abierto"&&new Date(c.expires_at).getTime()>Date.now()&&
+  (!c.last_owner_read_at||new Date(c.last_visitor_at).getTime()>new Date(c.last_owner_read_at).getTime())).length;
+}
+async function specialApi(action,extra={}){
+ if(!ownerSession())throw Error("Los chats especiales son exclusivos de Sistema Admin.");
+ if(typeof sb==="undefined")throw Error("No hay conexión con Supabase.");
+ const {data,error}=await sb.functions.invoke("delivery-owner-chat",{body:{action,...extra}});
+ if(error||data?.error)throw Error(String(data?.error||error?.message||"No se pudo consultar el chat especial.").slice(0,240));
+ return data||{};
+}
+function renderSpecialMessages(messages){
+ if(!refs.specialMessages)return;
+ const el=refs.specialMessages;
+ const shouldScroll=el.scrollHeight-el.scrollTop-el.clientHeight<90;
+ clear(el);
+ for(const m of (messages||[])){
+  const bubble=node("div",{className:"ia-special-bubble"+(m.autor==="owner"?" owner":"")},el);
+  node("small",{text:m.autor==="owner"?"Sistema Admin":"Repartidor"},bubble);
+  node("div",{text:String(m.mensaje||"")},bubble);
+ }
+ if(shouldScroll)el.scrollTop=el.scrollHeight;
+}
+function renderSpecialList(){
+ if(!refs.specialList)return;
+ clear(refs.specialList);
+ if(!specialChats.length){
+  node("p",{className:"ia-special-empty",text:"Todavía no hay chats especiales de repartidores."},refs.specialList);
+  return;
+ }
+ for(const c of specialChats){
+  const unread=c.estado==="abierto"&&new Date(c.expires_at).getTime()>Date.now()&&
+   (!c.last_owner_read_at||new Date(c.last_visitor_at).getTime()>new Date(c.last_owner_read_at).getTime());
+  const b=node("button",{type:"button",className:"ia-special-entry",
+   text:(unread?"🔴 Nuevo · ":"")+"Casa "+c.casa_numero+" · "+c.empresa+" · "+c.repartidor+
+    (c.estado==="cerrado"?" · Finalizado":"")},refs.specialList);
+  b.onclick=()=>showSpecialConversation(c.id);
+ }
+}
+async function loadSpecialChats(){
+ if(!ownerSession()||specialLoading)return;
+ specialLoading=true;
+ if(refs.specialFeedback && !specialChats.length)refs.specialFeedback.textContent="Cargando conversaciones…";
+ try{
+  const data=await specialApi("owner_list");
+  specialChats=Array.isArray(data.items)?data.items:[];
+  setSpecialCount(countPendingSpecial(specialChats));
+  renderSpecialList();
+  if(refs.specialFeedback)refs.specialFeedback.textContent="";
+ }catch(e){
+  if(refs.specialFeedback)refs.specialFeedback.textContent=e.message||"No se pudieron consultar los chats.";
+ }finally{specialLoading=false;}
+}
+function specialListView(){
+ specialCurrent=null;
+ refs.specialConversation.hidden=true;
+ refs.specialListWrap.hidden=false;
+ if(refs.specialFeedback)refs.specialFeedback.textContent="";
+}
+async function showSpecialConversation(chatId){
+ if(!ownerSession()||!chatId||!refs.specialConversation)return false;
+ const entry=specialChats.find(x=>x.id===chatId);
+ if(!entry){
+  if(refs.specialFeedback)refs.specialFeedback.textContent="La conversación no se encontró o ya no está disponible.";
+  return false;
+ }
+ specialCurrent=chatId;
+ refs.specialListWrap.hidden=true;
+ refs.specialConversation.hidden=false;
+ refs.specialTitle.textContent="Casa "+entry.casa_numero+" · "+entry.repartidor;
+ refs.specialDetails.textContent=entry.empresa+" · "+entry.motivo+" · Solo mensajes; no abre el portón.";
+ refs.specialSend.disabled=entry.estado!=="abierto"||new Date(entry.expires_at).getTime()<=Date.now();
+ refs.specialInput.disabled=refs.specialSend.disabled;
+ refs.specialStatus.textContent="Cargando mensajes…";
+ await readSpecialConversation();
+ return true;
+}
+async function readSpecialConversation(){
+ const current=specialCurrent;
+ if(!ownerSession()||!current||specialReading||!specialSelected||!opened)return;
+ specialReading=true;
+ try{
+  const data=await specialApi("owner_read",{chat_id:current});
+  if(current!==specialCurrent)return;
+  renderSpecialMessages(data.messages);
+  const active=data.estado==="abierto" &&
+   specialChats.some(c=>c.id===current&&new Date(c.expires_at).getTime()>Date.now());
+  refs.specialInput.disabled=!active;
+  refs.specialSend.disabled=!active;
+  refs.specialStatus.textContent=active?"Puedes responder al repartidor. El chat no abre el portón.":"Conversación finalizada.";
+  const c=specialChats.find(c=>c.id===current);
+  if(c)c.last_owner_read_at=new Date().toISOString();
+  setSpecialCount(countPendingSpecial(specialChats));
+ }catch(e){
+  if(current===specialCurrent)refs.specialStatus.textContent=e.message||"No se pudieron obtener los mensajes.";
+ }finally{specialReading=false;}
+}
+async function replySpecialConversation(event){
+ event?.preventDefault();
+ if(!ownerSession()||!specialCurrent||specialSending)return;
+ const current=specialCurrent,mensaje=refs.specialInput.value.trim();
+ if(!mensaje)return;
+ specialSending=true;refs.specialSend.disabled=true;
+ try{
+  const data=await specialApi("owner_reply",{chat_id:current,mensaje});
+  if(current!==specialCurrent)return;
+  refs.specialInput.value="";
+  renderSpecialMessages(data.messages);
+  refs.specialStatus.textContent="Mensaje enviado al repartidor.";
+ }catch(e){
+  refs.specialStatus.textContent=e.message||"No se pudo responder.";
+ }finally{
+  specialSending=false;
+  if(current===specialCurrent && new Date(specialChats.find(c=>c.id===current)?.expires_at).getTime()>Date.now())
+   refs.specialSend.disabled=false;
+ }
+}
+async function closeSpecialConversation(){
+ if(!ownerSession()||!specialCurrent)return;
+ if(!window.confirm("¿Finalizar este chat? El repartidor ya no podrá enviar mensajes."))return;
+ try{
+  await specialApi("owner_close",{chat_id:specialCurrent});
+  specialListView();
+  await loadSpecialChats();
+ }catch(e){refs.specialStatus.textContent=e.message||"No se pudo finalizar la conversación.";}
+}
+function stopSpecialPolling(){
+ if(specialPolling)clearInterval(specialPolling);
+ specialPolling=null;
+}
+function startSpecialPolling(){
+ stopSpecialPolling();
+ specialPolling=setInterval(async()=>{
+  if(!opened||!specialSelected||!ownerSession())return;
+  if(specialCurrent)await readSpecialConversation();
+  else await loadSpecialChats();
+ },5000);
+}
+async function openSpecialTab(chatId=null){
+ if(!ownerSession())return false;
+ await loadSpecialChats();
+ if(chatId)return await showSpecialConversation(chatId);
+ specialListView();
+ return true;
+}
+
 function restoreChat(){
  const panel=document.getElementById("chatPanel");
  if(!panel||!chatOriginalParent)return;
@@ -43,15 +207,27 @@ function restoreChat(){
 }
 async function switchTab(target,conversationToOpen=null){
  if(!opened||!refs.chatHost||chatLoading)return false;
- const chat=target==="chat";
- chatSelected=chat;
- refs.aiTab.setAttribute("aria-selected",String(!chat));
+ const chat=target==="chat",special=target==="special"&&ownerSession();
+ if(target==="special"&&!special)return false;
+ chatSelected=chat;specialSelected=special;
+ if(!special)stopSpecialPolling();
+ refs.aiTab.setAttribute("aria-selected",String(!chat&&!special));
  refs.chatTab.setAttribute("aria-selected",String(chat));
- refs.aiToolbar.hidden=chat;
- refs.status.hidden=chat;
- refs.messages.hidden=chat;
- refs.compose.hidden=chat;
+ if(refs.specialTab)refs.specialTab.setAttribute("aria-selected",String(special));
+ const standard=!chat&&!special;
+ refs.aiToolbar.hidden=!standard;
+ refs.status.hidden=!standard;
+ refs.messages.hidden=!standard;
+ refs.compose.hidden=!standard;
  refs.chatHost.hidden=!chat;
+ if(refs.specialHost)refs.specialHost.hidden=!special;
+ if(special){
+  if(typeof cerrarChatFlotante==="function")cerrarChatFlotante();
+  refreshChatTab();
+  const ok=await openSpecialTab(conversationToOpen);
+  startSpecialPolling();
+  return ok;
+ }
  if(chat){
   if(typeof abrirChatFlotante!=="function"||typeof cerrarChatFlotante!=="function"){
    refs.chatHost.textContent="El chat privado no está disponible en esta sesión.";
@@ -70,10 +246,10 @@ async function switchTab(target,conversationToOpen=null){
    node("p",{className:"ia-chat-error",text:"No se pudo abrir el chat: "+String(err?.message||"inténtalo de nuevo.")},refs.chatHost);
    return false;
   }finally{chatLoading=false;refreshChatTab();}
- }else{
-  if(typeof cerrarChatFlotante==="function")cerrarChatFlotante();
-  refreshChatTab();
  }
+ if(typeof cerrarChatFlotante==="function")cerrarChatFlotante();
+ refreshChatTab();
+ return true;
 }
 
 function starters(){
@@ -302,7 +478,9 @@ async function open(startTab="ia",selectedConversationId=null){
   viewport();
   // Si existe un chat pendiente, abrirlo directamente, sin cargar la IA
   // ni esperar llamadas al modelo. El mensaje real se muestra primero.
-  if(startTab==="chat")return await switchTab("chat",selectedConversationId);
+  if(refs.specialTab)refs.specialTab.hidden=!ownerSession();
+  if(refs.tabs)refs.tabs.classList.toggle("ia-tabs-three",ownerSession());
+  if(startTab==="chat"||startTab==="special")return await switchTab(startTab,selectedConversationId);
   try{
    const st=await call({kind:"status"});
    const rol=st.role==="owner"?"Sistema Admin":st.role==="admin"?"Administrador":"Residente";
@@ -318,7 +496,8 @@ async function open(startTab="ia",selectedConversationId=null){
   if(window.matchMedia("(min-width:701px)").matches)refs.text.focus();
  }else{
   restoreChat();
-  chatSelected=false;
+  stopSpecialPolling();
+  specialSelected=false;specialCurrent=null;chatSelected=false;
   if("speechSynthesis" in window)window.speechSynthesis.cancel();
   try{recognizer?.stop();}catch{}
   refs.launch.focus();
@@ -342,6 +521,8 @@ function init(){
  mount=node("div",{className:"ia-root"},document.body);
  refs.launch=node("button",{className:"ia-launch",type:"button",text:"✦ IA",aria:"Abrir Asistente Residencial IA"},mount);
  refs.launch.setAttribute("aria-expanded","false");
+ refs.specialBadge=node("span",{className:"ia-special-badge"},refs.launch);
+ refs.specialBadge.hidden=true;
  refs.panel=node("section",{className:"ia-panel"},mount);
  refs.panel.hidden=true;refs.panel.setAttribute("aria-label","Asistente Residencial IA");
  refs.panel.setAttribute("role","dialog");refs.panel.setAttribute("aria-modal","true");
@@ -354,12 +535,15 @@ function init(){
  refs.headTitle=node("strong",{className:"ia-head-title",text:"Asistente Residencial IA"},brandText);
  refs.headSubtitle=node("span",{className:"ia-head-subtitle",text:"Consultas seguras"},brandText);
  const close=node("button",{type:"button",className:"ia-close",text:"×",aria:"Cerrar asistente"},head);
- const tabs=node("div",{className:"ia-tabs"},refs.panel);tabs.setAttribute("role","tablist");
+ const tabs=node("div",{className:"ia-tabs"},refs.panel);refs.tabs=tabs;tabs.setAttribute("role","tablist");
  refs.aiTab=node("button",{type:"button",className:"ia-tab",text:"✦ Asistente",aria:"Conversar con la IA"},tabs);
  refs.chatTab=node("button",{type:"button",className:"ia-tab",text:"💬 Mensajes",aria:"Abrir chat privado"},tabs);
- refs.aiTab.setAttribute("role","tab");refs.chatTab.setAttribute("role","tab");
- refs.aiTab.setAttribute("aria-selected","true");refs.chatTab.setAttribute("aria-selected","false");
- refs.aiTab.onclick=()=>switchTab("ia");refs.chatTab.onclick=()=>switchTab("chat");
+ refs.specialTab=node("button",{type:"button",className:"ia-tab ia-special-tab",text:"🚚 Especiales",aria:"Chats especiales de repartidores"},tabs);
+ refs.specialTab.hidden=!ownerSession();
+ tabs.classList.toggle("ia-tabs-three",ownerSession());
+ for(const tab of [refs.aiTab,refs.chatTab,refs.specialTab])tab.setAttribute("role","tab");
+ refs.aiTab.setAttribute("aria-selected","true");refs.chatTab.setAttribute("aria-selected","false");refs.specialTab.setAttribute("aria-selected","false");
+ refs.aiTab.onclick=()=>switchTab("ia");refs.chatTab.onclick=()=>switchTab("chat");refs.specialTab.onclick=()=>switchTab("special");
  refs.aiToolbar=node("div",{className:"ia-top-controls"},refs.panel);
  const controls=refs.aiToolbar;
  refs.history=node("select",{aria:"Historial de conversaciones"},controls);
@@ -369,6 +553,31 @@ function init(){
  refs.status=node("p",{className:"ia-status",text:"Verificando acceso…"},refs.panel);
  refs.messages=node("div",{className:"ia-messages"},refs.panel);refs.messages.setAttribute("role","log");refs.messages.setAttribute("aria-live","polite");
  refs.chatHost=node("div",{className:"ia-chat-host"},refs.panel);refs.chatHost.hidden=true;
+ refs.specialHost=node("div",{className:"ia-special-host"},refs.panel);refs.specialHost.hidden=true;
+ const chatListWrap=refs.specialListWrap=node("section",{className:"ia-special-list-wrap"},refs.specialHost);
+ const listHeader=node("div",{className:"ia-special-header"},chatListWrap);
+ node("strong",{text:"💬 Repartidores sin autorización"},listHeader);
+ const refresh=node("button",{type:"button",text:"↻ Actualizar"},listHeader);
+ refresh.onclick=loadSpecialChats;
+ node("p",{className:"ia-special-hint",text:"Conversaciones exclusivas de Sistema Admin. No se autoriza la apertura desde este chat."},chatListWrap);
+ refs.specialFeedback=node("p",{className:"ia-special-feedback",text:""},chatListWrap);
+ refs.specialList=node("div",{className:"ia-special-list"},chatListWrap);
+ refs.specialConversation=node("section",{className:"ia-special-conversation"},refs.specialHost);
+ refs.specialConversation.hidden=true;
+ const conversationHead=node("div",{className:"ia-special-header"},refs.specialConversation);
+ const back=node("button",{type:"button",text:"← Chats"},conversationHead);back.onclick=()=>{specialListView();loadSpecialChats();};
+ refs.specialTitle=node("strong",{text:"Repartidor"},conversationHead);
+ refs.specialDetails=node("p",{className:"ia-special-hint"},refs.specialConversation);
+ refs.specialMessages=node("div",{className:"ia-special-messages"},refs.specialConversation);
+ refs.specialMessages.setAttribute("role","log");refs.specialMessages.setAttribute("aria-live","polite");
+ const specialForm=node("form",{className:"ia-special-compose"},refs.specialConversation);
+ specialForm.onsubmit=replySpecialConversation;
+ refs.specialInput=node("textarea",{aria:"Respuesta al repartidor"},specialForm);
+ refs.specialInput.maxLength=600;refs.specialInput.rows=2;refs.specialInput.required=true;refs.specialInput.placeholder="Escribe tu respuesta…";
+ const specialActions=node("div",{className:"ia-special-actions"},specialForm);
+ refs.specialSend=node("button",{type:"submit",text:"Responder"},specialActions);
+ const endSpecial=node("button",{type:"button",text:"Finalizar chat"},specialActions);endSpecial.onclick=closeSpecialConversation;
+ refs.specialStatus=node("p",{className:"ia-special-feedback"},refs.specialConversation);
  refs.compose=node("div",{className:"ia-compose"},refs.panel);
  const compose=refs.compose;
  refs.text=node("textarea",{aria:"Escribe tu consulta"},compose);refs.text.placeholder="Escribe tu pregunta…";refs.text.rows=2;refs.text.maxLength=900;
@@ -404,8 +613,17 @@ function init(){
  window.visualViewport?.addEventListener("scroll",viewport,{passive:true});
  document.addEventListener("keydown",e=>{if(opened&&e.key==="Escape"){e.preventDefault();open();}});
  window.setInterval(()=>{if(opened)refreshChatTab();},4500);
+ window.addEventListener("portero-owner-chat-unread",e=>setSpecialCount(e?.detail?.count));
+ setSpecialCount(0);
 }
 window.aiInitialize=init;
+window.iaAbrirChatEspecial=async function(chatId=null){
+ if(!ownerSession())return false;
+ if(!mount)init();
+ if(!mount)return false;
+ if(!opened)return await open("special",chatId);
+ return await switchTab("special",chatId);
+};
 // Abrir la conversación exacta desde el recordatorio de pendientes.
 // Nunca envía mensajes automáticamente: el residente debe pulsar Enviar.
 window.iaAbrirChatPendiente=async function(conversationId){
