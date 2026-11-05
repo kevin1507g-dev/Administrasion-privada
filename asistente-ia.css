@@ -126,3 +126,31 @@ body.ia-open{overflow:hidden!important}
 .ia-reserva-danger{background:#872f3e!important;color:#fff!important;border:1px solid #db6880!important}
 .ia-reserva-wizard button:disabled{cursor:default;opacity:.55}
 .ia-reserva-wizard input:focus-visible,.ia-reserva-wizard select:focus-visible,.ia-reserva-wizard button:focus-visible{outline:3px solid #42ebc1;outline-offset:2px}
+
+/* Chat especial de repartidores integrado en el botón único de IA. */
+.ia-tabs.ia-tabs-three{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.ia-tabs-three .ia-tab{padding:9px 4px!important;font-size:12px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ia-special-badge{position:absolute;right:-5px;top:-6px;min-width:22px;height:22px;border-radius:999px;padding:1px 5px;background:#dc2626;border:2px solid #fff;color:#fff;font-size:12px;font-weight:800;line-height:18px;text-align:center}
+.ia-special-badge[hidden]{display:none!important}
+.ia-special-host{display:flex;flex:1 1 auto;min-width:0;min-height:0;overflow:hidden;background:linear-gradient(180deg,#0d252b,#091b22);color:#f2faf8}
+.ia-special-host[hidden],.ia-special-host [hidden]{display:none!important}
+.ia-special-list-wrap,.ia-special-conversation{display:flex;flex-direction:column;flex:1 1 auto;min-width:0;min-height:0;padding:12px;overflow:hidden;gap:9px}
+.ia-special-header{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:0 0 auto;min-height:32px}
+.ia-special-header strong{font-size:14px;min-width:0;overflow-wrap:anywhere}
+.ia-special-header button,.ia-special-actions button{background:#194a48!important;border:1px solid #3c7d72!important;border-radius:11px!important;color:#e9fff5!important;padding:9px 11px!important;font-size:12px!important;white-space:nowrap}
+.ia-special-hint{font-size:12px;color:#bfddd5;margin:0;line-height:1.45;overflow-wrap:anywhere}
+.ia-special-feedback{font-size:12px;color:#b9d6d2;margin:0;min-height:17px;overflow-wrap:anywhere}
+.ia-special-list{flex:1 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:9px;overscroll-behavior:contain}
+.ia-special-entry{flex:0 0 auto;width:100%!important;padding:12px!important;text-align:left!important;background:#143239!important;border:1px solid #285d59!important;border-radius:12px!important;color:#f4faf7!important;font-size:13px!important;line-height:1.45!important;white-space:normal!important;overflow-wrap:anywhere}
+.ia-special-entry:hover{background:#185048!important}
+.ia-special-empty{margin:8px 0;color:#b9d6d2;font-size:13px}
+.ia-special-messages{flex:1 1 auto;min-height:110px;overflow-y:auto;display:flex;flex-direction:column;gap:9px;background:#0c2429;border:1px solid #28555a;border-radius:13px;padding:12px;overscroll-behavior:contain}
+.ia-special-bubble{width:fit-content;max-width:91%;align-self:flex-start;border:1px solid #38636a;border-radius:13px;padding:10px 12px;background:#193742;color:#f8fffc;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}
+.ia-special-bubble.owner{align-self:flex-end;background:#14594a;border-color:#318f7a}
+.ia-special-bubble small{display:block;font-size:10px;color:#c6e5dc;margin-bottom:3px}
+.ia-special-compose{display:flex;flex-direction:column;gap:8px;padding:10px 0 0;border-top:1px solid #28555a;flex:0 0 auto}
+.ia-special-compose textarea{display:block!important;resize:none;width:100%!important;min-height:53px;border-radius:10px!important;padding:10px!important;font-size:16px!important;background:#e8f2ee!important;color:#172f35!important;border:1px solid #4a7b78!important}
+.ia-special-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.ia-special-actions button:first-child{background:#087b64!important}
+.ia-special-actions button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:370px){.ia-tabs-three .ia-tab{font-size:11px!important;padding:8px 2px!important}}
