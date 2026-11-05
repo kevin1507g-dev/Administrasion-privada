@@ -67,7 +67,7 @@ function renderSpecialMessages(messages){
  clear(el);
  for(const m of (messages||[])){
   const bubble=node("div",{className:"ia-special-bubble"+(m.autor==="owner"?" owner":"")},el);
-  node("small",{text:m.autor==="owner"?"Sistema Admin":"Repartidor"},bubble);
+  node("small",{text:m.autor==="owner"?"Sistema Admin":m.autor==="sistema"?"Portero IA":"Repartidor"},bubble);
   node("div",{text:String(m.mensaje||"")},bubble);
  }
  if(shouldScroll)el.scrollTop=el.scrollHeight;
