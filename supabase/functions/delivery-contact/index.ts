@@ -100,6 +100,7 @@ Deno.serve(async (req: Request) => {
     const empresa = clean(body?.empresa, 80) || null;
     const repartidor = clean(body?.repartidor, 80) || null;
     const mensaje = clean(body?.mensaje, 240) || null;
+    const porteroMixto = body?.portero_mixto === true;
 
     const forwarded = req.headers.get("x-forwarded-for") || "";
     const ip = (req.headers.get("cf-connecting-ip") ||
@@ -143,9 +144,10 @@ Deno.serve(async (req: Request) => {
         repartidor,
         mensaje,
         estado: "esperando",
+        portero_modo_mixto: porteroMixto,
         rate_key: rateKey,
       })
-      .select("id,public_token,expires_at")
+      .select("id,public_token,expires_at,created_at")
       .single();
 
     if (insertError || !requestRow) {
@@ -208,7 +210,8 @@ Deno.serve(async (req: Request) => {
       ok: true,
       token: requestRow.public_token,
       expires_at: requestRow.expires_at,
-      mensaje: "Solicitud enviada. Espera la respuesta del residente.",
+      portero_intervencion_at: porteroMixto ? new Date(new Date(requestRow.created_at).getTime() + 120000).toISOString() : null,
+      mensaje: porteroMixto ? "Solicitud enviada. El Portero IA revisará a los 2 minutos si no hay respuesta; sin acreditación verificable, no abrirá." : "Solicitud enviada. Espera la respuesta del residente.",
     });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Error inesperado." }, 500);
