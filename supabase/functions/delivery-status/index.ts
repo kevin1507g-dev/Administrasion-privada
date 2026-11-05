@@ -34,7 +34,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: row } = await admin
       .from("entregas_contacto")
-      .select("estado,respuesta,respondido_at,expires_at,created_at,portero_modo_mixto,portero_intervino_at,portero_resultado")
+      .select("estado,respuesta,respondido_at,salida_reportada_at,expires_at,created_at,portero_modo_mixto,portero_intervino_at,portero_resultado")
       .eq("public_token", token)
       .maybeSingle();
 
@@ -45,6 +45,7 @@ Deno.serve(async (req: Request) => {
         estado: "respondido",
         respuesta: row.respuesta,
         respondido_at: row.respondido_at,
+        salida_reportada_at: row.salida_reportada_at,
       });
     }
 
