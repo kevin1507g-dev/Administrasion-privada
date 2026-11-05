@@ -15,6 +15,15 @@ input,select,textarea,button{font:inherit}input,select,textarea{width:100%;paddi
 textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radius:12px;padding:13px 16px;font-weight:800;cursor:pointer;background:#334155;color:white}.primary{background:var(--green);color:#052e16}.hidden{display:none!important}
 .status{font-size:20px;font-weight:800}.answer{font-size:25px;font-weight:900;margin-top:10px}.pill{display:inline-block;padding:5px 9px;border-radius:99px;background:#1e293b;color:#cbd5e1}
 .footer{text-align:center;color:var(--muted);font-size:.9rem;margin:20px 0}.loader{display:inline-block;width:18px;height:18px;border:3px solid #475569;border-top-color:var(--green);border-radius:50%;animation:spin 1s linear infinite;vertical-align:-3px;margin-right:8px}@keyframes spin{to{transform:rotate(360deg)}}
+.portero-guide{display:grid;gap:10px;margin:12px 0 16px}
+.portero-step{border:1px solid #334155;border-radius:12px;padding:12px;background:#0b1626}
+.portero-step strong{display:block;margin-bottom:4px;color:#e2e8f0}
+.portero-status{margin-top:15px;padding:12px;border:1px solid #334155;border-radius:12px;line-height:1.55}
+.portero-status[hidden]{display:none}
+.portero-choice{border-color:#22c55e;background:#123021}
+.portero-choice strong{color:#b7f7cf}
+.portero-small{font-size:.9rem;line-height:1.45}
+.portero-tag{font-size:.8rem;color:#a7f3d0;font-weight:700;letter-spacing:.02em}
 </style>
 </head>
 <body>
@@ -27,6 +36,11 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
 
   <div id="accessChoice" class="card">
     <h2>¿Cómo deseas ingresar?</h2>
+    <button type="button" class="choice portero-choice" onclick="seleccionarEntrada('portero')">
+      <span class="portero-tag">MODO MIXTO</span>
+      <strong>🤖 Portero Inteligente</strong>
+      <span>Verifica mi autorización previa o solicita permiso al residente, según corresponda.</span>
+    </button>
     <button type="button" class="choice" onclick="seleccionarEntrada('codigo')">
       <strong>🔑 Soy visita con código</strong>
       <span>Un residente me compartió un código temporal o permanente autorizado.</span>
@@ -35,6 +49,49 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
       <strong>🛵 Soy repartidor, proveedor o visita sin código</strong>
       <span>Quiero contactar al residente para que responda y autorice mi entrada.</span>
     </button>
+  </div>
+
+  <div class="card hidden" id="porteroCard">
+    <h2>🤖 Portero Inteligente</h2>
+    <p class="muted">Te ayudaré a identificar cómo solicitar tu acceso. El portón solo puede activarse con un código autorizado o la aprobación del residente.</p>
+    <div class="portero-guide">
+      <div class="portero-step"><strong>1. Indica la casa y el tipo de entrega</strong><span class="muted portero-small">La casa debe encontrarse entre la 40 y la 66.</span></div>
+      <div class="portero-step"><strong>2. Verificamos tu autorización</strong><span class="muted portero-small">Un código válido permite solicitar apertura. Si no tienes código, avisamos al residente.</span></div>
+      <div class="portero-step"><strong>3. Espera la confirmación de apertura</strong><span class="muted portero-small">Por seguridad, verifica que el portón esté abierto y la zona despejada antes de entrar.</span></div>
+    </div>
+    <form id="porteroForm" onsubmit="procesarPortero(event)">
+      <label for="porteroCasa">Número de casa (40 a 66) *</label>
+      <input id="porteroCasa" inputmode="numeric" pattern="(4[0-9]|5[0-9]|6[0-6])" maxlength="2" autocomplete="off" required placeholder="Ej. 63">
+      <label for="porteroTipo">¿Qué tipo de entrega realizas?</label>
+      <select id="porteroTipo">
+        <option value="comida">🍔 Comida</option>
+        <option value="paqueteria">📦 Paquetería</option>
+        <option value="farmacia">💊 Farmacia</option>
+        <option value="visita">🚶 Visita</option>
+        <option value="otro">🛵 Otra entrega</option>
+      </select>
+      <label for="porteroEmpresa">Empresa / plataforma (opcional)</label>
+      <input id="porteroEmpresa" maxlength="80" autocomplete="organization" placeholder="Ej. Uber Eats, Amazon">
+      <label for="porteroNombre">Tu nombre (opcional)</label>
+      <input id="porteroNombre" maxlength="80" autocomplete="name" placeholder="Nombre de repartidor">
+      <label for="porteroMensaje">¿Qué vienes a entregar? (opcional)</label>
+      <textarea id="porteroMensaje" maxlength="240" placeholder="Ej. Un pedido de comida"></textarea>
+      <label for="porteroAutorizacion">¿Tienes un código de acceso autorizado para esta casa?</label>
+      <select id="porteroAutorizacion" onchange="porteroAlternarCodigo()">
+        <option value="sin_codigo">No, necesito autorización del residente</option>
+        <option value="con_codigo">Sí, el residente me compartió un código</option>
+      </select>
+      <div id="porteroCodigoGrupo" class="hidden">
+        <label for="porteroCodigo">Código autorizado</label>
+        <input id="porteroCodigo" maxlength="16" minlength="7" autocomplete="off" autocapitalize="characters" pattern="([A-HJ-NP-Za-hj-np-z][0-9]{6}|[A-Fa-f0-9]{16})" placeholder="Ej. A123456">
+        <p class="muted portero-small">El código se verifica en el servidor, asociado a la casa y dentro de su horario válido.</p>
+      </div>
+      <button id="porteroEnviar" type="submit" class="primary" style="margin-top:18px">🔎 Verificar y continuar</button>
+      <p id="porteroEstado" class="portero-status" role="status" aria-live="polite" hidden></p>
+      <button type="button" id="porteroPedirConfirmacion" class="hidden" style="margin-top:12px" onclick="pedirConfirmacionPortero()">🔔 Solicitar permiso al residente</button>
+    </form>
+    <p class="muted portero-small" style="margin-top:12px">El portero no autoriza entradas por el nombre de la empresa, la apariencia de una persona o lo que diga un mensaje. Las solicitudes quedan sujetas a los controles de seguridad del sistema.</p>
+    <button type="button" class="back" onclick="volverASeleccion()">← Volver al menú principal</button>
   </div>
 
   <div class="card hidden" id="visitorPassCard">
@@ -97,15 +154,18 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
 function seleccionarEntrada(tipo){
  document.getElementById('accessChoice').classList.add('hidden');
  document.getElementById('visitorPassCard').classList.toggle('hidden',tipo!=='codigo');
+ document.getElementById('porteroCard').classList.toggle('hidden',tipo!=='portero');
  document.getElementById('formCard').classList.toggle('hidden',tipo!=='contacto');
  document.getElementById('waitCard').classList.add('hidden');
  if(tipo==='codigo')document.getElementById('vpNombre').focus();
+ else if(tipo==='portero')document.getElementById('porteroCasa').focus();
  else document.getElementById('casa').focus();
 }
 function volverASeleccion(){
  detenerConsulta();
  token=null;expiresAt=null;
  document.getElementById('visitorPassCard').classList.add('hidden');
+ document.getElementById('porteroCard').classList.add('hidden');
  document.getElementById('formCard').classList.add('hidden');
  document.getElementById('waitCard').classList.add('hidden');
  document.getElementById('accessChoice').classList.remove('hidden');
@@ -113,6 +173,98 @@ function volverASeleccion(){
  document.getElementById('error').textContent='';
  document.getElementById('accessChoice').scrollIntoView({behavior:'smooth',block:'start'});
 }
+
+let porteroBusy=false;
+function porteroAlternarCodigo(){
+ const conCodigo=document.getElementById('porteroAutorizacion').value==='con_codigo';
+ document.getElementById('porteroCodigoGrupo').classList.toggle('hidden',!conCodigo);
+ document.getElementById('porteroCodigo').required=conCodigo;
+ document.getElementById('porteroPedirConfirmacion').classList.add('hidden');
+ porteroEstado('',false);
+}
+function porteroEstado(mensaje,visible=true){
+ const el=document.getElementById('porteroEstado');
+ el.hidden=!visible;
+ el.textContent=mensaje;
+}
+function datosPortero(){
+ return {
+  casa:document.getElementById('porteroCasa').value.trim(),
+  tipo:document.getElementById('porteroTipo').value,
+  empresa:document.getElementById('porteroEmpresa').value.trim(),
+  repartidor:document.getElementById('porteroNombre').value.trim(),
+  mensaje:document.getElementById('porteroMensaje').value.trim(),
+  conCodigo:document.getElementById('porteroAutorizacion').value==='con_codigo',
+  codigo:document.getElementById('porteroCodigo').value.trim().toUpperCase()
+ };
+}
+async function pedirConfirmacionPortero(){
+ if(porteroBusy)return;
+ const d=datosPortero();
+ if(!/^(4[0-9]|5[0-9]|6[0-6])$/.test(d.casa)){
+  porteroEstado('La casa debe encontrarse entre la 40 y la 66.');
+  return;
+ }
+ porteroBusy=true;
+ const btn=document.getElementById('porteroEnviar');
+ const fallback=document.getElementById('porteroPedirConfirmacion');
+ btn.disabled=true;fallback.disabled=true;
+ porteroEstado('Consultando con la casa. No se enviará ninguna orden al portón sin autorización.');
+ try{
+  // Reutiliza el circuito existente con control de intentos, aviso al residente y respuesta autenticada.
+  for(const [id,value] of [['casa',d.casa],['tipo',d.tipo],['empresa',d.empresa],['repartidor',d.repartidor],['mensaje',d.mensaje]]){
+   document.getElementById(id).value=value;
+  }
+  await enviarSolicitud();
+  if(!document.getElementById('waitCard').classList.contains('hidden')){
+   document.getElementById('porteroCard').classList.add('hidden');
+  }else{
+   porteroEstado(document.getElementById('error').textContent||'No fue posible notificar al residente.');
+  }
+ }finally{
+  porteroBusy=false;btn.disabled=false;fallback.disabled=false;
+ }
+}
+async function procesarPortero(event){
+ event.preventDefault();
+ if(porteroBusy)return;
+ const d=datosPortero();
+ if(!/^(4[0-9]|5[0-9]|6[0-6])$/.test(d.casa)){
+  porteroEstado('Solo se atienden casas de la 40 a la 66.');return;
+ }
+ if(!d.conCodigo){await pedirConfirmacionPortero();return;}
+ if(!/^([A-HJ-NP-Z][0-9]{6}|[A-F0-9]{16})$/.test(d.codigo)){
+  porteroEstado('El código no tiene un formato válido. Revísalo o solicita confirmación al residente.');
+  document.getElementById('porteroPedirConfirmacion').classList.remove('hidden');
+  return;
+ }
+ porteroBusy=true;
+ const btn=document.getElementById('porteroEnviar');
+ btn.disabled=true;
+ document.getElementById('porteroPedirConfirmacion').classList.add('hidden');
+ porteroEstado('Comprobando autorización previa de la casa y horario en el servidor…');
+ try{
+  // Solo esta RPC protegida puede emitir la solicitud física. El texto y la empresa
+  // del repartidor nunca otorgan permisos de apertura.
+  const {data,error}=await sb.rpc('visitor_pass_request',{
+   p_name:d.repartidor,p_house:d.casa,p_code:d.codigo
+  });
+  if(error)throw error;
+  if(data?.accepted===true){
+   porteroEstado('✅ Autorización previa válida. Orden enviada al dispositivo. Espera a comprobar que el portón haya abierto y el paso esté libre.');
+   document.getElementById('porteroCodigo').value='';
+  }else{
+   porteroEstado((data?.message||'No se confirmó la autorización.')+' Puedes pedir permiso al residente.');
+   document.getElementById('porteroPedirConfirmacion').classList.remove('hidden');
+  }
+ }catch(e){
+  porteroEstado('No fue posible validar el código o el acceso no está disponible. Puedes pedir permiso al residente.');
+  document.getElementById('porteroPedirConfirmacion').classList.remove('hidden');
+ }finally{
+  porteroBusy=false;btn.disabled=false;
+ }
+}
+
 let vpBusy=false;
 async function solicitarAccesoVisita(event){
  event.preventDefault();
