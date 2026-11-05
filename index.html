@@ -190,6 +190,50 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 #profilesRows tr.perfil-owner td:nth-child(-n+3),
 #profilesRows tr.perfil-owner td:nth-child(-n+3) strong{color:#fbbf24!important;font-weight:700}
 </style>
+<style id="roleWritePermissions">
+body[data-session-role="admin"] button[onclick^='setControlEstado('],
+body[data-session-role="admin"] button[onclick^='deleteControl('],
+body[data-session-role="admin"] button[onclick^='deleteEvento('],
+body[data-session-role="admin"] button[onclick^='editarVencimientoCuota('],
+body[data-session-role="admin"] button[onclick^='archivarCuota('],
+body[data-session-role="admin"] button[onclick^='eliminarCuota('],
+body[data-session-role="admin"] button[onclick^='eliminarAviso('],
+body[data-session-role="admin"] button[onclick^='setReporteEstado('],
+body[data-session-role="admin"] button[onclick^='eliminarReporte('],
+body[data-session-role="admin"] button[onclick^='cambiarEstadoIncidente('],
+body[data-session-role="admin"] button[onclick^='entregarPaquete('],
+body[data-session-role="admin"] button[onclick^='eliminarPaquete('],
+body[data-session-role="admin"] button[onclick^='setReservaEstado('],
+body[data-session-role="admin"] button[onclick^='eliminarReserva('],
+body[data-session-role="admin"] button[onclick^='eliminarDocumento('],
+body[data-session-role="admin"] button[onclick^='eliminarContactoEmergencia('],
+body[data-session-role="admin"] button[onclick^='eliminarDeudaCasa('],
+body[data-session-role="admin"] button[onclick^='aprobarRegistro('],
+body[data-session-role="admin"] button[onclick^='rechazarRegistro('],
+body[data-session-role="admin"] button[onclick^='abrirEdicionResidente('],
+body[data-session-role="admin"] button[onclick^='guardarEdicionResidente('],
+body[data-session-role="admin"] button[onclick^='eliminarResidente('],
+body[data-session-role="admin"] button[onclick^='editarGasto('],
+body[data-session-role="admin"] button[onclick^='eliminarGasto('],
+body[data-session-role="admin"] button[onclick^='editarMetodoPago('],
+body[data-session-role="admin"] button[onclick^='cambiarEstadoMetodoPago('],
+body[data-session-role="admin"] button[onclick^='eliminarMetodoPago('],
+body[data-session-role="admin"] button[onclick^='guardarPagadoHasta('],
+body[data-session-role="admin"] button[onclick^='quitarPagadoHasta('],
+body[data-session-role="admin"] button[onclick^='editarNombreCasa('],
+body[data-session-role="admin"] button[onclick^='guardarNombreCasa('],
+body[data-session-role="admin"] button[onclick^='cambiarEstadoCasa('],
+body[data-session-role="admin"] button[onclick^='eliminarCasa('],
+body[data-session-role="admin"] button[onclick^='editarPago('],
+body[data-session-role="admin"] button[onclick^='eliminarPago('],
+body[data-session-role="admin"] button[onclick^='eliminarVisita('],
+body[data-session-role="admin"] button[onclick^='cambiarCobroAutomatico('],
+body[data-session-role="admin"] button[onclick^='guardarMontoAutomatico('],
+body[data-session-role="admin"] button[onclick^='pairDigitalESP32('],
+body[data-session-role="admin"] button[onclick^='configureDigitalAccess('],
+body[data-session-role="admin"] #editarNombreCasaGuardar,
+body[data-session-role="admin"] button[data-answer] {display:none!important}
+</style>
 </head>
 <body>
 <div id="login" class="login"><div class="card">
@@ -2136,6 +2180,7 @@ function renderResidentes(){
 }
 
 async function eliminarPago(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
 
   if(!isOwnerPanelActive()){
     return alert('Solo Sistema Admin puede eliminar pagos.');
@@ -2285,6 +2330,7 @@ async function cargarConfigCobroAutomatico(){
 
 
 async function cambiarCobroAutomatico(){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
 
   if(!isAdminProfileRole(profile?.rol)){
     return;
@@ -2352,6 +2398,7 @@ async function cambiarCobroAutomatico(){
 
 
 async function guardarMontoAutomatico(){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
 
   if(!isAdminProfileRole(profile?.rol)){
     return;
@@ -3205,6 +3252,7 @@ async function enter(){
  const {data,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
  if(error||!data){loginMsg.textContent='Tu usuario existe, pero no tiene un perfil en la tabla profiles.';await sb.auth.signOut();return}
  profile=data;
+ document.body.dataset.sessionRole=profile.rol;
  if(profile.rol!=='residente'&&(profile.activo===false || (profile.estado_registro && profile.estado_registro!=='aprobado'))){
   loginMsg.textContent='Esta cuenta de personal está suspendida o no está aprobada. Contacta al Sistema Admin.';
   await sb.auth.signOut(); user=null;profile=null;return;
@@ -3384,6 +3432,7 @@ async function setBloqueoOwner45(id,bloquear){
  await loadAll();
 }
 async function setControlEstado(id,estado){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol))return;
  if(!['suspendido','activo'].includes(estado))return;
  const control=controles.find(c=>String(c.id)===String(id));
@@ -3405,6 +3454,7 @@ async function setControlEstado(id,estado){
  await loadAll();
 }
 async function deleteControl(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol))return;
  if(!confirm('¿Eliminar este número de control de la casa?'))return;
  const {error}=await sb.from('controles_residenciales').delete().eq('id',id);
@@ -3508,6 +3558,7 @@ async function addEvento(){
  await loadAll();
 }
 async function deleteEvento(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol)) return;
  if(!confirm('¿Eliminar este evento?')) return;
  const {error}=await sb.from('eventos').delete().eq('id',id);
@@ -3549,6 +3600,7 @@ function renderEventos(){
 }
 
 async function editarVencimientoCuota(id, fechaActual){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol)) return;
  const fecha=await new Promise(resolve=>{
    const dialog=document.getElementById('calendarioDialog');
@@ -3570,6 +3622,7 @@ async function editarVencimientoCuota(id, fechaActual){
 }
 
 async function archivarCuota(id, archivar=true){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol))return;
  const {data,error}=await sb.rpc('gestionar_archivo_cuota',{p_cuota_id:Number(id),p_archivar:archivar});
  if(error)return alert('No se pudo modificar la cuota: '+error.message);
@@ -3591,6 +3644,7 @@ function renderCuotasArchivadas(){
  ).join('')||'<tr><td colspan="5">No hay cuotas archivadas.</td></tr>';
 }
 async function eliminarCuota(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol))return;
  const cuota=cuotas.find(q=>String(q.id)===String(id));
  if(!cuota)return alert('No se encontró la cuota.');
@@ -3648,6 +3702,7 @@ async function addAviso(){
  avTitulo.value=''; avMensaje.value=''; avVence.value=''; await loadAll();
 }
 async function eliminarAviso(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol)||!confirm('¿Eliminar este aviso?')) return;
  const {error}=await sb.from('avisos_condominio').delete().eq('id',id); if(error)return alert(error.message); await loadAll();
 }
@@ -3705,10 +3760,12 @@ async function addReporte(){
 }
 
 async function setReporteEstado(id,estado){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol)) return;
  const {error}=await sb.from('reportes_mantenimiento').update({estado,actualizado_en:new Date().toISOString()}).eq('id',id); if(error)return alert(error.message); await loadAll();
 }
 async function eliminarReporte(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol)||!confirm('¿Eliminar este reporte?'))return;
  const r=reportes.find(x=>String(x.id)===String(id)); const {error}=await sb.from('reportes_mantenimiento').delete().eq('id',id); if(error)return alert(error.message);
  if(r?.foto_path) await sb.storage.from('condominio-media').remove([r.foto_path]); await loadAll();
@@ -4170,6 +4227,7 @@ async function enviarMensajeIncidente(){
 }
 
 async function cambiarEstadoIncidente(){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
   if(!isAdminProfileRole(profile?.rol)||!incidenteActualId)return;
 
   const estado=document.getElementById('incEstado')?.value;
@@ -5635,10 +5693,12 @@ async function addPaquete(){
 }
 
 async function entregarPaquete(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!['owner','admin','guardia'].includes(profile?.rol))return;
  const {error}=await sb.from('paquetes').update({estado:'entregado',entregado_en:new Date().toISOString(),entregado_por:user.id}).eq('id',id); if(error)return alert(error.message); await loadAll();
 }
 async function eliminarPaquete(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol)||!confirm('¿Eliminar este registro de paquetería?'))return;
  const {error}=await sb.from('paquetes').delete().eq('id',id); if(error)return alert(error.message); await loadAll();
 }
@@ -5687,10 +5747,12 @@ async function addReserva(){
 }
 
 async function setReservaEstado(id,estado){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol))return;
  const {error}=await sb.from('reservaciones').update({estado}).eq('id',id);if(error)return alert(error.message);await loadAll();
 }
 async function eliminarReserva(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol)||!confirm('¿Eliminar esta reservación?'))return;
  const {error}=await sb.from('reservaciones').delete().eq('id',id);if(error)return alert(error.message);await loadAll();
 }
@@ -5806,6 +5868,7 @@ async function addDocumento(){
  docTitulo.value='';docDescripcion.value='';docArchivo.value='';await loadAll();
 }
 async function eliminarDocumento(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol)||!confirm('¿Eliminar este documento?'))return;
  const d=documentos.find(x=>String(x.id)===String(id));const {error}=await sb.from('documentos_condominio').delete().eq('id',id);if(error)return alert(error.message);if(d?.archivo_path)await sb.storage.from('condominio-media').remove([d.archivo_path]);await loadAll();
 }
@@ -5820,6 +5883,7 @@ async function addContactoEmergencia(){
  const {error}=await sb.from('contactos_emergencia').insert({nombre,telefono,tipo:emTipo.value,notas:emNotas.value.trim()||null,activo:true,creado_por:user.id});if(error)return alert(error.message);emNombre.value='';emTelefono.value='';emNotas.value='';await loadAll();
 }
 async function eliminarContactoEmergencia(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol)||!confirm('¿Eliminar este contacto?'))return;
  const {error}=await sb.from('contactos_emergencia').delete().eq('id',id);if(error)return alert(error.message);await loadAll();
 }
@@ -5981,6 +6045,7 @@ function render(){
 
 
 async function eliminarDeudaCasa(casaId){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol))return;const casa=casaPorId(casaId);if(!casa)return alert('No se encontró la casa.');
  const pendientes=cuotas.filter(q=>String(casaIdDeRegistro(q))===String(casaId)).map(q=>{const pagado=pagos.filter(p=>String(p.cuota_id)===String(q.id)).reduce((sum,p)=>sum+Number(p.monto||0),0);return {q,pagado,saldo:Math.max(0,Number(q.monto||0)-pagado)}}).filter(x=>x.saldo>0.009),total=pendientes.reduce((sum,x)=>sum+x.saldo,0);
  if(total<=0.009)return alert('Esta casa no tiene deuda pendiente.');if(!confirm('¿Eliminar la deuda pendiente de la Casa '+casa.numero+'?\n\nDeuda a eliminar: '+money(total)+'\n\nLos pagos ya registrados NO se eliminan.'))return;
@@ -5989,6 +6054,7 @@ async function eliminarDeudaCasa(casaId){
 }
 async function eliminarDeudaResidente(residenteId){const p=profiles.find(x=>String(x.id)===String(residenteId));if(!p?.casa_id)return alert('Este residente no tiene casa asignada.');return eliminarDeudaCasa(p.casa_id);}
 async function aprobarRegistro(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
   if(!isAdminProfileRole(profile?.rol)) return;
 
   const residente=profiles.find(p=>String(p.id)===String(id) && p.rol==='residente');
@@ -6028,6 +6094,7 @@ async function aprobarRegistro(id){
 }
 
 async function rechazarRegistro(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol)) return;
  const r=profiles.find(p=>String(p.id)===String(id) && p.rol==='residente');
  if(!r) return alert('No se encontró la solicitud.');
@@ -6039,6 +6106,7 @@ async function rechazarRegistro(id){
 }
 
 function abrirEdicionResidente(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol)) return;
  const r=profiles.find(p=>p.id===id && p.rol==='residente');
  if(!r) return alert('No se encontró el residente.');
@@ -6055,6 +6123,7 @@ function cerrarEdicionResidente(){
 }
 
 async function guardarEdicionResidente(){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
   if(!isAdminProfileRole(profile?.rol)) return;
 
   const id=document.getElementById('editResidentId').value;
@@ -6087,6 +6156,7 @@ async function guardarEdicionResidente(){
 }
 
 async function eliminarResidente(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol)) return;
 
  const r=profiles.find(p=>p.id===id && ['residente','admin','owner'].includes(p.rol));
@@ -6151,6 +6221,7 @@ async function addGasto(){
 }
 
 async function editarGasto(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol)) return;
  const g=gastos.find(x=>String(x.id)===String(id));
  if(!g) return alert('No se encontró el gasto.');
@@ -6173,6 +6244,7 @@ async function editarGasto(id){
 }
 
 async function eliminarGasto(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isOwnerPanelActive()) return alert('Solo el panel Sistema Admin permite eliminar gastos y aclaraciones.');
  if(!confirm('¿Eliminar este gasto o aclaración del historial? Esta acción no se puede deshacer.')) return;
 
@@ -6397,6 +6469,7 @@ async function addMetodoPago(){
 }
 
 async function editarMetodoPago(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol)) return;
  const m=metodosPago.find(x=>String(x.id)===String(id));
  if(!m) return alert('No se encontró el método de pago.');
@@ -6417,6 +6490,7 @@ async function editarMetodoPago(id){
 }
 
 async function cambiarEstadoMetodoPago(id,activo){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol)) return;
  if(!confirm(`¿Quieres ${activo?'activar':'suspender'} este método de pago?`)) return;
  const {error}=await sb.from('metodos_pago').update({activo}).eq('id',id);
@@ -6425,6 +6499,7 @@ async function cambiarEstadoMetodoPago(id,activo){
 }
 
 async function eliminarMetodoPago(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol)) return;
  if(!confirm('¿Eliminar este método de pago?')) return;
  const {error}=await sb.from('metodos_pago').delete().eq('id',id);
@@ -6599,6 +6674,7 @@ function cargarPagadoHastaCasa(){
 }
 
 async function guardarPagadoHasta(){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
   if(!isAdminProfileRole(profile?.rol))return;
 
   const casaId=document.getElementById('paidUntilCasa')?.value;
@@ -6625,6 +6701,7 @@ async function guardarPagadoHasta(){
 }
 
 async function quitarPagadoHasta(){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
   if(!isAdminProfileRole(profile?.rol))return;
 
   const casaId=document.getElementById('paidUntilCasa')?.value;
@@ -6653,6 +6730,7 @@ async function addCasa(){
 let casaNombreGuardando=false;
 
 function editarNombreCasa(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
   if(!isAdminProfileRole(profile?.rol))return alert('Solo administración puede editar nombres.');
   const casa=casaPorId(id);
   if(!casa)return alert('No se encontró la casa.');
@@ -6676,6 +6754,7 @@ function cerrarEditorNombreCasa(){
 }
 
 async function guardarNombreCasa(event){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
   event?.preventDefault();
   if(casaNombreGuardando)return;
   if(!isAdminProfileRole(profile?.rol))return alert('Solo administración puede editar nombres.');
@@ -6722,6 +6801,7 @@ async function guardarNombreCasa(event){
 }
 
 async function cambiarEstadoCasa(id,activo){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
   if(!isAdminProfileRole(profile?.rol))return;
   const {error}=await sb.from('casas').update({activo}).eq('id',id);
   if(error)return alert(error.message);
@@ -6729,6 +6809,7 @@ async function cambiarEstadoCasa(id,activo){
 }
 
 async function eliminarCasa(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
   if(!isAdminProfileRole(profile?.rol))return;
 
   const casa=casaPorId(id);
@@ -6984,6 +7065,7 @@ async function addPago(){
 }
 
 async function editarPago(id){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
  if(!isAdminProfileRole(profile?.rol)) return;
  const pago=pagos.find(p=>String(p.id)===String(id));
  if(!pago) return alert('No se encontró el pago.');
@@ -7004,6 +7086,7 @@ async function editarPago(id){
  alert('Total pagado actualizado correctamente.');
 }
 async function eliminarVisita(id,boton){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
   if(!isAdminProfileRole(profile?.rol))return;
   const visita=visitas.find(v=>String(v.id)===String(id));
   if(!visita)return alert('La visita ya no está disponible. Actualiza la página.');
@@ -7475,6 +7558,7 @@ async function refreshDigitalAccess(){
 }
 
 async function pairDigitalESP32(){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
   if(!isAdminProfileRole(profile?.rol) || digitalBusy)return;
   if(!confirm('Se descargará el programa del ESP32 con una nueva clave privada. Si ya había un equipo vinculado, su clave anterior dejará de funcionar y los residentes quedarán deshabilitados hasta terminar las pruebas. ¿Continuar?'))return;
   digitalBusy=true;digitalButtonsDisabled(true);
@@ -7500,6 +7584,7 @@ async function pairDigitalESP32(){
 }
 
 async function configureDigitalAccess(kind){
+  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
   if(!isAdminProfileRole(profile?.rol) || digitalBusy || !digitalLastStatus)return;
   const action=kind==='pause'?(digitalLastStatus.enabled?'pause':'resume'):(digitalLastStatus.residents_enabled?'residents_off':'residents_on');
   if(action==='residents_on' && !confirm('¿Ya verificaste ambos relevadores y quieres habilitar el control digital para residentes? Las casas con controles suspendidos temporalmente o saldo pendiente con 10 días o más de atraso seguirán bloqueadas.'))return;
