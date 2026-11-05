@@ -161,7 +161,7 @@ function seleccionarEntrada(tipo){
 }
 function volverASeleccion(){
  detenerConsulta();
- token=null;expiresAt=null;
+ token=null;expiresAt=null;porteroIntervencionAt=null;esperandoPorteroMixto=false;
  document.getElementById('visitorPassCard').classList.add('hidden');
  document.getElementById('porteroCard').classList.add('hidden');
  document.getElementById('formCard').classList.add('hidden');
@@ -213,7 +213,7 @@ async function pedirConfirmacionPortero(){
   for(const [id,value] of [['casa',d.casa],['tipo',d.tipo],['empresa',d.empresa],['repartidor',d.repartidor],['mensaje',d.mensaje]]){
    document.getElementById(id).value=value;
   }
-  await enviarSolicitud();
+  await enviarSolicitud({porteroMixto:true});
   if(!document.getElementById('waitCard').classList.contains('hidden')){
    document.getElementById('porteroCard').classList.add('hidden');
   }else{
@@ -294,6 +294,8 @@ const sb=supabase.createClient(SB_URL,SB_KEY);
 let token=null;
 let pollTimer=null;
 let expiresAt=null;
+let porteroIntervencionAt=null;
+let esperandoPorteroMixto=false;
 
 const respuestas={
   voy_por_el_pedido:'🚶 El residente va a recibirte.',
@@ -304,7 +306,7 @@ const respuestas={
   no_lo_espero:'❌ El residente indica que no está esperando esta solicitud.'
 };
 
-async function enviarSolicitud(){
+async function enviarSolicitud(opciones={}){
   const casa=document.getElementById('casa').value.trim();
   const tipo=document.getElementById('tipo').value;
   const empresa=document.getElementById('empresa').value.trim();
@@ -329,7 +331,7 @@ async function enviarSolicitud(){
 
   try{
     const {data,error:fnError}=await sb.functions.invoke('delivery-contact',{
-      body:{casa,tipo,empresa,repartidor,mensaje}
+      body:{casa,tipo,empresa,repartidor,mensaje,portero_mixto:opciones?.porteroMixto===true}
     });
 
     if(fnError){
@@ -349,6 +351,9 @@ async function enviarSolicitud(){
 
     token=data?.token||null;
     expiresAt=data?.expires_at||null;
+    esperandoPorteroMixto=opciones?.porteroMixto===true;
+    porteroIntervencionAt=data?.portero_intervencion_at||null;
+    document.getElementById('waitTitle').textContent=esperandoPorteroMixto?'⏳ Esperando respuesta (2 min para revisión IA)':'⏳ Esperando respuesta del residente…';
 
     document.getElementById('formCard').classList.add('hidden');
     document.getElementById('waitCard').classList.remove('hidden');
@@ -393,7 +398,19 @@ async function consultarEstado(){
     }
 
     if(data.expires_at)expiresAt=data.expires_at;
-    actualizarTiempo();
+    if(data.portero_mixto===true){
+      esperandoPorteroMixto=true;
+      if(data.portero_intervencion_at)porteroIntervencionAt=data.portero_intervencion_at;
+    }
+    if(esperandoPorteroMixto&&data.portero_intervino_at){
+      document.getElementById('waitTitle').textContent='🤖 Portero IA: revisión completada';
+      document.getElementById('waitText').textContent='Pasaron 2 minutos sin respuesta. Sistema Admin fue avisado. El residente todavía puede responder mientras la solicitud esté vigente.';
+      document.getElementById('answer').textContent='🔒 Sin acreditación verificable del repartidor: no se autorizó ninguna apertura automática.';
+    }else if(esperandoPorteroMixto&&porteroIntervencionAt&&Date.now()>=new Date(porteroIntervencionAt).getTime()){
+      document.getElementById('waitTitle').textContent='🤖 Portero IA: revisión en proceso';
+      document.getElementById('waitText').textContent='Se cumplió el plazo de 2 minutos. Comprobando autorizaciones sin abrir el portón.';
+      document.getElementById('answer').textContent='';
+    }else actualizarTiempo();
   }catch(_){}
 }
 
@@ -401,6 +418,13 @@ function actualizarTiempo(){
   if(!expiresAt)return;
   const ms=new Date(expiresAt).getTime()-Date.now();
   const min=Math.max(0,Math.ceil(ms/60000));
+  if(esperandoPorteroMixto&&porteroIntervencionAt){
+    const msIa=Math.max(0,new Date(porteroIntervencionAt).getTime()-Date.now());
+    document.getElementById('waitTitle').textContent='⏳ Esperando respuesta del residente';
+    document.getElementById('waitText').textContent=
+      'Revisión del Portero IA en '+Math.max(0,Math.ceil(msIa/1000))+' segundos. Sin acreditación verificable no se abrirá el portón.';
+    return;
+  }
   document.getElementById('waitText').textContent=
     'Esperando respuesta. Tiempo aproximado restante: '+min+' min.';
 }
@@ -414,6 +438,8 @@ function nuevaSolicitud(){
   detenerConsulta();
   token=null;
   expiresAt=null;
+  porteroIntervencionAt=null;
+  esperandoPorteroMixto=false;
   document.getElementById('waitCard').classList.add('hidden');
   document.getElementById('formCard').classList.remove('hidden');
 }
