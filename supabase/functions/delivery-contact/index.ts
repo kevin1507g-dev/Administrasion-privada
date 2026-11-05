@@ -224,7 +224,7 @@ Deno.serve(async (req: Request) => {
       token: requestRow.public_token,
       expires_at: requestRow.expires_at,
       portero_intervencion_at: porteroMixto ? new Date(new Date(requestRow.created_at).getTime() + 120000).toISOString() : null,
-      mensaje: porteroMixto ? "Solicitud enviada. El Portero IA revisará a los 2 minutos si no hay respuesta; sin acreditación verificable, no abrirá." : "Solicitud enviada. Espera la respuesta del residente.",
+      mensaje: porteroMixto ? "Solicitud enviada. Si no hay respuesta en 2 minutos, el Portero IA contactará a Sistema Admin. La solicitud no abre el portón por sí sola." : "Solicitud enviada. Espera la respuesta del residente.",
     });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Error inesperado." }, 500);
