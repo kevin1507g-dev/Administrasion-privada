@@ -149,14 +149,33 @@ Deno.serve(async (req:Request)=>{
    return reply({ok:true,autorizada:false,escalado:escalacion,chat_token:token,expires_at:chat.expires_at});
   }
 
-  if(action==="poll"||action==="send"){
+  if(["poll","send","report_exit"].includes(action)){
    const token=String(body?.token||"");
    if(!/^[0-9a-f]{64}$/.test(token)&&!uuid(token))return reply({error:"Conversación no encontrada."},404);
    const hash=await sha256(token);
    const {data:chat}=await admin.from("portero_owner_chats")
-    .select("id,owner_id,estado,expires_at").eq("token_hash",hash).maybeSingle();
+    .select("id,owner_id,estado,expires_at,autorizado_at,salida_reportada_at").eq("token_hash",hash).maybeSingle();
    if(!chat)return reply({error:"Conversación no encontrada."},404);
    const active=chat.estado==="abierto"&&new Date(chat.expires_at).getTime()>Date.now();
+   if(action==="report_exit"){
+    if(!chat.autorizado_at)return reply({error:"Esta entrega aún no tiene autorización de entrada."},403);
+    if(chat.salida_reportada_at)return reply({ok:true,registrado:true,salida_at:chat.salida_reportada_at});
+    const elapsed=Date.now()-new Date(chat.autorizado_at).getTime();
+    if(elapsed<0||elapsed>=7*60*1000)return reply({error:"Terminó el plazo de 7 minutos para confirmar la salida."},410);
+    const {data:updated,error:exitError}=await admin.from("portero_owner_chats")
+     .update({salida_reportada_at:new Date().toISOString(),updated_at:new Date().toISOString()})
+     .eq("id",chat.id).is("salida_reportada_at",null)
+     .gte("autorizado_at",new Date(Date.now()-7*60*1000).toISOString())
+     .lte("autorizado_at",new Date().toISOString())
+     .select("salida_reportada_at").maybeSingle();
+    if(exitError)return reply({error:"No se pudo registrar la salida."},503);
+    if(!updated)return reply({error:"El plazo de confirmación terminó o ya fue registrado."},409);
+    await admin.from("portero_owner_chat_mensajes").insert({
+     chat_id:chat.id,autor:"sistema",
+     mensaje:"El repartidor declaró que ya está fuera de la privada. Esta declaración no confirma su ubicación ni cierra el portón."
+    });
+    return reply({ok:true,registrado:true,salida_at:updated.salida_reportada_at});
+   }
    if(action==="send"){
     if(!active)return reply({error:"El chat ha terminado. Solicita una nueva atención."},410);
     const mensaje=clean(body?.mensaje,600);
@@ -181,7 +200,7 @@ Deno.serve(async (req:Request)=>{
     .select("id,autor,mensaje,created_at").eq("chat_id",chat.id)
     .order("created_at",{ascending:true}).order("id",{ascending:true}).limit(80);
    if(msgListError)return reply({error:"No se pudieron leer los mensajes."},503);
-   return reply({ok:true,estado:active?"abierto":"cerrado",expires_at:chat.expires_at,messages:messages||[]});
+   return reply({ok:true,estado:active?"abierto":"cerrado",expires_at:chat.expires_at,autorizado_at:chat.autorizado_at,salida_reportada_at:chat.salida_reportada_at,messages:messages||[]});
   }
 
   if(["owner_list","owner_read","owner_reply","owner_close"].includes(action)){
@@ -190,7 +209,7 @@ Deno.serve(async (req:Request)=>{
    if(action==="owner_list"){
     const after=new Date(Date.now()-24*60*60*1000).toISOString();
     const {data,error}=await admin.from("portero_owner_chats")
-     .select("id,entrega_id,casa_numero,empresa,repartidor,tipo,motivo,estado,created_at,expires_at,updated_at,last_visitor_at,last_owner_read_at")
+     .select("id,entrega_id,casa_numero,empresa,repartidor,tipo,motivo,estado,created_at,expires_at,updated_at,last_visitor_at,last_owner_read_at,autorizado_at,salida_reportada_at")
      .eq("owner_id",ownerId).gte("created_at",after)
      .order("updated_at",{ascending:false}).limit(50);
     if(error)return reply({error:"No se pudieron obtener tus conversaciones."},503);
@@ -198,7 +217,7 @@ Deno.serve(async (req:Request)=>{
    }
    if(!uuid(body?.chat_id))return reply({error:"Conversación no válida."},400);
    const {data:chat}=await admin.from("portero_owner_chats")
-    .select("id,owner_id,estado,expires_at").eq("id",body.chat_id).eq("owner_id",ownerId).maybeSingle();
+    .select("id,owner_id,estado,expires_at,autorizado_at,salida_reportada_at").eq("id",body.chat_id).eq("owner_id",ownerId).maybeSingle();
    if(!chat)return reply({error:"Conversación no encontrada."},404);
    if(action==="owner_reply"){
     if(chat.estado!=="abierto"||new Date(chat.expires_at).getTime()<=Date.now())
@@ -219,7 +238,7 @@ Deno.serve(async (req:Request)=>{
     .order("created_at",{ascending:true}).order("id",{ascending:true}).limit(80);
    if(error)return reply({error:"No se pudo leer el chat."},503);
    await admin.from("portero_owner_chats").update({last_owner_read_at:new Date().toISOString()}).eq("id",chat.id);
-   return reply({ok:true,messages:messages||[],estado:chat.estado});
+   return reply({ok:true,messages:messages||[],estado:chat.estado,expires_at:chat.expires_at,autorizado_at:chat.autorizado_at,salida_reportada_at:chat.salida_reportada_at});
   }
   return reply({error:"Acción desconocida."},400);
  }catch{
