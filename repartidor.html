@@ -15,9 +15,6 @@ input,select,textarea,button{font:inherit}input,select,textarea{width:100%;paddi
 textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radius:12px;padding:13px 16px;font-weight:800;cursor:pointer;background:#334155;color:white}.primary{background:var(--green);color:#052e16}.hidden{display:none!important}
 .status{font-size:20px;font-weight:800}.answer{font-size:25px;font-weight:900;margin-top:10px}.pill{display:inline-block;padding:5px 9px;border-radius:99px;background:#1e293b;color:#cbd5e1}
 .footer{text-align:center;color:var(--muted);font-size:.9rem;margin:20px 0}.loader{display:inline-block;width:18px;height:18px;border:3px solid #475569;border-top-color:var(--green);border-radius:50%;animation:spin 1s linear infinite;vertical-align:-3px;margin-right:8px}@keyframes spin{to{transform:rotate(360deg)}}
-.portero-guide{display:grid;gap:10px;margin:12px 0 16px}
-.portero-step{border:1px solid #334155;border-radius:12px;padding:12px;background:#0b1626}
-.portero-step strong{display:block;margin-bottom:4px;color:#e2e8f0}
 .portero-status{margin-top:15px;padding:12px;border:1px solid #334155;border-radius:12px;line-height:1.55}
 .portero-status[hidden]{display:none}
 .portero-choice{border-color:#22c55e;background:#123021}
@@ -49,15 +46,9 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
 
   <div class="card hidden" id="porteroCard">
     <h2>🤖 Portero Inteligente</h2>
-    <p class="muted">Te ayudaré a identificar cómo solicitar tu acceso. El portón solo puede activarse con un código autorizado o la aprobación del residente.</p>
-    <div class="portero-guide">
-      <div class="portero-step"><strong>1. Indica la casa y el tipo de entrega</strong><span class="muted portero-small">La casa debe encontrarse entre la 40 y la 66.</span></div>
-      <div class="portero-step"><strong>2. Verificamos tu autorización</strong><span class="muted portero-small">Un código válido permite solicitar apertura. Si no tienes código, avisamos al residente.</span></div>
-      <div class="portero-step"><strong>3. Espera la confirmación de apertura</strong><span class="muted portero-small">Por seguridad, verifica que el portón esté abierto y la zona despejada antes de entrar.</span></div>
-    </div>
     <form id="porteroForm" onsubmit="procesarPortero(event)">
       <label for="porteroCasa">Número de casa (40 a 66) *</label>
-      <input id="porteroCasa" inputmode="numeric" pattern="(4[0-9]|5[0-9]|6[0-6])" maxlength="2" autocomplete="off" required placeholder="Ej. 63">
+      <input id="porteroCasa" inputmode="numeric" pattern="(4[0-9]|5[0-9]|6[0-6])" maxlength="2" autocomplete="off" required>
       <label for="porteroTipo">¿Qué tipo de entrega realizas?</label>
       <select id="porteroTipo">
         <option value="comida">🍔 Comida</option>
@@ -67,11 +58,11 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
         <option value="otro">🛵 Otra entrega</option>
       </select>
       <label for="porteroEmpresa">Empresa / plataforma (opcional)</label>
-      <input id="porteroEmpresa" maxlength="80" autocomplete="organization" placeholder="Ej. Uber Eats, Amazon">
+      <input id="porteroEmpresa" maxlength="80" autocomplete="organization">
       <label for="porteroNombre">Tu nombre completo * (obligatorio)</label>
       <input id="porteroNombre" required maxlength="80" autocomplete="name" placeholder="Nombre del repartidor o visitante">
       <label for="porteroMensaje">¿Qué vienes a entregar? (opcional)</label>
-      <textarea id="porteroMensaje" maxlength="240" placeholder="Ej. Un pedido de comida"></textarea>
+      <textarea id="porteroMensaje" maxlength="240"></textarea>
       <label for="porteroAutorizacion">¿Tienes un código de acceso autorizado para esta casa?</label>
       <select id="porteroAutorizacion" onchange="porteroAlternarCodigo()">
         <option value="sin_codigo">No, necesito autorización del residente</option>
@@ -79,7 +70,7 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
       </select>
       <div id="porteroCodigoGrupo" class="hidden">
         <label for="porteroCodigo">Código autorizado</label>
-        <input id="porteroCodigo" maxlength="16" minlength="7" autocomplete="off" autocapitalize="characters" pattern="([A-HJ-NP-Za-hj-np-z][0-9]{6}|[A-Fa-f0-9]{16})" placeholder="Ej. A123456">
+        <input id="porteroCodigo" maxlength="16" minlength="7" autocomplete="off" autocapitalize="characters" pattern="([A-HJ-NP-Za-hj-np-z][0-9]{6}|[A-Fa-f0-9]{16})">
         <p class="muted portero-small">El código se verifica en el servidor, asociado a la casa y dentro de su horario válido.</p>
       </div>
       <p class="muted portero-small" style="margin-top:14px">El tipo de entrega, la empresa declarada y el motivo pueden recibir una revisión automatizada por IA. Esa revisión no confirma tu identidad ni decide la apertura.</p>
@@ -96,11 +87,11 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
     <p class="muted">Si un residente te compartió un código, escribe el número de casa y el código para solicitar la apertura del portón durante el horario autorizado.</p>
     <form id="visitorPassForm" onsubmit="solicitarAccesoVisita(event)">
       <label for="vpNombre">Tu nombre completo * (obligatorio)</label>
-      <input id="vpNombre" required maxlength="100" autocomplete="name" placeholder="Ej. Juan Pérez">
+      <input id="vpNombre" required maxlength="100" autocomplete="name">
       <label for="vpCasa">Número de casa (40 a 66)</label>
-      <input id="vpCasa" required inputmode="numeric" pattern="(4[0-9]|5[0-9]|6[0-6])" maxlength="2" autocomplete="off" placeholder="Ej. 45" title="Solo se aceptan casas de la 40 a la 66">
+      <input id="vpCasa" required inputmode="numeric" pattern="(4[0-9]|5[0-9]|6[0-6])" maxlength="2" autocomplete="off" title="Solo se aceptan casas de la 40 a la 66">
       <label for="vpCodigo">Código de visita</label>
-      <input id="vpCodigo" required minlength="7" maxlength="16" pattern="([A-HJ-NP-Za-hj-np-z][0-9]{6}|[A-Fa-f0-9]{16})" autocapitalize="characters" autocomplete="off" placeholder="Ej. A123456">
+      <input id="vpCodigo" required minlength="7" maxlength="16" pattern="([A-HJ-NP-Za-hj-np-z][0-9]{6}|[A-Fa-f0-9]{16})" autocapitalize="characters" autocomplete="off">
       <button type="submit" class="primary" id="vpEnviar" style="margin-top:18px">🚪 Solicitar apertura del portón</button>
     </form>
     <p id="vpEstado" class="muted" role="status" aria-live="polite"></p>
@@ -110,7 +101,7 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
 
   <div id="formCard" class="card hidden">
     <label for="casa">Número de casa <span aria-hidden="true" style="color:#fecaca">*</span> (obligatorio: 40 a 66)</label>
-    <input id="casa" name="casa" type="text" inputmode="numeric" pattern="(4[0-9]|5[0-9]|6[0-6])" required aria-required="true" aria-describedby="ayudaCasa" maxlength="2" autocomplete="off" placeholder="Ej. 45" title="Solo se aceptan casas de la 40 a la 66" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+    <input id="casa" name="casa" type="text" inputmode="numeric" pattern="(4[0-9]|5[0-9]|6[0-6])" required aria-required="true" aria-describedby="ayudaCasa" maxlength="2" autocomplete="off" title="Solo se aceptan casas de la 40 a la 66" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
     <p id="ayudaCasa" class="muted" style="margin:7px 0 12px;font-size:13px">Solo se reciben solicitudes para las casas de la <strong>40 a la 66</strong>. Fuera de ese rango no se enviarán ni se notificarán.</p>
 
     <label>Tipo de solicitud</label>
@@ -123,13 +114,13 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
     </select>
 
     <label>Empresa / plataforma (opcional)</label>
-    <input id="empresa" maxlength="80" placeholder="Ej. Uber Eats, Amazon, DHL">
+    <input id="empresa" maxlength="80">
 
     <label for="repartidor">Nombre del repartidor o visitante * (obligatorio)</label>
     <input id="repartidor" required maxlength="80" autocomplete="name" placeholder="Tu nombre">
 
     <label>Mensaje (opcional)</label>
-    <textarea id="mensaje" maxlength="240" placeholder="Ej. Traigo un pedido grande"></textarea>
+    <textarea id="mensaje" maxlength="240"></textarea>
 
     <p class="muted portero-small">Tu descripción de entrega puede analizarse automáticamente para orientar al residente, sin identificarte ni autorizar la apertura.</p>
     <button id="sendBtn" class="primary" style="margin-top:18px" onclick="enviarSolicitud()">🔔 Contactar residente</button>
