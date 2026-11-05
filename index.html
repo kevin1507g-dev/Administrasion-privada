@@ -173,6 +173,16 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 #calendarioDias button[aria-current="date"]{outline:2px solid #38bdf8;outline-offset:-2px}
 #calendarioDias button:disabled{opacity:.3;cursor:not-allowed}
 
+#ownerChatEspecialBoton{position:fixed;right:16px;bottom:80px;z-index:1800;padding:11px 15px;background:#0e7490;color:#fff;border-radius:24px;box-shadow:0 8px 24px #0007}
+#ownerChatEspecialNumero{padding:3px 7px;background:#b91c1c;color:white;border-radius:15px}
+#ownerChatEspecialNumero[hidden]{display:none}
+#ownerChatEspecialDialog{width:min(560px,calc(100vw - 22px));max-height:90dvh;overflow-y:auto;background:#101b2d;color:#fff;border:1px solid #334155;border-radius:18px;padding:20px;box-shadow:0 18px 55px #0009}
+#ownerChatEspecialDialog::backdrop{background:#030712cf}
+#ownerChatEspecialMensajes{height:min(38vh,320px);overflow:auto;border:1px solid #334155;border-radius:14px;background:#071321;padding:12px;margin:12px 0}
+.ownerChatEspecialMensaje{padding:10px 12px;margin:8px 0;border-radius:12px;background:#1e293b;white-space:pre-wrap;overflow-wrap:anywhere}
+.ownerChatEspecialMensaje.propietario{background:#164e63;margin-left:15%}
+.ownerChatEspecialMensaje small{display:block;font-size:12px;color:#cbd5e1}
+.ownerChatEspecialOpcion{display:block;width:100%;text-align:left;margin:8px 0;padding:11px;border:1px solid #334155;border-radius:12px;background:#111d30;color:#fff}
 </style>
 <link rel="stylesheet" href="./ui-modern.css?v=owner-circular22" />
 <link rel="stylesheet" href="./mp-sandbox.css?v=mp-lab1" />
@@ -921,6 +931,12 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       <thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th></tr></thead>
       <tbody id="ownerRolesRows"></tbody>
     </table></div>
+  </div>
+  <div class="card" id="ownerChatEspecialListaCard" style="margin-top:14px">
+    <h3>💬 Chat especial para empresas no autorizadas</h3>
+    <p class="muted">Solo Sistema Admin puede responder. Un mensaje no abre el portón.</p>
+    <button type="button" onclick="cargarChatsEspecialesOwner()">↻ Actualizar conversaciones</button>
+    <div id="ownerChatEspecialLista" role="status" style="margin-top:12px">Cargando chats…</div>
   </div>
   <div class="card" style="margin-top:14px" id="ownerEmpresasReparto">
     <h3>🛵 Empresas autorizadas para reparto</h3>
@@ -2992,7 +3008,7 @@ function show(id){
   if(id==='ownerResidentPreview' && (profile?.rol!=='owner'||ownerPanelMode!=='resident'))return;
   if(id==='ownerPanel' && (profile?.rol!=='owner'||ownerPanelMode!=='owner'))return;
   if(id!=='visitas')ocultarCodigosPermanentes();
-  if(id==='ownerPanel'){if(profile?.rol!=='owner')return;renderOwnerPanel();cargarAccionesOwner();cargarMetricasOwnerAccesos();cargarEmpresasReparto();}
+  if(id==='ownerPanel'){if(profile?.rol!=='owner')return;renderOwnerPanel();cargarAccionesOwner();cargarMetricasOwnerAccesos();cargarEmpresasReparto();cargarChatsEspecialesOwner();}
   if(id==='biometrico'){
     if(!['owner','admin','residente'].includes(profile?.rol))return;
     renderRegistroBiometrico();
@@ -3378,6 +3394,7 @@ async function enter(){
  document.querySelectorAll('.residentAdminOnly').forEach(x=>x.classList.toggle('hidden',!['owner','admin','residente'].includes(profile.rol)));
  cFecha.value=new Date().toISOString().slice(0,10); if(document.getElementById('resFecha')) resFecha.value=new Date().toISOString().slice(0,10);
  await loadAll();
+ if(profile.rol==='owner')iniciarChatsEspecialesOwner();
  // Elegir Control Digital como pantalla inicial ANTES de los avisos
  // y del chat. Sus diálogos se muestran por encima sin ocultar la página.
  if(profile.rol==='residente')show('controlDigital');
@@ -7934,5 +7951,21 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizar
 <script src="./pendientes-residente.js?v=3"></script>
 <script src="./aviso-cuotas-residente.js?v=1"></script>
 <script src="./acciones-menu.js?v=1"></script>
+<button id="ownerChatEspecialBoton" type="button" class="ownerOnly hidden" onclick="abrirChatEspecialOwner()" aria-label="Ver conversaciones especiales">💬 Chats especiales <span id="ownerChatEspecialNumero" hidden></span></button>
+<dialog id="ownerChatEspecialDialog" aria-labelledby="ownerChatEspecialTitulo">
+  <h3 id="ownerChatEspecialTitulo">💬 Chat especial · Sistema Admin</h3>
+  <p id="ownerChatEspecialDatos" class="muted"></p>
+  <div id="ownerChatEspecialMensajes" role="log" aria-live="polite"></div>
+  <form onsubmit="enviarChatEspecialOwner(event)">
+    <label for="ownerChatEspecialTexto">Mensaje al repartidor</label>
+    <textarea id="ownerChatEspecialTexto" maxlength="600" rows="3" required></textarea>
+    <div class="actions" style="margin-top:12px">
+      <button id="ownerChatEspecialEnviar" class="primary" type="submit">Responder</button>
+      <button type="button" onclick="cerrarConversacionEspecialOwner()">Finalizar chat</button>
+      <button type="button" onclick="ocultarChatEspecialOwner()">Cerrar ventana</button>
+    </div>
+  </form>
+  <p id="ownerChatEspecialEstado" class="muted" role="status"></p>
+</dialog>
 </body></html>
 
