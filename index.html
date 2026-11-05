@@ -922,6 +922,21 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       <tbody id="ownerRolesRows"></tbody>
     </table></div>
   </div>
+  <div class="card" style="margin-top:14px" id="ownerEmpresasReparto">
+    <h3>🛵 Empresas autorizadas para reparto</h3>
+    <p class="muted">Solo Sistema Admin puede aprobar empresas y modificar sus horarios. El nombre declarado por un repartidor no demuestra que trabaje para una empresa: ningún registro de esta lista abre el portón por sí solo.</p>
+    <div class="form">
+      <div><label for="empresaRepartoNombre">Empresa</label><input id="empresaRepartoNombre" maxlength="80" placeholder="Ej. Empresa de mensajería"></div>
+      <div><label for="empresaRepartoInicio">Inicio de acceso</label><input id="empresaRepartoInicio" type="time" value="08:00"></div>
+      <div><label for="empresaRepartoFin">Fin de acceso</label><input id="empresaRepartoFin" type="time" value="20:00"></div>
+    </div>
+    <button type="button" class="primary" onclick="agregarEmpresaReparto()" style="margin-top:12px">➕ Agregar empresa (inactiva)</button>
+    <p id="empresaRepartoEstado" role="status" aria-live="polite" class="muted"></p>
+    <div class="table"><table>
+      <thead><tr><th>Empresa</th><th>Horario</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody id="empresasRepartoRows"><tr><td colspan="4">Abre este panel para cargar empresas.</td></tr></tbody>
+    </table></div>
+  </div>
   <div class="card" style="margin-top:14px">
     <h3>🕘 Historial de gestión Sistema Admin</h3>
     <p class="muted">Registro de cambios de roles y de cuentas activadas o suspendidas.</p>
@@ -2041,6 +2056,82 @@ async function actualizarMetricasOwner(){
  }
 }
 
+let empresasRepartoCargando=false;
+function empresaRepartoMensaje(mensaje){
+ const el=document.getElementById('empresaRepartoEstado');
+ if(el)el.textContent=mensaje;
+}
+async function cargarEmpresasReparto(){
+ if(profile?.rol!=='owner'||empresasRepartoCargando)return;
+ empresasRepartoCargando=true;
+ try{
+  const {data,error}=await sb.from('empresas_reparto_autorizadas')
+   .select('id,nombre,activa,hora_inicio,hora_fin,creada_at')
+   .order('nombre',{ascending:true});
+  if(error)throw error;
+  const rows=document.getElementById('empresasRepartoRows');
+  if(!rows)return;
+  rows.innerHTML=(data||[]).map(e=>{
+   const horario=String(e.hora_inicio||'').slice(0,5)+'–'+String(e.hora_fin||'').slice(0,5);
+   return '<tr><td>'+esc(e.nombre)+'</td><td>'+esc(horario)+'</td>'+
+    '<td>'+(e.activa?'✅ Autorizada':'⏸️ Inactiva')+'</td>'+
+    '<td><div class="actions"><button type="button" onclick="alternarEmpresaReparto(\''+e.id+'\','+!e.activa+')">'+(e.activa?'Desactivar':'Autorizar')+'</button>'+
+    '<button type="button" onclick="editarHorarioEmpresaReparto(\''+e.id+'\')">Editar horario</button>'+
+    '<button type="button" class="danger" onclick="eliminarEmpresaReparto(\''+e.id+'\')">Eliminar</button></div></td></tr>';
+  }).join('')||'<tr><td colspan="4" class="muted">No hay empresas registradas.</td></tr>';
+  window.empresasRepartoEnPanel=data||[];
+  empresaRepartoMensaje('Las autorizaciones de empresas aún requieren verificar la identidad del repartidor antes de una apertura automática.');
+ }catch(e){empresaRepartoMensaje('No se pudo cargar la lista: '+(e.message||String(e)));}
+ finally{empresasRepartoCargando=false;}
+}
+async function agregarEmpresaReparto(){
+ if(profile?.rol!=='owner')return alert('Solo Sistema Admin administra empresas.');
+ const nombre=document.getElementById('empresaRepartoNombre')?.value.trim();
+ const inicio=document.getElementById('empresaRepartoInicio')?.value;
+ const fin=document.getElementById('empresaRepartoFin')?.value;
+ if(!nombre||nombre.length<2||nombre.length>80)return empresaRepartoMensaje('Escribe el nombre de la empresa (2 a 80 caracteres).');
+ if(!inicio||!fin||inicio>=fin)return empresaRepartoMensaje('Selecciona un horario válido.');
+ const {error}=await sb.from('empresas_reparto_autorizadas').insert({
+  nombre,hora_inicio:inicio,hora_fin:fin,activa:false,creado_por:user.id
+ });
+ if(error)return empresaRepartoMensaje('No se pudo agregar: '+error.message);
+ document.getElementById('empresaRepartoNombre').value='';
+ await cargarEmpresasReparto();
+}
+async function alternarEmpresaReparto(id,activa){
+ if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede autorizar empresas.');
+ const e=(window.empresasRepartoEnPanel||[]).find(x=>x.id===id);
+ if(!e)return empresaRepartoMensaje('Empresa no encontrada; actualiza la lista.');
+ if(!confirm((activa?'¿Autorizar':'¿Desactivar')+' a '+e.nombre+'? Esto solo modifica la lista; no abre el portón.'))return;
+ const {error}=await sb.from('empresas_reparto_autorizadas').update({activa,actualizada_at:new Date().toISOString()}).eq('id',id);
+ if(error)return empresaRepartoMensaje('No se pudo actualizar: '+error.message);
+ await cargarEmpresasReparto();
+}
+async function editarHorarioEmpresaReparto(id){
+ if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede editar horarios.');
+ const e=(window.empresasRepartoEnPanel||[]).find(x=>x.id===id);
+ if(!e)return empresaRepartoMensaje('Empresa no encontrada.');
+ const inicio=prompt('Hora de inicio (HH:MM):',String(e.hora_inicio).slice(0,5));
+ if(inicio===null)return;
+ const fin=prompt('Hora de fin (HH:MM):',String(e.hora_fin).slice(0,5));
+ if(fin===null)return;
+ if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(inicio)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(fin)||inicio>=fin){
+  return empresaRepartoMensaje('Horario inválido. Usa HH:MM y termina después del inicio.');
+ }
+ const {error}=await sb.from('empresas_reparto_autorizadas').update({hora_inicio:inicio,hora_fin:fin,actualizada_at:new Date().toISOString()}).eq('id',id);
+ if(error)return empresaRepartoMensaje('No se pudo modificar: '+error.message);
+ await cargarEmpresasReparto();
+}
+async function eliminarEmpresaReparto(id){
+ if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede eliminar empresas.');
+ const e=(window.empresasRepartoEnPanel||[]).find(x=>x.id===id);
+ if(!e)return empresaRepartoMensaje('Empresa no encontrada.');
+ if(!confirm('¿Eliminar a '+e.nombre+' de la lista de empresas autorizadas?'))return;
+ const {error}=await sb.from('empresas_reparto_autorizadas').delete().eq('id',id);
+ if(error)return empresaRepartoMensaje('No se pudo eliminar: '+error.message);
+ await cargarEmpresasReparto();
+}
+
 function renderOwnerPanel(){
  if(profile?.rol!=='owner')return;
  const counts={owner:'ownerCountOwner',admin:'ownerCountAdmins',residente:'ownerCountResidents',guardia:'ownerCountGuards'};
@@ -2901,7 +2992,7 @@ function show(id){
   if(id==='ownerResidentPreview' && (profile?.rol!=='owner'||ownerPanelMode!=='resident'))return;
   if(id==='ownerPanel' && (profile?.rol!=='owner'||ownerPanelMode!=='owner'))return;
   if(id!=='visitas')ocultarCodigosPermanentes();
-  if(id==='ownerPanel'){if(profile?.rol!=='owner')return;renderOwnerPanel();cargarAccionesOwner();cargarMetricasOwnerAccesos();}
+  if(id==='ownerPanel'){if(profile?.rol!=='owner')return;renderOwnerPanel();cargarAccionesOwner();cargarMetricasOwnerAccesos();cargarEmpresasReparto();}
   if(id==='biometrico'){
     if(!['owner','admin','residente'].includes(profile?.rol))return;
     renderRegistroBiometrico();
