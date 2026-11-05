@@ -98,7 +98,12 @@ Deno.serve(async (req: Request) => {
       : "otro";
 
     const empresa = clean(body?.empresa, 80) || null;
-    const repartidor = clean(body?.repartidor, 80) || null;
+    // El nombre es obligatorio incluso para clientes que ignoren la validación visual.
+    const nombreIngresado = String(body?.repartidor ?? "").trim();
+    if (!nombreIngresado || nombreIngresado.length > 80) {
+      return json({ error: "Es obligatorio escribir el nombre del repartidor o visitante (máximo 80 caracteres)." }, 400);
+    }
+    const repartidor = nombreIngresado;
     const mensaje = clean(body?.mensaje, 240) || null;
     const porteroMixto = body?.portero_mixto === true;
 
