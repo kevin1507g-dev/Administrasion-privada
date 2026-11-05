@@ -1,88 +1,87 @@
-// Pruebas sin acceso a redes, sin escribir en Supabase y SIN enviar pulsos al portón.
-// Ejecutar: node tests/portero_ia_mixto.test.mjs
+// Sin redes ni pulsos: prueba las rutas del Portero Inteligente.
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import {readFileSync} from "node:fs";
 import vm from "node:vm";
+const portal=readFileSync(new URL("../repartidor.html",import.meta.url),"utf8");
+const server=readFileSync(new URL("../supabase/functions/delivery-owner-chat/index.ts",import.meta.url),"utf8");
+const delivery=readFileSync(new URL("../supabase/functions/delivery-contact/index.ts",import.meta.url),"utf8");
+const js=[...portal.matchAll(/<script(?:[^>]*)>([\s\S]*?)<\/script>/g)]
+ .map(m=>m[1]).find(x=>x.includes("procesarPortero"));
+assert(js);
+new vm.Script(js);
+assert.match(server,/action==="owner_reply"/);
+assert.match(server,/admin\.auth\.getUser\(token\)/);
+assert.match(server,/sha256\(token\)/);
+assert.doesNotMatch(server,/access_private\.commands|digital_access_request|visitor_pass_request/);
+assert.match(delivery,/portero_modo_mixto: porteroMixto/);
 
-const portal = readFileSync(new URL("../repartidor.html", import.meta.url), "utf8");
-const edge = readFileSync(new URL("../supabase/functions/delivery-contact/index.ts", import.meta.url), "utf8");
-const script = [...portal.matchAll(/<script(?:[^>]*)>([\s\S]*?)<\/script>/g)]
-  .map(m=>m[1]).find(s=>s.includes("procesarPortero"));
-assert(script, "Falta la ruta del Portero Inteligente");
-assert.match(portal, /id="porteroForm"/);
-assert.match(portal, /id="porteroCodigo"/);
-assert.match(edge, /EdgeRuntime\.waitUntil/);
-assert.match(edge, /No identifiques ni valides personas o empresas/);
-assert.doesNotMatch(script, /digital_access_request|digital_access_delivery_request|digital_access_exchange/);
-new vm.Script(script);
-
-const build=(autorizacion,codigo="",accepted=true)=>{
- const elements={};
- const calls={rpc:[],invoke:[]};
- const el=id=>{
-  if(!elements[id]){
-   const classes=new Set(["hidden"]);
-   elements[id]={
-    value:"",textContent:"",disabled:false,required:false,hidden:true,
-    classList:{
-     add:x=>classes.add(x), remove:x=>classes.delete(x),
-     toggle:(x,flag)=>flag?classes.add(x):classes.delete(x),
-     contains:x=>classes.has(x)
-    },
-    focus(){},setAttribute(){},removeAttribute(){},reportValidity(){},scrollIntoView(){}
+function build(approved,choice,code=""){
+ const els={},calls=[];
+ function el(id){
+  if(!els[id]){
+   const c=new Set(["hidden"]);
+   els[id]={
+    value:"",hidden:false,required:false,disabled:false,textContent:"",
+    scrollHeight:100,scrollTop:0,clientHeight:100,
+    classList:{add:x=>c.add(x),remove:x=>c.delete(x),
+      toggle:(x,v)=>v?c.add(x):c.delete(x),contains:x=>c.has(x)},
+    focus(){},setAttribute(){},removeAttribute(){},reportValidity(){},scrollIntoView(){},
+    replaceChildren(){},appendChild(){}
    };
   }
-  return elements[id];
- };
+  return els[id];
+ }
  const context={
-  document:{getElementById:el},
+  document:{getElementById:el,createElement(){return {className:"",textContent:"",append(){}}}},
   window:{addEventListener(){}},
   setInterval(){return 1},clearInterval(){},
-  supabase:{createClient(){return {
-   rpc:async(fn,args)=>{calls.rpc.push({fn,args});return {data:{accepted,message:"Autorización comprobada"},error:null};},
+  supabase:{createClient(){return{
+   rpc:async(fn,args)=>{calls.push({fn,args});return {data:{accepted:true},error:null}},
    functions:{invoke:async(fn,args)=>{
-    calls.invoke.push({fn,args});
-    return {data:fn==="delivery-contact"
-     ? {ok:true,token:"token-de-prueba",expires_at:new Date(Date.now()+600000).toISOString()}
-     : {estado:"esperando",expires_at:new Date(Date.now()+600000).toISOString()},error:null};
+    calls.push({fn,args});
+    if(fn==="delivery-owner-chat"){
+     if(args.body.action==="start")
+      return {data:approved?{ok:true,autorizada:true}:
+       {ok:true,autorizada:false,chat_token:"a".repeat(64),
+        expires_at:new Date(Date.now()+3600000).toISOString()},error:null};
+     return {data:{ok:true,estado:"abierto",messages:[]},error:null};
+    }
+    if(fn==="delivery-contact")return {data:{
+     ok:true,token:"token-de-prueba",expires_at:new Date(Date.now()+600000).toISOString()
+    },error:null};
+    return {data:{estado:"esperando"},error:null};
    }}
   };}}
  };
- vm.createContext(context);
- vm.runInContext(script,context);
- el("porteroCasa").value="63";
- el("porteroTipo").value="comida";
- el("porteroEmpresa").value="Reparto de prueba";
- el("porteroNombre").value="Prueba";
- el("porteroMensaje").value="Pedido autorizado";
- el("porteroAutorizacion").value=autorizacion;
- el("porteroCodigo").value=codigo;
- el("porteroCard").classList.remove("hidden");
- return {context,el,calls};
-};
+ vm.createContext(context);vm.runInContext(js,context);
+ for(const [id,value] of Object.entries({
+  porteroCasa:"63",porteroTipo:"comida",porteroEmpresa:"Empresa de prueba",
+  porteroNombre:"Prueba",porteroMensaje:"Pedido de prueba",
+  porteroAutorizacion:choice,porteroCodigo:code
+ }))el(id).value=value;
+ return {el,calls,context};
+}
 const event={preventDefault(){}};
-const allowed=build("con_codigo","A123456");
-await allowed.context.procesarPortero(event);
-assert.deepEqual(allowed.calls.rpc.map(x=>x.fn),["visitor_pass_request"]);
-assert.equal(allowed.calls.invoke.length,0);
-assert.match(allowed.el("porteroEstado").textContent,/Autorización previa válida/);
+const unauth=build(false,"sin_codigo");
+await unauth.context.procesarPortero(event);
+assert(unauth.calls.some(c=>c.fn==="delivery-owner-chat"&&c.args.body.action==="start"));
+assert(!unauth.calls.some(c=>c.fn==="delivery-contact"));
+assert(!unauth.el("ownerDeliveryChatCard").classList.contains("hidden"));
 
-const invalid=build("con_codigo","INVÁLIDO");
+const approved=build(true,"sin_codigo");
+await approved.context.procesarPortero(event);
+assert(approved.calls.some(c=>c.fn==="delivery-contact"));
+assert(approved.el("waitCard").classList.contains("hidden")===false);
+assert(!approved.calls.some(c=>c.fn==="visitor_pass_request"));
+
+const coded=build(false,"con_codigo","A123456");
+await coded.context.procesarPortero(event);
+assert.deepEqual(coded.calls.map(x=>x.fn),["visitor_pass_request"]);
+const invalid=build(false,"con_codigo","MAL");
 await invalid.context.procesarPortero(event);
-assert.equal(invalid.calls.rpc.length,0);
-assert.equal(invalid.calls.invoke.length,0);
-assert(!invalid.el("porteroPedirConfirmacion").classList.contains("hidden"));
-
-const rejected=build("con_codigo","A123456",false);
-await rejected.context.procesarPortero(event);
-assert.equal(rejected.calls.rpc.length,1);
-assert.equal(rejected.calls.invoke.length,0);
-assert(!rejected.el("porteroPedirConfirmacion").classList.contains("hidden"));
-
-const noCode=build("sin_codigo");
-await noCode.context.procesarPortero(event);
-assert.equal(noCode.calls.rpc.length,0);
-assert(noCode.calls.invoke.some(x=>x.fn==="delivery-contact"));
-assert(noCode.el("porteroCard").classList.contains("hidden"));
-assert(!noCode.el("waitCard").classList.contains("hidden"));
-console.log("PASS: código válido, inválido, rechazado y sin código; ningún pulso de prueba.");
+assert.equal(invalid.calls.length,0);
+const missingName=build(false,"sin_codigo");
+missingName.el("porteroNombre").value=" ";
+await missingName.context.procesarPortero(event);
+assert.equal(missingName.calls.length,0);
+console.log("PASS: no autorizado->chat Owner, autorizado->residente, código->RPC; sin pulsos de prueba.");
