@@ -21,6 +21,10 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
 .portero-choice strong{color:#b7f7cf}
 .portero-small{font-size:.9rem;line-height:1.45}
 .portero-tag{font-size:.8rem;color:#a7f3d0;font-weight:700;letter-spacing:.02em}
+.ownerChatBubble{padding:10px 12px;border-radius:13px;background:#1e293b;max-width:92%;white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}
+.ownerChatBubble.owner{background:#164e63;margin-left:auto}
+.ownerChatBubble small{display:block;opacity:.75;font-size:11px;margin-bottom:4px}
+.ownerChatMessages{border:1px solid #334155;background:#0b1626;border-radius:14px;min-height:180px;max-height:360px;overflow-y:auto;padding:12px;margin:14px 0}
 </style>
 </head>
 <body>
@@ -67,7 +71,7 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
       <label for="porteroAutorizacion">¿Tienes un código de acceso autorizado para esta casa? *</label>
       <select id="porteroAutorizacion" required onchange="porteroAlternarCodigo()">
         <option value="" disabled selected>Selecciona una opción</option>
-        <option value="sin_codigo">No, necesito autorización del residente</option>
+        <option value="sin_codigo">No tengo código (continuar con Portero IA)</option>
         <option value="con_codigo">Sí, el residente me compartió un código</option>
       </select>
       <div id="porteroCodigoGrupo" class="hidden">
@@ -81,6 +85,19 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
       <button type="button" id="porteroPedirConfirmacion" class="hidden" style="margin-top:12px" onclick="pedirConfirmacionPortero()">🔔 Solicitar permiso al residente</button>
     </form>
     <p class="muted portero-small" style="margin-top:12px">El portero no autoriza entradas por el nombre de la empresa, la apariencia de una persona o lo que diga un mensaje. Las solicitudes quedan sujetas a los controles de seguridad del sistema.</p>
+    <button type="button" class="back" onclick="volverASeleccion()">← Volver al menú principal</button>
+  </div>
+
+  <div class="card hidden" id="ownerDeliveryChatCard">
+    <h2>💬 Chat especial con Sistema Admin</h2>
+    <p class="muted">Tu empresa no está autorizada para el acceso sin código. Puedes comunicarte directamente con Sistema Admin. Este chat no abre el portón.</p>
+    <div id="ownerDeliveryChatMessages" class="ownerChatMessages" role="log" aria-live="polite">Conectando con Sistema Admin…</div>
+    <form id="ownerDeliveryChatForm" onsubmit="enviarMensajeChatPortero(event)">
+      <label for="ownerDeliveryChatText">Mensaje a Sistema Admin</label>
+      <textarea id="ownerDeliveryChatText" rows="3" maxlength="600" required></textarea>
+      <button id="ownerDeliveryChatSend" class="primary" type="submit">💬 Enviar mensaje</button>
+      <p class="muted" id="ownerDeliveryChatStatus" role="status" aria-live="polite"></p>
+    </form>
     <button type="button" class="back" onclick="volverASeleccion()">← Volver al menú principal</button>
   </div>
 
@@ -149,17 +166,20 @@ function seleccionarEntrada(tipo){
  document.getElementById('porteroCard').classList.toggle('hidden',tipo!=='portero');
  document.getElementById('formCard').classList.toggle('hidden',tipo!=='contacto');
  document.getElementById('waitCard').classList.add('hidden');
+ document.getElementById('ownerDeliveryChatCard').classList.add('hidden');
  if(tipo==='codigo')document.getElementById('vpNombre').focus();
  else if(tipo==='portero')document.getElementById('porteroCasa').focus();
  else document.getElementById('casa').focus();
 }
 function volverASeleccion(){
  detenerConsulta();
+ detenerChatPortero();
  token=null;expiresAt=null;porteroIntervencionAt=null;esperandoPorteroMixto=false;
  document.getElementById('visitorPassCard').classList.add('hidden');
  document.getElementById('porteroCard').classList.add('hidden');
  document.getElementById('formCard').classList.add('hidden');
  document.getElementById('waitCard').classList.add('hidden');
+ document.getElementById('ownerDeliveryChatCard').classList.add('hidden');
  document.getElementById('accessChoice').classList.remove('hidden');
  document.getElementById('vpEstado').textContent='';
  document.getElementById('error').textContent='';
@@ -209,7 +229,20 @@ async function pedirConfirmacionPortero(){
  btn.disabled=true;fallback.disabled=true;
  porteroEstado('Consultando con la casa. No se enviará ninguna orden al portón sin autorización.');
  try{
-  // Reutiliza el circuito existente con control de intentos, aviso al residente y respuesta autenticada.
+  // La empresa se evalúa SIEMPRE en Supabase, nunca por una lista manipulable del navegador.
+  // No existe ninguna instrucción física dentro del chat.
+  const {data:ruta,error:errorRuta}=await sb.functions.invoke('delivery-owner-chat',{
+   body:{action:'start',casa:d.casa,tipo:d.tipo,empresa:d.empresa,
+    repartidor:d.repartidor,mensaje:d.mensaje}
+  });
+  if(errorRuta||ruta?.error)throw Error(ruta?.error||errorRuta?.message||'No se pudo verificar la empresa.');
+  if(ruta?.autorizada===false&&ruta?.chat_token){
+   abrirChatPortero(ruta.chat_token,ruta.expires_at);
+   document.getElementById('porteroCard').classList.add('hidden');
+   return;
+  }
+  if(ruta?.autorizada!==true)throw Error('No fue posible determinar el destino de tu solicitud.');
+  // Para empresas incluidas en el catálogo se conserva el circuito de aprobación existente.
   for(const [id,value] of [['casa',d.casa],['tipo',d.tipo],['empresa',d.empresa],['repartidor',d.repartidor],['mensaje',d.mensaje]]){
    document.getElementById(id).value=value;
   }
@@ -219,6 +252,8 @@ async function pedirConfirmacionPortero(){
   }else{
    porteroEstado(document.getElementById('error').textContent||'No fue posible notificar al residente.');
   }
+ }catch(e){
+  porteroEstado(e.message||'No fue posible conectar con Sistema Admin.');
  }finally{
   porteroBusy=false;btn.disabled=false;fallback.disabled=false;
  }
@@ -267,6 +302,83 @@ async function procesarPortero(event){
   porteroBusy=false;btn.disabled=false;
  }
 }
+
+let ownerDeliveryChatToken=null;
+let ownerDeliveryChatTimer=null;
+let ownerDeliveryChatBusy=false;
+let ownerDeliveryChatExpiresAt=null;
+function detenerChatPortero(){
+ if(ownerDeliveryChatTimer)clearInterval(ownerDeliveryChatTimer);
+ ownerDeliveryChatTimer=null;ownerDeliveryChatToken=null;
+ ownerDeliveryChatExpiresAt=null;ownerDeliveryChatBusy=false;
+}
+function abrirChatPortero(token,expiresAt){
+ detenerChatPortero();
+ ownerDeliveryChatToken=token;
+ ownerDeliveryChatExpiresAt=expiresAt||null;
+ document.getElementById('ownerDeliveryChatCard').classList.remove('hidden');
+ document.getElementById('ownerDeliveryChatStatus').textContent='Esperando la respuesta de Sistema Admin.';
+ document.getElementById('ownerDeliveryChatText').disabled=false;
+ document.getElementById('ownerDeliveryChatSend').disabled=false;
+ consultarChatPortero();
+ ownerDeliveryChatTimer=setInterval(consultarChatPortero,5000);
+}
+function mostrarChatPortero(mensajes){
+ const box=document.getElementById('ownerDeliveryChatMessages');
+ const nearEnd=box.scrollHeight-box.scrollTop-box.clientHeight<65;
+ box.replaceChildren();
+ for(const m of (mensajes||[])){
+  const bubble=document.createElement('div');
+  bubble.className='ownerChatBubble'+(m.autor==='owner'?' owner':'');
+  const by=document.createElement('small');
+  by.textContent=m.autor==='owner'?'Sistema Admin':'Repartidor';
+  const txt=document.createElement('div');
+  txt.textContent=String(m.mensaje||'');
+  bubble.append(by,txt);
+  box.appendChild(bubble);
+ }
+ if(nearEnd)box.scrollTop=box.scrollHeight;
+}
+async function consultarChatPortero(){
+ if(!ownerDeliveryChatToken)return;
+ try{
+  const {data,error}=await sb.functions.invoke('delivery-owner-chat',{
+   body:{action:'poll',token:ownerDeliveryChatToken}
+  });
+  if(error||data?.error)throw Error(data?.error||error?.message||'Error');
+  mostrarChatPortero(data.messages);
+  if(data.estado!=='abierto'){
+   document.getElementById('ownerDeliveryChatStatus').textContent='Conversación finalizada. Si tienes un código válido puedes regresar al menú de visitas.';
+   document.getElementById('ownerDeliveryChatText').disabled=true;
+   document.getElementById('ownerDeliveryChatSend').disabled=true;
+   if(ownerDeliveryChatTimer)clearInterval(ownerDeliveryChatTimer);
+   ownerDeliveryChatTimer=null;
+  }
+ }catch{
+  document.getElementById('ownerDeliveryChatStatus').textContent='No se pudo actualizar el chat. Comprobando conexión…';
+ }
+}
+async function enviarMensajeChatPortero(event){
+ event?.preventDefault();
+ if(ownerDeliveryChatBusy||!ownerDeliveryChatToken)return;
+ const input=document.getElementById('ownerDeliveryChatText');
+ const mensaje=input.value.trim();
+ if(!mensaje)return;
+ const send=document.getElementById('ownerDeliveryChatSend');
+ ownerDeliveryChatBusy=true;send.disabled=true;
+ try{
+  const {data,error}=await sb.functions.invoke('delivery-owner-chat',{
+   body:{action:'send',token:ownerDeliveryChatToken,mensaje}
+  });
+  if(error||data?.error)throw Error(data?.error||error?.message||'Error de envío.');
+  input.value='';
+  mostrarChatPortero(data.messages);
+  document.getElementById('ownerDeliveryChatStatus').textContent='Mensaje enviado a Sistema Admin.';
+ }catch(e){
+  document.getElementById('ownerDeliveryChatStatus').textContent=e.message||'No se pudo enviar el mensaje.';
+ }finally{ownerDeliveryChatBusy=false;send.disabled=false;}
+}
+window.addEventListener('beforeunload',()=>{if(ownerDeliveryChatTimer)clearInterval(ownerDeliveryChatTimer);});
 
 let vpBusy=false;
 async function solicitarAccesoVisita(event){
