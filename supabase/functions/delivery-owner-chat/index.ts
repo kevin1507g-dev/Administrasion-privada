@@ -71,6 +71,7 @@ Deno.serve(async (req:Request)=>{
     hhmm>=String(e.hora_inicio||"").slice(0,5) && hhmm<String(e.hora_fin||"").slice(0,5));
    const solicitudToken=String(body?.solicitud_token||"");
    const escalacion=autorizada&&solicitudToken.length>0;
+   let entregaId: string|null=null;
    // Normalmente las empresas autorizadas siguen el flujo del residente.
    // Si pasaron 2 minutos SIN respuesta, el token original de esa solicitud
    // permite escalar a Sistema Admin; no concede ninguna orden de apertura.
@@ -93,6 +94,17 @@ Deno.serve(async (req:Request)=>{
      Date.now()>=new Date(delivery.created_at).getTime()+120000&&
      Date.now()<new Date(delivery.expires_at).getTime();
     if(!valid)return reply({error:"Este chat requiere una solicitud vigente y 2 minutos sin respuesta del residente."},403);
+    entregaId=delivery.id;
+    // La tarea automática puede haber abierto este chat aunque el repartidor
+    // haya dejado de consultar la página. Reutilizarlo, nunca duplicarlo.
+    const {data:exists,error:existingError}=await admin.from("portero_owner_chats")
+     .select("id,expires_at,estado").eq("entrega_id",entregaId).maybeSingle();
+    if(existingError)return reply({error:"No se pudo recuperar el chat de esta entrega."},503);
+    if(exists){
+     if(exists.estado!=="abierto"||new Date(exists.expires_at).getTime()<=Date.now())
+      return reply({error:"La conversación de esta entrega ya terminó."},410);
+     return reply({ok:true,autorizada:false,escalado:true,chat_token:solicitudToken,expires_at:exists.expires_at});
+    }
    }
    const {data:owners,error:ownerError}=await admin.from("profiles")
     .select("id").eq("rol","owner").eq("activo",true).eq("estado_registro","aprobado")
@@ -107,16 +119,26 @@ Deno.serve(async (req:Request)=>{
    const {count,error:rateError}=await admin.from("portero_owner_chats")
      .select("id",{count:"exact",head:true}).eq("rate_key",rateKey).gte("created_at",since);
    if(rateError)return reply({error:"Servicio de chat no disponible."},503);
-   if((count||0)>=3)return reply({error:"Demasiados chats recientes. Espera unos minutos."},429);
+   if(!escalacion&&(count||0)>=3)return reply({error:"Demasiados chats recientes. Espera unos minutos."},429);
 
-   const token=secretToken();
+   const token=escalacion?solicitudToken:secretToken();
    const hash=await sha256(token);
    const {data:chat,error:chatError}=await admin.from("portero_owner_chats").insert({
-    owner_id:owners[0].id,token_hash:hash,casa_numero:casa,empresa,repartidor,tipo,motivo,rate_key:rateKey
+    owner_id:owners[0].id,token_hash:hash,casa_numero:casa,empresa,repartidor,tipo,motivo,rate_key:rateKey,
+    ...(entregaId?{entrega_id:entregaId}:{})
    }).select("id,expires_at").single();
-   if(chatError||!chat)return reply({error:"No se pudo crear el chat especial."},503);
+   if(chatError||!chat){
+    if(escalacion&&entregaId){
+     const {data:created}=await admin.from("portero_owner_chats")
+       .select("id,estado,expires_at").eq("entrega_id",entregaId).maybeSingle();
+     if(created&&created.estado==="abierto"&&new Date(created.expires_at).getTime()>Date.now())
+      return reply({ok:true,autorizada:false,escalado:true,chat_token:solicitudToken,expires_at:created.expires_at});
+    }
+    return reply({error:"No se pudo crear el chat especial."},503);
+   }
    const {error:messageError}=await admin.from("portero_owner_chat_mensajes").insert({
-    chat_id:chat.id,autor:"repartidor",mensaje:motivo
+    chat_id:chat.id,autor:escalacion?"sistema":"repartidor",
+    mensaje:escalacion?"El residente no respondió después de 2 minutos. Sistema Admin puede atender la entrega; no se ha autorizado la apertura del portón.":motivo
    });
    if(messageError)return reply({error:"No se pudo iniciar la conversación."},503);
    await notify(admin,owners[0].id,
@@ -129,7 +151,7 @@ Deno.serve(async (req:Request)=>{
 
   if(action==="poll"||action==="send"){
    const token=String(body?.token||"");
-   if(!/^[0-9a-f]{64}$/.test(token))return reply({error:"Conversación no encontrada."},404);
+   if(!/^[0-9a-f]{64}$/.test(token)&&!uuid(token))return reply({error:"Conversación no encontrada."},404);
    const hash=await sha256(token);
    const {data:chat}=await admin.from("portero_owner_chats")
     .select("id,owner_id,estado,expires_at").eq("token_hash",hash).maybeSingle();
@@ -168,7 +190,7 @@ Deno.serve(async (req:Request)=>{
    if(action==="owner_list"){
     const after=new Date(Date.now()-24*60*60*1000).toISOString();
     const {data,error}=await admin.from("portero_owner_chats")
-     .select("id,casa_numero,empresa,repartidor,tipo,motivo,estado,created_at,expires_at,updated_at,last_visitor_at,last_owner_read_at")
+     .select("id,entrega_id,casa_numero,empresa,repartidor,tipo,motivo,estado,created_at,expires_at,updated_at,last_visitor_at,last_owner_read_at")
      .eq("owner_id",ownerId).gte("created_at",after)
      .order("updated_at",{ascending:false}).limit(50);
     if(error)return reply({error:"No se pudieron obtener tus conversaciones."},503);
