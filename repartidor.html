@@ -161,6 +161,7 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
     <div id="waitTitle" class="status"><span class="loader"></span>Esperando respuesta del residente…</div>
     <div id="waitText" class="muted" style="margin-top:10px">La solicitud estará activa durante unos minutos.</div>
     <div id="answer" class="answer"></div>
+    <button id="ownerChatRetryBtn" type="button" class="hidden" style="margin-top:12px" onclick="conectarChatSistemaAdmin(true)">💬 Contactar Sistema Admin</button>
     <button id="newBtn" class="hidden" style="margin-top:18px" onclick="nuevaSolicitud()">Nueva solicitud</button>
     <button type="button" class="back" onclick="volverASeleccion()">← Volver al menú principal</button>
   </div>
@@ -185,6 +186,7 @@ function volverASeleccion(){
  detenerConsulta();
  detenerChatPortero();
  detenerVentanaSalida();
+ porteroChatEscalado=false;porteroChatEscalando=false;porteroChatReintentarEn=0;
  token=null;expiresAt=null;porteroIntervencionAt=null;esperandoPorteroMixto=false;
  document.getElementById('visitorPassCard').classList.add('hidden');
  document.getElementById('porteroCard').classList.add('hidden');
@@ -247,7 +249,11 @@ async function pedirConfirmacionPortero(){
    body:{action:'start',casa:d.casa,tipo:d.tipo,empresa:d.empresa,
     repartidor:d.repartidor,mensaje:d.mensaje}
   });
-  if(errorRuta||ruta?.error)throw Error(ruta?.error||errorRuta?.message||'No se pudo verificar la empresa.');
+  if(errorRuta||ruta?.error){
+   let detalle=ruta?.error||errorRuta?.message||'No se pudo verificar la empresa.';
+   try{const cuerpo=await errorRuta?.context?.json?.();if(cuerpo?.error)detalle=cuerpo.error;}catch(_){}
+   throw Error(detalle);
+  }
   if(ruta?.autorizada===false&&ruta?.chat_token){
    abrirChatPortero(ruta.chat_token,ruta.expires_at);
    document.getElementById('porteroCard').classList.add('hidden');
@@ -496,6 +502,43 @@ let pollTimer=null;
 let expiresAt=null;
 let porteroIntervencionAt=null;
 let esperandoPorteroMixto=false;
+let porteroChatEscalado=false;
+let porteroChatEscalando=false;
+let porteroChatReintentarEn=0;
+async function conectarChatSistemaAdmin(manual=false){
+ if(!token||!esperandoPorteroMixto||porteroChatEscalado||porteroChatEscalando)return false;
+ if(!porteroIntervencionAt||Date.now()<new Date(porteroIntervencionAt).getTime())return false;
+ if(!manual&&Date.now()<porteroChatReintentarEn)return false;
+ porteroChatEscalando=true;
+ const estado=document.getElementById('answer');
+ const retry=document.getElementById('ownerChatRetryBtn');
+ retry.classList.add('hidden');
+ estado.textContent='💬 Conectando la solicitud pendiente con Sistema Admin…';
+ try{
+  const d=datosPortero();
+  const {data,error}=await sb.functions.invoke('delivery-owner-chat',{
+   body:{action:'start',solicitud_token:token,casa:d.casa,tipo:d.tipo,
+    empresa:d.empresa,repartidor:d.repartidor,mensaje:d.mensaje}
+  });
+  if(error||data?.error){
+   let mensaje=data?.error||error?.message||'No se pudo comunicar con Sistema Admin.';
+   try{const respuesta=await error?.context?.json?.();if(respuesta?.error)mensaje=respuesta.error;}catch(_){}
+   throw Error(mensaje);
+  }
+  if(!data?.chat_token)throw Error('No se recibió una conexión válida con el chat especial.');
+  porteroChatEscalado=true;
+  detenerConsulta();
+  abrirChatPortero(data.chat_token,data.expires_at);
+  document.getElementById('waitCard').classList.add('hidden');
+  return true;
+ }catch(e){
+  estado.textContent='No se pudo abrir el chat de Sistema Admin: '+(e?.message||'Error de conexión.')+
+    ' Puedes volver a intentarlo sin crear otra solicitud.';
+  retry.classList.remove('hidden');
+  porteroChatReintentarEn=Date.now()+15000;
+  return false;
+ }finally{porteroChatEscalando=false;}
+}
 
 const respuestas={
   voy_por_el_pedido:'🚶 El residente va a recibirte.',
@@ -554,6 +597,8 @@ async function enviarSolicitud(opciones={}){
     }
 
     token=data?.token||null;
+    porteroChatEscalado=false;porteroChatEscalando=false;porteroChatReintentarEn=0;
+    document.getElementById('ownerChatRetryBtn').classList.add('hidden');
     expiresAt=data?.expires_at||null;
     esperandoPorteroMixto=opciones?.porteroMixto===true;
     porteroIntervencionAt=data?.portero_intervencion_at||null;
@@ -610,14 +655,10 @@ async function consultarEstado(){
       esperandoPorteroMixto=true;
       if(data.portero_intervencion_at)porteroIntervencionAt=data.portero_intervencion_at;
     }
-    if(esperandoPorteroMixto&&data.portero_intervino_at){
-      document.getElementById('waitTitle').textContent='🤖 Portero IA: revisión completada';
-      document.getElementById('waitText').textContent='Pasaron 2 minutos sin respuesta. Sistema Admin fue avisado. El residente todavía puede responder mientras la solicitud esté vigente.';
-      document.getElementById('answer').textContent='🔒 Sin acreditación verificable del repartidor: no se autorizó ninguna apertura automática.';
-    }else if(esperandoPorteroMixto&&porteroIntervencionAt&&Date.now()>=new Date(porteroIntervencionAt).getTime()){
-      document.getElementById('waitTitle').textContent='🤖 Portero IA: revisión en proceso';
-      document.getElementById('waitText').textContent='Se cumplió el plazo de 2 minutos. Comprobando autorizaciones sin abrir el portón.';
-      document.getElementById('answer').textContent='';
+    if(esperandoPorteroMixto&&porteroIntervencionAt&&Date.now()>=new Date(porteroIntervencionAt).getTime()){
+      document.getElementById('waitTitle').textContent='🤖 Portero IA: contactando Sistema Admin';
+      document.getElementById('waitText').textContent='Pasaron 2 minutos sin respuesta del residente. Se solicita atención de Sistema Admin; el portón permanece cerrado hasta recibir autorización.';
+      await conectarChatSistemaAdmin();
     }else actualizarTiempo();
   }catch(_){}
 }
@@ -645,6 +686,7 @@ function detenerConsulta(){
 function nuevaSolicitud(){
   detenerConsulta();
   detenerVentanaSalida();
+  porteroChatEscalado=false;porteroChatEscalando=false;porteroChatReintentarEn=0;
   document.getElementById('salidaRepartidorCard').classList.add('hidden');
   token=null;
   expiresAt=null;
