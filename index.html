@@ -186,7 +186,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 </style>
 <link rel="stylesheet" href="./ui-modern.css?v=owner-circular22" />
 <link rel="stylesheet" href="./mp-sandbox.css?v=mp-lab1" />
-<link rel="stylesheet" href="./asistente-ia.css?v=5" />
+<link rel="stylesheet" href="./asistente-ia.css?v=6" />
 <link rel="stylesheet" href="./acciones-menu.css?v=1" />
 <link rel="stylesheet" href="./chat-destinos.css?v=2" />
 <link rel="stylesheet" href="./aviso-cuotas-residente.css?v=1" />
@@ -2113,6 +2113,8 @@ async function cargarChatsEspecialesOwner(){
    new Date(c.expires_at)>new Date()&&(!c.last_owner_read_at||new Date(c.last_visitor_at)>new Date(c.last_owner_read_at)));
   const badge=document.getElementById('ownerChatEspecialNumero');
   if(badge){badge.hidden=!pendientes.length;badge.textContent=String(pendientes.length);}
+  // Actualizar el contador del botón ✦ IA, conservando las notificaciones actuales.
+  window.dispatchEvent(new CustomEvent('portero-owner-chat-unread',{detail:{count:pendientes.length}}));
   const dialog=document.getElementById('ownerChatEspecialDialog');
   if(!dialog?.open){
    const next=pendientes.find(c=>!chatEspecialMostrados.has(c.id+':'+c.last_visitor_at));
@@ -2130,7 +2132,13 @@ async function abrirChatEspecialOwner(chatId){
  if(profile?.rol!=='owner')return;
  const chat=chatsEspecialesOwner.find(c=>c.id===(chatId||chatsEspecialesOwner[0]?.id));
  if(!chat){if(!chatEspecialListaBusy)await cargarChatsEspecialesOwner();return;}
- chatEspecialOwnerActual=chat.id;
+// Los chats especiales se atienden desde el mismo botón de IA;
+  // el diálogo anterior se conserva como respaldo si la IA no está disponible.
+  if(typeof window.iaAbrirChatEspecial==='function'){
+   const integrado=await window.iaAbrirChatEspecial(chat.id);
+   if(integrado)return;
+  }
+  chatEspecialOwnerActual=chat.id;
  const dialog=document.getElementById('ownerChatEspecialDialog');
  const data=document.getElementById('ownerChatEspecialDatos');
  data.textContent='Casa '+chat.casa_numero+' · '+chat.empresa+' · '+chat.repartidor+
@@ -8069,11 +8077,11 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizar
 </script>
 <script src="./disciplina.js?v=11"></script>
 <script src="./biometrico.js?v=1"></script>
-<script src="./asistente-ia.js?v=8"></script>
+<script src="./asistente-ia.js?v=9"></script>
 <script src="./pendientes-residente.js?v=3"></script>
 <script src="./aviso-cuotas-residente.js?v=1"></script>
 <script src="./acciones-menu.js?v=1"></script>
-<button id="ownerChatEspecialBoton" type="button" class="ownerOnly hidden" onclick="abrirChatEspecialOwner()" aria-label="Ver conversaciones especiales">💬 Chats especiales <span id="ownerChatEspecialNumero" hidden></span></button>
+
 <dialog id="ownerChatEspecialDialog" aria-labelledby="ownerChatEspecialTitulo">
   <h3 id="ownerChatEspecialTitulo">💬 Chat especial · Sistema Admin</h3>
   <p id="ownerChatEspecialDatos" class="muted"></p>
