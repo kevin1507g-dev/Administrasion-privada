@@ -148,6 +148,15 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
     <button type="button" class="back" onclick="volverASeleccion()">← Cambiar tipo de acceso</button>
   </div>
 
+  <div id="salidaRepartidorCard" class="card hidden">
+    <h2>🚚 Acceso autorizado</h2>
+    <p class="muted">Tienes 7 minutos desde la autorización para confirmar que ya saliste. Este contador no significa que el portón permanezca físicamente abierto.</p>
+    <div id="salidaRepartidorReloj" class="status" role="timer" aria-live="off">07:00</div>
+    <p id="salidaRepartidorNota" class="muted">Confirma únicamente cuando ya estés completamente fuera de la privada.</p>
+    <button type="button" class="primary" id="salidaRepartidorBoton" onclick="confirmarSalidaRepartidor()">✅ Ya estoy fuera de la privada</button>
+    <p class="muted" id="salidaRepartidorEstado" role="status" aria-live="polite"></p>
+    <button type="button" class="back" onclick="volverASeleccion()">← Volver al menú principal</button>
+  </div>
   <div id="waitCard" class="card hidden">
     <div id="waitTitle" class="status"><span class="loader"></span>Esperando respuesta del residente…</div>
     <div id="waitText" class="muted" style="margin-top:10px">La solicitud estará activa durante unos minutos.</div>
@@ -167,6 +176,7 @@ function seleccionarEntrada(tipo){
  document.getElementById('formCard').classList.toggle('hidden',tipo!=='contacto');
  document.getElementById('waitCard').classList.add('hidden');
  document.getElementById('ownerDeliveryChatCard').classList.add('hidden');
+ document.getElementById('salidaRepartidorCard').classList.add('hidden');
  if(tipo==='codigo')document.getElementById('vpNombre').focus();
  else if(tipo==='portero')document.getElementById('porteroCasa').focus();
  else document.getElementById('casa').focus();
@@ -174,12 +184,14 @@ function seleccionarEntrada(tipo){
 function volverASeleccion(){
  detenerConsulta();
  detenerChatPortero();
+ detenerVentanaSalida();
  token=null;expiresAt=null;porteroIntervencionAt=null;esperandoPorteroMixto=false;
  document.getElementById('visitorPassCard').classList.add('hidden');
  document.getElementById('porteroCard').classList.add('hidden');
  document.getElementById('formCard').classList.add('hidden');
  document.getElementById('waitCard').classList.add('hidden');
  document.getElementById('ownerDeliveryChatCard').classList.add('hidden');
+ document.getElementById('salidaRepartidorCard').classList.add('hidden');
  document.getElementById('accessChoice').classList.remove('hidden');
  document.getElementById('vpEstado').textContent='';
  document.getElementById('error').textContent='';
@@ -291,6 +303,7 @@ async function procesarPortero(event){
   if(data?.accepted===true){
    porteroEstado('✅ Autorización previa válida. Orden enviada al dispositivo. Espera a comprobar que el portón haya abierto y el paso esté libre.');
    document.getElementById('porteroCodigo').value='';
+   if(data.command_id&&data.access_at)mostrarVentanaSalida('codigo',data.command_id,data.access_at);
   }else{
    porteroEstado((data?.message||'No se confirmó la autorización.')+' Puedes pedir permiso al residente.');
    document.getElementById('porteroPedirConfirmacion').classList.remove('hidden');
@@ -400,9 +413,78 @@ async function solicitarAccesoVisita(event){
   const {data,error}=await sb.rpc('visitor_pass_request',{p_name:nombre,p_house:casa,p_code:codigo});
   if(error)throw error;
   status.textContent=data?.message||'Solicitud enviada. Espera a que el portón abra.';
+  if(data?.accepted===true&&data.command_id&&data.access_at)mostrarVentanaSalida('codigo',data.command_id,data.access_at);
   document.getElementById('vpCodigo').value='';
  }catch(e){status.textContent=e.message||'No fue posible solicitar la apertura. Contacta al residente.';}
  finally{vpBusy=false;btn.disabled=false;}
+}
+
+const SALIDA_VENTANA_MS=7*60*1000;
+let salidaRepartidorActual=null;
+let salidaRepartidorTimer=null;
+let salidaRepartidorEnviando=false;
+function detenerVentanaSalida(){
+ if(salidaRepartidorTimer)clearInterval(salidaRepartidorTimer);
+ salidaRepartidorTimer=null;
+ salidaRepartidorActual=null;
+ salidaRepartidorEnviando=false;
+}
+function mostrarVentanaSalida(origen,tokenAcceso,inicio){
+ const inicioMs=new Date(inicio).getTime();
+ if(!['entrega','codigo'].includes(origen)||!/^[a-f0-9-]{36}$/i.test(String(tokenAcceso))||!Number.isFinite(inicioMs))return;
+ detenerVentanaSalida();
+ salidaRepartidorActual={origen,token:String(tokenAcceso),fin:inicioMs+SALIDA_VENTANA_MS,confirmada:false};
+ for(const id of ['porteroCard','visitorPassCard','formCard','waitCard','ownerDeliveryChatCard']){
+  document.getElementById(id).classList.add('hidden');
+ }
+ document.getElementById('accessChoice').classList.add('hidden');
+ document.getElementById('salidaRepartidorCard').classList.remove('hidden');
+ document.getElementById('salidaRepartidorEstado').textContent='';
+ document.getElementById('salidaRepartidorNota').textContent='Confirma únicamente cuando ya estés completamente fuera de la privada.';
+ const btn=document.getElementById('salidaRepartidorBoton');
+ btn.disabled=false;btn.classList.remove('hidden');
+ actualizarVentanaSalida();
+ salidaRepartidorTimer=setInterval(actualizarVentanaSalida,1000);
+}
+function actualizarVentanaSalida(){
+ const actual=salidaRepartidorActual;if(!actual)return;
+ const tiempo=Math.max(0,actual.fin-Date.now()),sec=Math.ceil(tiempo/1000);
+ const mm=String(Math.floor(sec/60)).padStart(2,'0');
+ const ss=String(sec%60).padStart(2,'0');
+ document.getElementById('salidaRepartidorReloj').textContent=mm+':'+ss;
+ if(!tiempo&&!actual.confirmada){
+  document.getElementById('salidaRepartidorBoton').disabled=true;
+  document.getElementById('salidaRepartidorNota').textContent='Terminó el plazo de confirmación. Si necesitas ayuda, contacta a Sistema Admin. No se envió ninguna orden al portón.';
+  if(salidaRepartidorTimer)clearInterval(salidaRepartidorTimer);
+  salidaRepartidorTimer=null;
+ }
+}
+async function confirmarSalidaRepartidor(){
+ const actual=salidaRepartidorActual;
+ if(!actual||actual.confirmada||salidaRepartidorEnviando)return;
+ if(Date.now()>=actual.fin){actualizarVentanaSalida();return;}
+ const btn=document.getElementById('salidaRepartidorBoton');
+ const estado=document.getElementById('salidaRepartidorEstado');
+ salidaRepartidorEnviando=true;btn.disabled=true;
+ estado.textContent='Registrando tu confirmación de salida…';
+ try{
+  const {data,error}=await sb.rpc('portero_reportar_salida',{
+   p_origen:actual.origen,p_token:actual.token
+  });
+  if(error||!data?.ok)throw Error(data?.mensaje||error?.message||'No se pudo confirmar la salida.');
+  if(salidaRepartidorActual!==actual)return;
+  actual.confirmada=true;
+  estado.textContent='✅ Registramos tu declaración de salida. Gracias.';
+  document.getElementById('salidaRepartidorNota').textContent='Esto no comprueba tu ubicación ni cierra el portón físicamente.';
+  document.getElementById('salidaRepartidorReloj').textContent='Salida reportada';
+  btn.classList.add('hidden');
+  if(salidaRepartidorTimer)clearInterval(salidaRepartidorTimer);
+  salidaRepartidorTimer=null;
+ }catch(e){estado.textContent=e.message||'No se pudo registrar tu salida.';}
+ finally{
+  salidaRepartidorEnviando=false;
+  if(salidaRepartidorActual===actual&&!actual.confirmada&&Date.now()<actual.fin)btn.disabled=false;
+ }
 }
 
 const SB_URL='https://nndlfkuelwpwklldvtfo.supabase.co';
@@ -503,6 +585,10 @@ async function consultarEstado(){
 
     if(data.estado==='respondido'){
       detenerConsulta();
+      if(['acceso_porton','acceso_peatonal'].includes(data.respuesta)&&data.respondido_at&&token&&!data.salida_reportada_at){
+       mostrarVentanaSalida('entrega',token,data.respondido_at);
+       return;
+      }
       document.getElementById('waitTitle').textContent='✅ Respuesta recibida';
       document.getElementById('waitText').textContent='El residente respondió a tu solicitud.';
       document.getElementById('answer').textContent=respuestas[data.respuesta]||'El residente respondió.';
@@ -558,6 +644,8 @@ function detenerConsulta(){
 
 function nuevaSolicitud(){
   detenerConsulta();
+  detenerVentanaSalida();
+  document.getElementById('salidaRepartidorCard').classList.add('hidden');
   token=null;
   expiresAt=null;
   porteroIntervencionAt=null;
