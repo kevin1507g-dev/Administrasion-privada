@@ -278,7 +278,7 @@ function casasDetectadasEtiqueta(texto){
   .replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[\r\n]+/g,' ');
  const encontrado=new Set();
  // Buscar números 40-66 asociados expresamente con CASA, no números aleatorios.
- const exp=/\b(?:CASA|CAS\.?|VIVIENDA|HOUSE|NUMERO\s+DE\s+CASA|NO\.?\s+DE\s+CASA)\s*(?:N(?:UMERO|O)\s*[º°.\-]?\s*)?[:#.\-]?\s*(4[0-9]|5[0-9]|6[0-6])\b/g;
+ const exp=/\b(?:CASA|CAS\.?|VIVIENDA|HOUSE|NUMERO\s+DE\s+CASA|NO\.?\s+DE\s+CASA)\s*(?:N(?:UMERO|O)?\s*[º°.]?\s*)?[:#.\-]?\s*(4[0-9]|5[0-9]|6[0-6])\b/g;
  let m;
  while((m=exp.exec(normal))!==null)encontrado.add(m[1]);
  return Array.from(encontrado);
@@ -343,9 +343,15 @@ async function validarEtiquetaPortero(){
   return false;
  }finally{
   try{if(worker)await worker.terminate();}catch(_){}
-  etiquetaLeyendo=false;
-  if(revision===etiquetaRevision)
+  if(revision===etiquetaRevision){
+   etiquetaLeyendo=false;
    document.getElementById('porteroEtiquetaLeer').disabled=false;
+  }else{
+   etiquetaLeyendo=false;
+   document.getElementById('porteroEtiquetaLeer').disabled=false;
+   if(esPaqueteriaPortero()&&document.getElementById('porteroEtiquetaArchivo').files?.[0])
+    validarEtiquetaPortero();
+  }
  }
 }
 function etiquetaValidaParaCasa(casa,tipo){
