@@ -23,15 +23,16 @@ button:focus-visible,a:focus-visible{outline:3px solid #9ccefe;outline-offset:3p
 .item{border:1px solid #486b7f;border-radius:15px;padding:13px;background:#123040}
 .item button{margin:8px 7px 0 0}
 .small{font-size:.85rem}
-#fotoVista{max-width:100%;max-height:72vh;object-fit:contain;border-radius:12px;display:block;margin:14px auto}
-#fotoVista[hidden],#viewPanel[hidden]{display:none!important}
+.fotoComparacion{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.fotoComparacion img{width:100%;max-height:65vh;object-fit:contain;border-radius:12px;margin:10px auto;display:block}
+.fotoComparacion section[hidden],#viewPanel[hidden]{display:none!important}
 .alert{border-left:4px solid #f1c66d;padding:10px 12px;background:#473a23;border-radius:8px}
 </style>
 </head>
 <body><main>
 <a href="./index.html">← Volver a Administración Residencial</a>
 <h1>🔒 Evidencias fotográficas de repartidores</h1>
-<p class="muted">Exclusivo de Sistema Admin. Se muestra únicamente la fotografía que el visitante decidió aportar como evidencia; no es una verificación de identidad, ni confirma empleo en una plataforma.</p>
+<p class="muted">Exclusivo de Sistema Admin. Muestra la INE y la selfie juntas cuando ambas fueron aportadas, para revisión visual humana. Esto no verifica identidad ni confirma empleo en ninguna empresa.</p>
 <div class="card alert">Estas imágenes pueden contener datos personales. No las compartas en grupos ni las utilices para identificar automáticamente a personas. El sistema no autoriza aperturas desde esta pantalla.</div>
 <div class="card">
  <button id="refresh" type="button">↻ Actualizar registros privados</button>
@@ -39,9 +40,12 @@ button:focus-visible,a:focus-visible{outline:3px solid #9ccefe;outline-offset:3p
  <div id="list" class="list"></div>
 </div>
 <div class="card" id="viewPanel" hidden>
- <h2 id="photoTitle">Fotografía privada</h2>
- <p class="muted small">El enlace de visualización vence después de un minuto. Evita descargar o reenviar datos personales innecesariamente.</p>
- <img id="fotoVista" alt="Evidencia fotográfica de una solicitud de repartidor" hidden>
+ <h2 id="photoTitle">Evidencias privadas</h2>
+ <p class="muted small">Compara visualmente las evidencias solo cuando sea necesario. No hay reconocimiento facial ni validación biométrica automática. Los enlaces vencen después de un minuto.</p>
+ <div class="fotoComparacion">
+  <section id="fotoVistaInePanel" hidden><strong>🪪 INE</strong><img id="fotoVistaIne" alt="Fotografía de INE como evidencia privada"></section>
+  <section id="fotoVistaRostroPanel" hidden><strong>📷 Selfie</strong><img id="fotoVistaRostro" alt="Selfie como evidencia privada"></section>
+ </div>
  <button type="button" id="closeView">Cerrar vista</button>
 </div>
 </main>
@@ -69,8 +73,10 @@ async function call(action,props={}){
  return data;
 }
 function clearView(){
- byId('fotoVista').hidden=true;
- byId('fotoVista').removeAttribute('src');
+ for(const tipo of ['Ine','Rostro']){
+  byId('fotoVista'+tipo).removeAttribute('src');
+  byId('fotoVista'+tipo+'Panel').hidden=true;
+ }
  byId('viewPanel').hidden=true;
 }
 async function load(){
@@ -81,45 +87,66 @@ async function load(){
  try{
   const result=await call('list');
   const items=result.items||[];
-  status(items.length?items.length+' evidencia(s) dentro del periodo de conservación.':
-   'No hay evidencias disponibles. El módulo puede estar desactivado o todavía no se ha usado.');
+  const grupos=new Map();
   for(const item of items){
+   const llave=item.origen+':'+(item.entrega_id||item.chat_id||item.id);
+   if(!grupos.has(llave))grupos.set(llave,[]);
+   grupos.get(llave).push(item);
+  }
+  status(items.length?grupos.size+' registro(s) con '+items.length+' fotografía(s) privadas.':
+   'No hay evidencias disponibles. El módulo puede estar desactivado o todavía no se ha usado.');
+  for(const fotos of grupos.values()){
+   const item=fotos[0];
+   const ine=fotos.find(x=>x.tipo==='ine');
+   const rostro=fotos.find(x=>x.tipo==='rostro');
    const card=document.createElement('div');card.className='item';
    const title=document.createElement('strong');
-   title.textContent=(item.tipo==='rostro'?'📷 Rostro':'🪪 INE')+' · Casa '+item.casa_numero;
+   title.textContent='Casa '+item.casa_numero+' · '+(ine&&rostro?'🪪 INE + 📷 selfie':'Evidencia incompleta');
    card.appendChild(title);
    const detail=document.createElement('p');detail.className='muted small';
    detail.textContent=(item.origen==='chat'?'Chat especial':'Solicitud de entrega')+
     ' · '+new Date(item.creado_at).toLocaleString('es-MX')+
     ' · Caduca: '+new Date(item.vence_at).toLocaleDateString('es-MX');
    card.appendChild(detail);
-   const view=document.createElement('button');view.type='button';view.textContent='👁 Ver foto';
+   const view=document.createElement('button');view.type='button';
+   view.textContent=ine&&rostro?'👁 Revisar INE y selfie juntas':'👁 Ver evidencia disponible';
    view.onclick=async()=>{
-    view.disabled=true;
+    view.disabled=true;clearView();
     try{
-     const result=await call('view',{id:item.id});
-     byId('photoTitle').textContent='Evidencia '+(item.tipo==='ine'?'INE':'rostro')+' · Casa '+item.casa_numero;
+     const archivos=await Promise.all(
+      [ine,rostro].filter(Boolean).map(async foto=>({
+       tipo:foto.tipo,resultado:await call('view',{id:foto.id})
+      }))
+     );
+     byId('photoTitle').textContent='Evidencias privadas · Casa '+item.casa_numero;
+     for(const archivo of archivos){
+      const suff=archivo.tipo==='ine'?'Ine':'Rostro';
+      byId('fotoVista'+suff).src=archivo.resultado.url;
+      byId('fotoVista'+suff+'Panel').hidden=false;
+     }
      byId('viewPanel').hidden=false;
-     byId('fotoVista').src=result.url;
-     byId('fotoVista').hidden=false;
      byId('viewPanel').scrollIntoView({block:'start',behavior:'smooth'});
-    }catch(e){status(e?.message||'No se pudo consultar la imagen.');}
+    }catch(e){clearView();status(e?.message||'No se pudieron consultar las imágenes.');}
     finally{view.disabled=false;}
    };
    card.appendChild(view);
-   const del=document.createElement('button');del.type='button';del.textContent='Eliminar evidencia';
-   del.onclick=async()=>{
-    if(!confirm('¿Eliminar definitivamente esta fotografía del registro privado?'))return;
-    del.disabled=true;
-    try{await call('delete',{id:item.id});await load();}
-    catch(e){status(e.message||'No se pudo eliminar.');del.disabled=false;}
-   };
-   card.appendChild(del);
+   for(const foto of fotos){
+    const del=document.createElement('button');del.type='button';
+    del.textContent='Eliminar '+(foto.tipo==='ine'?'INE':'selfie');
+    del.onclick=async()=>{
+     if(!confirm('¿Eliminar definitivamente esta fotografía del registro privado?'))return;
+     del.disabled=true;
+     try{await call('delete',{id:foto.id});await load();}
+     catch(e){status(e.message||'No se pudo eliminar.');del.disabled=false;}
+    };
+    card.appendChild(del);
+   }
    byId('list').appendChild(card);
   }
  }catch(e){status(e?.message||'No fue posible consultar.');}
  finally{byId('refresh').disabled=false;}
 }
+
 byId('refresh').onclick=load;
 byId('closeView').onclick=clearView;
 load();
