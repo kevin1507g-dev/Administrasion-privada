@@ -1,5 +1,5 @@
 // node tests/portero_owner_autorizar_manual.test.mjs
-// Regresión: no debe existir autorización individual dentro del chat de IA.
+// Regresión: botón manual para Owner sin reactivar la autorización previa de repartidores.
 // Se conserva el chat especial, pero no puede emitir órdenes por el texto.
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
@@ -17,8 +17,17 @@ assert.match(ia,/async function closeSpecialConversation/);
 assert.match(ia,/profile\?\.rol==="owner"/);
 assert.match(ia,/text:"🚚 Especiales"/);
 assert.doesNotMatch(css,/Acción manual de Sistema Admin/);
-assert.match(index,/asistente-ia\.js\?v=12/);
+assert.match(index,/asistente-ia\.js\?v=13/);
+assert.match(index,/asistente-ia\\.css\\?v=9/);
+assert.match(ia,/async function openSpecialGate/);
+assert.match(ia,/window\\.confirm/);
+assert.match(ia,/digital_access_request/);
+assert.match(ia,/digital_access_status/);
+assert.match(ia,/function canOpenSpecial/);
+assert.match(ia,/specialRequested\\.add\\(current\\)/);
+assert.match(ia,/className:"ia-special-open-btn"/);
+assert.match(css,/ia-special-open-btn/);
 assert.match(sql,/REVOKE EXECUTE ON FUNCTION public\.portero_owner_autorizar\(uuid\) FROM authenticated/);
 assert.match(qr,/action:'poll'/);
 assert.match(qr,/action:'send'/);
-console.log("PASS: sin autorización individual, chat especial Owner y comunicación QR conservados.");
+console.log("PASS: botón manual exclusivo de Owner y Control Digital; RPC antigua sigue deshabilitada.");
