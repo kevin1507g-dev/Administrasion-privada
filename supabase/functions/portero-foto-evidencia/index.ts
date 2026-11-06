@@ -56,8 +56,9 @@ async function sourceForToken(db:any,origin:string,token:string){
  }
  return null;
 }
-// No recolectamos datos de la credencial; solo una foto voluntaria con fin de
-// registro de visitas. No identifica personas ni autoriza comandos físicos.
+// Se aceptan dos evidencias diferenciadas (INE y rostro) con consentimiento.
+// No se extraen datos del documento ni se comparan rostros automáticamente.
+// Este endpoint no emite comandos para abrir el portón.
 Deno.serve(async(req:Request)=>{
  if(req.method==="OPTIONS")return new Response("ok",{headers:cors});
  if(req.method!=="POST")return out({error:"Método no permitido."},405);
@@ -70,7 +71,8 @@ Deno.serve(async(req:Request)=>{
    if(action==="capabilities")return out({
     ok:true,enabled:enabled(),max_bytes:3145728,retencion_dias:7,
     notice_url:enabled()?Deno.env.get("PORTERO_AVISO_PRIVACIDAD_URL"):null,
-    nota:"No se comprueba identidad ni autenticidad de credenciales. No concede apertura."
+    fotos_por_registro:["ine","rostro"],comparacion_biometrica:false,
+    nota:"Las fotos son solo evidencia privada para revisión humana; nunca autorizan apertura."
    });
    if(!enabled())return out({error:"La captura de fotos no está disponible hasta completar el aviso de privacidad."},503);
    if(!["list","view","delete"].includes(action))return out({error:"Acción no admitida."},400);
@@ -117,9 +119,10 @@ Deno.serve(async(req:Request)=>{
   if(!source)return out({error:"Necesitas una solicitud o conversación vigente para adjuntar la fotografía."},403);
   const col=origin==="entrega"?"entrega_id":"chat_id";
   const identifier=origin==="entrega"?source.entrega_id:source.chat_id;
-  const {data:existing}=await db.from("portero_fotos_evidencia")
-   .select("id").eq(col,identifier).maybeSingle();
-  if(existing)return out({ok:true,registrada:true,ya_existia:true});
+  const {data:existing,error:existingError}=await db.from("portero_fotos_evidencia")
+   .select("id").eq(col,identifier).eq("tipo",type).maybeSingle();
+  if(existingError)return out({error:"No se pudo consultar la evidencia existente."},503);
+  if(existing)return out({ok:true,registrada:true,ya_existia:true,tipo:type});
   const id=crypto.randomUUID();
   const ext=mime==="image/jpeg"?"jpg":mime==="image/png"?"png":"webp";
   const filepath=origin+"/"+id+"."+ext;
@@ -133,8 +136,8 @@ Deno.serve(async(req:Request)=>{
    await db.storage.from("portero-evidencia").remove([filepath]);
    return out({error:"No se pudo asociar la foto con la solicitud."},503);
   }
-  return out({ok:true,registrada:true,retencion_dias:7,
-   nota:"Imagen guardada como evidencia. No equivale a identidad verificada ni apertura autorizada."});
+  return out({ok:true,registrada:true,tipo:type,retencion_dias:7,
+   nota:"Evidencia privada guardada. No equivale a identidad verificada ni apertura autorizada."});
  }catch(_){
   return out({error:"No fue posible procesar la evidencia de manera segura."},500);
  }
