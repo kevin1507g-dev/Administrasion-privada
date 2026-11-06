@@ -56,7 +56,7 @@ async function sourceForToken(db:any,origin:string,token:string){
  }
  return null;
 }
-// Se aceptan dos evidencias diferenciadas (INE y rostro) con consentimiento.
+// Se aceptan evidencias diferenciadas (INE, rostro y etiqueta de paquetería) con consentimiento.
 // No se extraen datos del documento ni se comparan rostros automáticamente.
 // Este endpoint no emite comandos para abrir el portón.
 Deno.serve(async(req:Request)=>{
@@ -71,7 +71,7 @@ Deno.serve(async(req:Request)=>{
    if(action==="capabilities")return out({
     ok:true,enabled:enabled(),max_bytes:3145728,retencion_dias:7,
     notice_url:enabled()?Deno.env.get("PORTERO_AVISO_PRIVACIDAD_URL"):null,
-    fotos_por_registro:["ine","rostro"],comparacion_biometrica:false,
+    fotos_por_registro:["ine","rostro","etiqueta"],comparacion_biometrica:false,
     nota:"Las fotos son solo evidencia privada para revisión humana; nunca autorizan apertura."
    });
    if(!enabled())return out({error:"La captura de fotos no está disponible hasta completar el aviso de privacidad."},503);
@@ -107,7 +107,7 @@ Deno.serve(async(req:Request)=>{
   const form=await req.formData();
   const origin=String(form.get("origen")||""),token=String(form.get("token")||"");
   const type=String(form.get("tipo")||""),consent=form.get("consentimiento")==="si";
-  if(!["entrega","chat"].includes(origin)||!["ine","rostro"].includes(type)||!consent)
+  if(!["entrega","chat"].includes(origin)||!["ine","rostro","etiqueta"].includes(type)||!consent)
    return out({error:"Debes seleccionar el tipo de foto y aceptar el aviso de privacidad."},400);
   const file=form.get("foto");
   if(!(file instanceof File)||file.size<1024||file.size>3145728)
