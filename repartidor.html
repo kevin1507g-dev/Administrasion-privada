@@ -59,7 +59,7 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
       <label for="porteroCasa">Número de casa (40 a 66) *</label>
       <input id="porteroCasa" inputmode="numeric" pattern="(4[0-9]|5[0-9]|6[0-6])" maxlength="2" autocomplete="off" oninput="invalidarEtiquetaPortero()" required>
       <label for="porteroTipo">¿Qué tipo de entrega realizas? *</label>
-      <select id="porteroTipo" required onchange="alternarEtiquetaPortero()">
+      <select id="porteroTipo" required>
         <option value="" disabled selected>Selecciona una opción</option>
         <option value="comida">🍔 Comida</option>
         <option value="paqueteria">📦 Paquetería</option>
@@ -67,15 +67,6 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
         <option value="visita">🚶 Visita</option>
         <option value="otro">🛵 Otra entrega</option>
       </select>
-      <div id="porteroEtiquetaGrupo" class="hidden" style="padding:14px;border:1px solid #475569;border-radius:14px;margin-top:15px">
-        <strong>📦 Verificación de etiqueta del paquete</strong>
-        <p class="muted portero-small">Fotografía la parte de la etiqueta que indique claramente «Casa 40–66». Oculta el teléfono, nombre completo y otros datos del destinatario. El texto se lee en tu dispositivo; no autoriza por sí solo abrir el portón.</p>
-        <label for="porteroEtiquetaArchivo">Foto de la etiqueta *</label>
-        <input id="porteroEtiquetaArchivo" type="file" accept="image/*" capture="environment" onchange="cambiarEtiquetaPortero()">
-        <img id="porteroEtiquetaVista" class="hidden" alt="Vista previa de la etiqueta" style="max-width:100%;max-height:220px;object-fit:contain;border-radius:12px;margin-top:12px">
-        <button type="button" id="porteroEtiquetaLeer" onclick="validarEtiquetaPortero()" style="margin-top:10px">🔎 Leer y comprobar casa en la etiqueta</button>
-        <p id="porteroEtiquetaEstado" role="status" aria-live="polite" class="muted portero-small">Toma una foto donde se lea «Casa XX» para comprobarla.</p>
-      </div>
       <label for="porteroEmpresa">Empresa / plataforma *</label>
       <input id="porteroEmpresa" required maxlength="80" autocomplete="organization">
       <label for="porteroNombre">Tu nombre completo * (obligatorio)</label>
@@ -188,21 +179,35 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
   </div>
 
   <div id="fotoEvidenciaCard" class="card hidden">
-    <h2>🪪 INE, selfie y etiqueta de paquetería</h2>
-    <p class="muted portero-small">Para dejar evidencia de tu visita, puedes registrar una fotografía del frente de tu INE y una selfie tomada en este momento. La revisión es humana: no existe comparación facial automática y este registro no abre el portón.</p>
-    <p class="muted portero-small">Antes de fotografiar la INE, oculta domicilio, CURP, clave de elector, OCR y otros datos innecesarios. No compartas documentos de menores. Para paquetería también se conserva, con consentimiento, la foto de la etiqueta usada para comprobar el número de casa.</p>
+    <h2>📷 Registro de evidencia según empresa</h2>
+    <div id="fotoEvidenciaIdentidadGrupo" class="hidden">
+    <p class="muted portero-small">Empresas no registradas: INE y selfie como evidencia para Sistema Admin. La revisión es humana; no se comparan rostros automáticamente.</p>
+    <p class="muted portero-small">Antes de fotografiar la INE, cubre domicilio, CURP, clave de elector, OCR y otros datos innecesarios. No envíes documentos de menores.</p>
     <label for="fotoEvidenciaINE">1. Foto del frente de la INE</label>
     <input id="fotoEvidenciaINE" type="file" accept="image/*" capture="environment" onchange="previsualizarFotoEvidencia('ine')">
     <img id="fotoEvidenciaINEVista" alt="Vista previa de la INE con datos privados cubiertos" class="hidden" style="max-width:100%;max-height:220px;object-fit:contain;border-radius:12px;margin-top:12px">
     <label for="fotoEvidenciaRostro">2. Selfie actual de tu rostro</label>
     <input id="fotoEvidenciaRostro" type="file" accept="image/*" capture="user" onchange="previsualizarFotoEvidencia('rostro')">
     <img id="fotoEvidenciaRostroVista" alt="Vista previa de la selfie" class="hidden" style="max-width:100%;max-height:220px;object-fit:contain;border-radius:12px;margin-top:12px">
+    </div>
+    <div id="fotoEvidenciaEtiquetaGrupo" class="hidden">
+      <p class="muted portero-small">Empresas de la lista: solo foto de la etiqueta, con número de casa y logotipo visibles. El OCR compara el número de casa, pero no certifica autenticidad del logotipo ni del paquete.</p>
+      <div id="porteroEtiquetaGrupo" class="hidden" style="padding:14px;border:1px solid #475569;border-radius:14px;margin-top:15px">
+        <strong>📦 Verificación de etiqueta del paquete</strong>
+        <p class="muted portero-small">Fotografía la parte de la etiqueta que indique claramente «Casa 40–66». Oculta el teléfono, nombre completo y otros datos del destinatario. El texto se lee en tu dispositivo; no autoriza por sí solo abrir el portón.</p>
+        <label for="porteroEtiquetaArchivo">Foto de la etiqueta *</label>
+        <input id="porteroEtiquetaArchivo" type="file" accept="image/*" capture="environment" onchange="cambiarEtiquetaPortero()">
+        <img id="porteroEtiquetaVista" class="hidden" alt="Vista previa de la etiqueta" style="max-width:100%;max-height:220px;object-fit:contain;border-radius:12px;margin-top:12px">
+        <button type="button" id="porteroEtiquetaLeer" onclick="validarEtiquetaPortero()" style="margin-top:10px">🔎 Leer y comprobar casa en la etiqueta</button>
+        <p id="porteroEtiquetaEstado" role="status" aria-live="polite" class="muted portero-small">Toma una foto donde se lea «Casa XX» para comprobarla.</p>
+      </div>
+    </div>
     <label for="fotoEvidenciaConsentimiento" style="display:flex;gap:10px;align-items:flex-start">
       <input type="checkbox" id="fotoEvidenciaConsentimiento" style="width:22px;min-width:22px;margin-top:4px" onchange="actualizarFotoEvidenciaBoton()">
-      <span>Acepto voluntariamente guardar INE, selfie y, en paquetería, la etiqueta, exclusivamente como evidencia de esta visita para Sistema Admin durante el plazo indicado en el aviso.</span>
+      <span>Acepto voluntariamente guardar solo las fotografías indicadas para esta modalidad, como evidencia privada durante el plazo indicado en el aviso.</span>
     </label>
     <p class="muted portero-small">Lee el <a id="fotoEvidenciaAviso" href="#" target="_blank" rel="noopener noreferrer" style="color:#86efac">aviso de privacidad de fotografías</a> antes de compartirlas. La carga solo se ofrece si el almacenamiento privado y el aviso están habilitados. Si no consientes, solicita autorización por la vía ordinaria.</p>
-    <button type="button" id="fotoEvidenciaEnviar" class="primary" onclick="enviarFotoEvidencia()" disabled>🔐 Guardar fotografías privadas</button>
+    <button type="button" id="fotoEvidenciaEnviar" class="primary" onclick="enviarFotoEvidencia()" disabled>🔐 Guardar evidencia</button>
     <p id="fotoEvidenciaEstado" class="muted" role="status" aria-live="polite"></p>
   </div>
 
@@ -250,7 +255,7 @@ let etiquetaCasaConfirmada=null;
 let etiquetaLeyendo=false;
 let etiquetaRevision=0;
 let etiquetaVistaUrl=null;
-function esPaqueteriaPortero(){return document.getElementById('porteroTipo').value==='paqueteria';}
+function esPaqueteriaPortero(){return fotoEvidenciaContext?.modo==='etiqueta';}
 function limpiarEtiquetaPortero(){
  ++etiquetaRevision;etiquetaCasaConfirmada=null;etiquetaLeyendo=false;
  if(etiquetaVistaUrl)URL.revokeObjectURL(etiquetaVistaUrl);
@@ -401,7 +406,6 @@ async function pedirConfirmacionPortero(){
   porteroEstado('La casa debe encontrarse entre la 40 y la 66.');
   return;
  }
- if(!etiquetaValidaParaCasa(d.casa,d.tipo))return;
  porteroBusy=true;
  const btn=document.getElementById('porteroEnviar');
  const fallback=document.getElementById('porteroPedirConfirmacion');
@@ -420,7 +424,7 @@ async function pedirConfirmacionPortero(){
    throw Error(detalle);
   }
   if(ruta?.autorizada===false&&ruta?.chat_token){
-   abrirChatPortero(ruta.chat_token,ruta.expires_at);
+   abrirChatPortero(ruta.chat_token,ruta.expires_at,ruta.empresa_registrada===true?'etiqueta':'identidad');
    document.getElementById('porteroCard').classList.add('hidden');
    return;
   }
@@ -429,7 +433,7 @@ async function pedirConfirmacionPortero(){
   for(const [id,value] of [['casa',d.casa],['tipo',d.tipo],['empresa',d.empresa],['repartidor',d.repartidor],['mensaje',d.mensaje]]){
    document.getElementById(id).value=value;
   }
-  await enviarSolicitud({porteroMixto:true});
+  await enviarSolicitud({porteroMixto:true,evidenciaModo:'etiqueta'});
   if(!document.getElementById('waitCard').classList.contains('hidden')){
    document.getElementById('porteroCard').classList.add('hidden');
   }else{
@@ -453,7 +457,6 @@ async function procesarPortero(event){
  if(!/^(4[0-9]|5[0-9]|6[0-6])$/.test(d.casa)){
   porteroEstado('Solo se atienden casas de la 40 a la 66.');return;
  }
- if(!etiquetaValidaParaCasa(d.casa,d.tipo))return;
  if(!d.conCodigo){await pedirConfirmacionPortero();return;}
  if(!/^([A-HJ-NP-Z][0-9]{6}|[A-F0-9]{16})$/.test(d.codigo)){
   porteroEstado('El código no tiene un formato válido. Revísalo o solicita confirmación al residente.');
@@ -503,7 +506,7 @@ function detenerChatPortero(){
  ownerDeliveryChatExpiresAt=null;ownerDeliveryChatBusy=false;
  ownerDeliveryChatAutorizadoAt=null;ownerDeliveryChatSalidaAt=null;ownerDeliveryChatExitBusy=false;
 }
-function abrirChatPortero(token,expiresAt){
+function abrirChatPortero(token,expiresAt,modo='identidad'){
  detenerChatPortero();
  ownerDeliveryChatToken=token;
  ownerDeliveryChatExpiresAt=expiresAt||null;
@@ -516,7 +519,7 @@ function abrirChatPortero(token,expiresAt){
  consultarChatPortero();
  ownerDeliveryChatTimer=setInterval(consultarChatPortero,5000);
  ownerDeliveryChatExitTimer=setInterval(actualizarRelojChatEspecial,1000);
- mostrarFotoEvidencia('chat',token,datosPortero().tipo==='paqueteria');
+ mostrarFotoEvidencia('chat',token,modo);
 }
 function mostrarChatPortero(mensajes){
  const box=document.getElementById('ownerDeliveryChatMessages');
@@ -734,14 +737,19 @@ function ocultarFotoEvidencia(){
  document.getElementById('fotoEvidenciaEstado').textContent='';
  actualizarFotoEvidenciaBoton();
 }
-async function mostrarFotoEvidencia(origen,tokenFoto,requiereEtiqueta=false){
+async function mostrarFotoEvidencia(origen,tokenFoto,modo='identidad'){
  if(fotoEvidenciaGuardada||!tokenFoto)return;
  const revision=++fotoEvidenciaCheck;
  try{
   const {data,error}=await sb.functions.invoke('portero-foto-evidencia',{body:{action:'capabilities'}});
   if(revision!==fotoEvidenciaCheck)return;
   if(error||!data?.enabled||!data.notice_url||!data.notice_url.startsWith('https://'))return;
-  fotoEvidenciaContext={origen,token:tokenFoto,requiereEtiqueta:requiereEtiqueta===true};
+  if(!['etiqueta','identidad'].includes(modo))return;
+  fotoEvidenciaContext={origen,token:tokenFoto,modo};
+  document.getElementById('fotoEvidenciaIdentidadGrupo').classList.toggle('hidden',modo!=='identidad');
+  document.getElementById('fotoEvidenciaEtiquetaGrupo').classList.toggle('hidden',modo!=='etiqueta');
+  document.getElementById('fotoEvidenciaEnviar').textContent=modo==='etiqueta'?'🔐 Guardar etiqueta':'🔐 Guardar INE y selfie';
+  alternarEtiquetaPortero();
   document.getElementById('fotoEvidenciaAviso').href=data.notice_url;
   document.getElementById('fotoEvidenciaCard').classList.remove('hidden');
  }catch(_){}
@@ -881,7 +889,7 @@ async function conectarChatSistemaAdmin(manual=false){
   if(!data?.chat_token)throw Error('No se recibió una conexión válida con el chat especial.');
   porteroChatEscalado=true;
   detenerConsulta();
-  abrirChatPortero(data.chat_token,data.expires_at);
+  abrirChatPortero(data.chat_token,data.expires_at,data.empresa_registrada===true?'etiqueta':'identidad');
   document.getElementById('waitCard').classList.add('hidden');
   return true;
  }catch(e){
@@ -963,7 +971,7 @@ async function enviarSolicitud(opciones={}){
     document.getElementById('newBtn').classList.add('hidden');
 
     if(token){
-      mostrarFotoEvidencia('entrega',token,opciones?.porteroMixto===true&&tipo==='paqueteria');
+      if(opciones?.porteroMixto===true)mostrarFotoEvidencia('entrega',token,'etiqueta');
       consultarEstado();
       pollTimer=setInterval(consultarEstado,3000);
     }
