@@ -1,0 +1,20 @@
+// node tests/portero_ine_demo_sin_acceso.test.mjs
+import {readFileSync} from "node:fs";
+import assert from "node:assert/strict";
+const page=readFileSync(new URL("../verificacion-ine-demo.html",import.meta.url),"utf8");
+const qr=readFileSync(new URL("../repartidor.html",import.meta.url),"utf8");
+const js=page.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+assert.ok(js,"Script de la demostración");
+new Function(js);
+assert.match(page,/LABORATORIO · SIMULACIÓN/);
+assert.match(page,/Esta pantalla no verifica identidades reales/);
+assert.match(page,/id="approveCredential"/);
+assert.match(page,/id="rejectCredential"/);
+assert.match(page,/id="demoResident"/);
+assert.match(page,/id="demoWait"/);
+assert.match(page,/id="ownerRoute"/);
+assert.match(page,/id="exitButton"/);
+assert.match(page,/35 segundos en esta demostración/);
+assert.match(qr,/href="\.\/verificacion-ine-demo\.html"/);
+assert.doesNotMatch(page,/supabase\.co|createClient|fetch\(|XMLHttpRequest|getUserMedia|<input[^>]*type="file"|digital_access_request|visitor_pass_request/);
+console.log("PASS: simulador INE ficticia completo sin redes, documentos reales ni apertura física.");
