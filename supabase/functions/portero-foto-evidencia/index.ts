@@ -10,6 +10,7 @@ const cors={
 };
 const out=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:cors});
 const uuid=(v:unknown)=>typeof v==="string"&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+const companyKey=(s:string)=>s.normalize("NFKC").trim().replace(/\s+/g," ").toLocaleLowerCase("es-MX");
 const enabled=()=>Deno.env.get("PORTERO_FOTO_EVIDENCIA_ACTIVA")==="true" &&
  /^https:\/\/[a-z0-9.-]+(?:\/[^\s]*)?$/i.test(Deno.env.get("PORTERO_AVISO_PRIVACIDAD_URL")||"");
 const sha256=async(value:string)=>{
@@ -40,19 +41,19 @@ async function ownerIdentity(db:any,req:Request):Promise<string|null>{
 async function sourceForToken(db:any,origin:string,token:string){
  if(origin==="entrega"&&uuid(token)){
   const {data:d,error}=await db.from("entregas_contacto")
-   .select("id,casa_id,estado,expires_at").eq("public_token",token).maybeSingle();
+   .select("id,casa_id,estado,expires_at,empresa").eq("public_token",token).maybeSingle();
   if(error||!d||!["esperando","respondido"].includes(d.estado)||
     new Date(d.expires_at).getTime()<=Date.now())return null;
   const {data:casa}=await db.from("casas").select("numero").eq("id",d.casa_id).eq("activo",true).maybeSingle();
   if(!casa||!/^(4[0-9]|5[0-9]|6[0-6])$/.test(casa.numero))return null;
-  return {origen:"entrega",entrega_id:d.id,chat_id:null,casa_numero:casa.numero};
+  return {origen:"entrega",entrega_id:d.id,chat_id:null,casa_numero:casa.numero,empresaDeclarada:String(d.empresa||"")};
  }
  if(origin==="chat"&&/^[a-f0-9]{64}$/.test(token)){
   const {data:chat,error}=await db.from("portero_owner_chats")
-   .select("id,casa_numero,estado,expires_at").eq("token_hash",await sha256(token)).maybeSingle();
+   .select("id,casa_numero,estado,expires_at,empresa").eq("token_hash",await sha256(token)).maybeSingle();
   if(error||!chat||chat.estado!=="abierto"||new Date(chat.expires_at).getTime()<=Date.now())
    return null;
-  return {origen:"chat",entrega_id:null,chat_id:chat.id,casa_numero:chat.casa_numero};
+  return {origen:"chat",entrega_id:null,chat_id:chat.id,casa_numero:chat.casa_numero,empresaDeclarada:String(chat.empresa||"")};
  }
  return null;
 }
@@ -117,6 +118,16 @@ Deno.serve(async(req:Request)=>{
   if(!mime||mime!==file.type)return out({error:"Solo se admiten fotos JPG, PNG o WebP válidas."},415);
   const db=service(),source=await sourceForToken(db,origin,token);
   if(!source)return out({error:"Necesitas una solicitud o conversación vigente para adjuntar la fotografía."},403);
+  // La clase de empresa se determina en el servidor, no con una casilla del navegador.
+  const {data:empresas,error:empresasError}=await db.from("empresas_reparto_autorizadas")
+    .select("nombre").eq("activa",true).limit(500);
+  if(empresasError)return out({error:"No se pudo verificar la categoría de empresa."},503);
+  const registrada=(empresas||[]).some((e:{nombre:string})=>
+    companyKey(String(e.nombre))===companyKey(source.empresaDeclarada));
+  if(registrada&&type!=="etiqueta")
+    return out({error:"Para empresas de la lista únicamente se guarda la etiqueta del paquete."},403);
+  if(!registrada&&type==="etiqueta")
+    return out({error:"Para empresas fuera de la lista solo se aceptan las evidencias de INE y selfie."},403);
   const col=origin==="entrega"?"entrega_id":"chat_id";
   const identifier=origin==="entrega"?source.entrega_id:source.chat_id;
   const {data:existing,error:existingError}=await db.from("portero_fotos_evidencia")
@@ -130,7 +141,8 @@ Deno.serve(async(req:Request)=>{
    .upload(filepath,bytes,{contentType:mime,cacheControl:"no-store",upsert:false});
   if(storageError)return out({error:"No se pudo guardar la foto privada."},503);
   const {error:saveError}=await db.from("portero_fotos_evidencia")
-   .insert({...source,id,tipo:type,ruta:filepath,mime,bytes:bytes.length,
+   .insert({origen:source.origen,entrega_id:source.entrega_id,chat_id:source.chat_id,
+    casa_numero:source.casa_numero,id,tipo:type,ruta:filepath,mime,bytes:bytes.length,
     consentimiento_at:new Date().toISOString()});
   if(saveError){
    await db.storage.from("portero-evidencia").remove([filepath]);
