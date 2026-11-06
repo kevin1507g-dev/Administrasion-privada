@@ -76,13 +76,16 @@ async function openSpecialGate(){
  const chat=specialChats.find(c=>c.id===current);
  if(!canOpenSpecial(chat))return;
  if(!window.confirm("¿Solicitar una apertura normal del portón para la casa "+chat.casa_numero+
-  "?\\n\\nConfirma que comprobaste la autorización de la persona y que el paso está libre. "+
+  "?\n\nConfirma que comprobaste la autorización de la persona y que el paso está libre. "+
   "El ESP32 recibirá un pulso; NO se mantendrá abierto durante 7 minutos."))return;
  specialOpening=true;
  refreshSpecialOpenButton();
  const message=t=>{if(current===specialCurrent&&refs.specialOpenStatus)refs.specialOpenStatus.textContent=t;};
  try{
-  message("Comprobando los controles de acceso…");
+  message("Comprobando la vigencia del chat y los controles de acceso…");
+  const latest=await specialApi("owner_read",{chat_id:current});
+  if(latest?.estado!=="abierto"||new Date(latest.expires_at).getTime()<=Date.now()||latest.autorizado_at)
+   throw Error("Este chat ya terminó o tiene una apertura registrada.");
   const {data:statusData,error:statusError}=await sb.rpc("digital_access_status",{p_command:null});
   if(statusError)throw statusError;
   if(!statusData?.allowed)throw Error(statusData?.reason||"El Control Digital no permite abrir el portón.");
