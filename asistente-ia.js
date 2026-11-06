@@ -2,7 +2,7 @@
 (function(){
 "use strict";
 let mount=null,opened=false,busy=false,conversationId=null,voiceEnabled=false,recognizer=null,chatOriginalParent=null,chatOriginalNext=null,chatSelected=false,chatLoading=false;
-let specialSelected=false,specialCurrent=null,specialChats=[],specialUnread=0,specialPolling=null,specialLoading=false,specialReading=false,specialSending=false;
+let specialSelected=false,specialCurrent=null,specialChats=[],specialUnread=0,specialPolling=null,specialLoading=false,specialReading=false,specialSending=false,specialOpening=false,specialRequested=new Set();
 const refs={};
 function node(tag,opts={},parent){
  const n=document.createElement(tag);
@@ -60,6 +60,63 @@ async function specialApi(action,extra={}){
  if(error||data?.error)throw Error(String(data?.error||error?.message||"No se pudo consultar el chat especial.").slice(0,240));
  return data||{};
 }
+function canOpenSpecial(chat){
+ return ownerSession()&&!!chat&&chat.estado==="abierto"&&new Date(chat.expires_at).getTime()>Date.now()&&
+  !chat.autorizado_at&&!specialRequested.has(chat.id)&&!specialOpening;
+}
+function refreshSpecialOpenButton(){
+ if(!refs.specialOpenBtn)return;
+ const chat=specialChats.find(c=>c.id===specialCurrent);
+ refs.specialOpenBtn.disabled=!canOpenSpecial(chat);
+ refs.specialOpenBtn.textContent=chat&&(chat.autorizado_at||specialRequested.has(chat.id))
+  ?"✓ Orden enviada":"🚪 Abrir portón";
+}
+async function openSpecialGate(){
+ const current=specialCurrent;
+ const chat=specialChats.find(c=>c.id===current);
+ if(!canOpenSpecial(chat))return;
+ if(!window.confirm("¿Solicitar una apertura normal del portón para la casa "+chat.casa_numero+
+  "?\\n\\nConfirma que comprobaste la autorización de la persona y que el paso está libre. "+
+  "El ESP32 recibirá un pulso; NO se mantendrá abierto durante 7 minutos."))return;
+ specialOpening=true;
+ refreshSpecialOpenButton();
+ const message=t=>{if(current===specialCurrent&&refs.specialOpenStatus)refs.specialOpenStatus.textContent=t;};
+ try{
+  message("Comprobando los controles de acceso…");
+  const {data:statusData,error:statusError}=await sb.rpc("digital_access_status",{p_command:null});
+  if(statusError)throw statusError;
+  if(!statusData?.allowed)throw Error(statusData?.reason||"El Control Digital no permite abrir el portón.");
+  // Utilizar el Control Digital existente con las restricciones y permisos del servidor.
+  const {data:commandId,error}=await sb.rpc("digital_access_request",{p_target:"porton"});
+  if(error)throw error;
+  if(!commandId)throw Error("El sistema no entregó un identificador de orden.");
+  specialRequested.add(current);
+  refreshSpecialOpenButton();
+  message("Solicitud enviada. Esperando confirmación del ESP32…");
+  let finished=false;
+  for(let i=0;i<15;i++){
+   await new Promise(resolve=>setTimeout(resolve,1500));
+   const {data:state,error:checkError}=await sb.rpc("digital_access_status",{p_command:commandId});
+   if(checkError)throw checkError;
+   if(state?.command_state==="pulse_confirmed"){
+    message("✅ El ESP32 confirmó el pulso del portón. Esto no confirma su posición física.");
+    finished=true;break;
+   }
+   if(["expired","cancelled","unconfirmed"].includes(state?.command_state)){
+    message(state.command_state==="expired"?"La orden venció sin llegar al ESP32.":
+     state.command_state==="cancelled"?"La orden fue cancelada por los controles del sistema.":
+     "El ESP32 no confirmó el pulso. Comprueba el equipo antes de intentar otra acción.");
+    finished=true;break;
+   }
+  }
+  if(!finished)message("No se recibió confirmación del pulso. Comprueba el estado físico del equipo.");
+ }catch(e){
+  message("No se pudo realizar la apertura: "+String(e?.message||"error de conexión"));
+ }finally{
+  specialOpening=false;
+  refreshSpecialOpenButton();
+ }
+}
 function renderSpecialMessages(messages){
  if(!refs.specialMessages)return;
  const el=refs.specialMessages;
@@ -104,6 +161,7 @@ async function loadSpecialChats(){
 }
 function specialListView(){
  specialCurrent=null;
+ refreshSpecialOpenButton();
  refs.specialConversation.hidden=true;
  refs.specialListWrap.hidden=false;
  if(refs.specialFeedback)refs.specialFeedback.textContent="";
@@ -119,9 +177,11 @@ async function showSpecialConversation(chatId){
  refs.specialListWrap.hidden=true;
  refs.specialConversation.hidden=false;
  refs.specialTitle.textContent="Casa "+entry.casa_numero+" · "+entry.repartidor;
- refs.specialDetails.textContent=entry.empresa+" · "+entry.motivo+" · Solo mensajes; no abre el portón.";
+ refs.specialDetails.textContent=entry.empresa+" · "+entry.motivo+" · Apertura manual exclusiva de Sistema Admin.";
  refs.specialSend.disabled=entry.estado!=="abierto"||new Date(entry.expires_at).getTime()<=Date.now();
  refs.specialInput.disabled=refs.specialSend.disabled;
+ refs.specialOpenStatus.textContent=specialRequested.has(chatId)?"Ya se envió una orden de apertura desde este chat.":"La apertura requiere autorización comprobada y confirmación manual.";
+ refreshSpecialOpenButton();
  refs.specialStatus.textContent="Cargando mensajes…";
  await readSpecialConversation();
  return true;
@@ -137,12 +197,14 @@ async function readSpecialConversation(){
   const active=data.estado==="abierto" &&
    specialChats.some(c=>c.id===current&&new Date(c.expires_at).getTime()>Date.now());
   const authorized=!!data.autorizado_at;
+  if(authorized)specialRequested.add(current);
+  refreshSpecialOpenButton();
   refs.specialInput.disabled=!active;
   refs.specialSend.disabled=!active;
   refs.specialStatus.textContent=authorized?
    "✅ Sistema Admin emitió la orden de apertura. El repartidor tiene 7 minutos para reportar su salida; el portón NO se mantiene abierto. "+
      (data.salida_reportada_at?"Salida declarada registrada.":"Verifica físicamente la apertura y el paso libre."):
-    active?"Puedes conversar con el repartidor. Este chat no autoriza aperturas.":"Conversación finalizada.";
+    active?"Puedes conversar y solicitar una apertura manual. Solo el Owner puede hacerlo.":"Conversación finalizada.";
   const c=specialChats.find(c=>c.id===current);
   if(c)c.last_owner_read_at=new Date().toISOString();
   setSpecialCount(countPendingSpecial(specialChats));
@@ -563,7 +625,7 @@ function init(){
  node("strong",{text:"💬 Repartidores sin autorización"},listHeader);
  const refresh=node("button",{type:"button",text:"↻ Actualizar"},listHeader);
  refresh.onclick=loadSpecialChats;
- node("p",{className:"ia-special-hint",text:"Conversaciones exclusivas de Sistema Admin. No se autoriza la apertura desde este chat."},chatListWrap);
+ node("p",{className:"ia-special-hint",text:"Solo Sistema Admin puede solicitar aperturas manuales. Los controles y bloqueos del ESP32 siguen vigentes."},chatListWrap);
  refs.specialFeedback=node("p",{className:"ia-special-feedback",text:""},chatListWrap);
  refs.specialList=node("div",{className:"ia-special-list"},chatListWrap);
  refs.specialConversation=node("section",{className:"ia-special-conversation"},refs.specialHost);
@@ -580,8 +642,12 @@ function init(){
  refs.specialInput.maxLength=600;refs.specialInput.rows=2;refs.specialInput.required=true;refs.specialInput.placeholder="Escribe tu respuesta…";
  const specialActions=node("div",{className:"ia-special-actions"},specialForm);
  refs.specialSend=node("button",{type:"submit",text:"Responder"},specialActions);
+ refs.specialOpenBtn=node("button",{type:"button",className:"ia-special-open-btn",text:"🚪 Abrir portón"},specialActions);
+ refs.specialOpenBtn.disabled=true;refs.specialOpenBtn.onclick=openSpecialGate;
  const endSpecial=node("button",{type:"button",text:"Finalizar chat"},specialActions);endSpecial.onclick=closeSpecialConversation;
  refs.specialStatus=node("p",{className:"ia-special-feedback"},refs.specialConversation);
+ refs.specialOpenStatus=node("p",{className:"ia-special-feedback",text:""},refs.specialConversation);
+ refs.specialOpenStatus.setAttribute("role","status");refs.specialOpenStatus.setAttribute("aria-live","polite");
  refs.compose=node("div",{className:"ia-compose"},refs.panel);
  const compose=refs.compose;
  refs.text=node("textarea",{aria:"Escribe tu consulta"},compose);refs.text.placeholder="Escribe tu pregunta…";refs.text.rows=2;refs.text.maxLength=900;
