@@ -32,7 +32,7 @@ button:focus-visible,a:focus-visible{outline:3px solid #9ccefe;outline-offset:3p
 <body><main>
 <a href="./index.html">← Volver a Administración Residencial</a>
 <h1>🔒 Evidencias fotográficas de repartidores</h1>
-<p class="muted">Exclusivo de Sistema Admin. Muestra la INE y la selfie juntas cuando ambas fueron aportadas, para revisión visual humana. Esto no verifica identidad ni confirma empleo en ninguna empresa.</p>
+<p class="muted">Exclusivo de Sistema Admin. Agrupa las fotos de INE, selfie y etiqueta de paquetería cuando se aportaron. La coincidencia de número de casa es orientativa y no comprueba identidad ni empleo.</p>
 <div class="card alert">Estas imágenes pueden contener datos personales. No las compartas en grupos ni las utilices para identificar automáticamente a personas. El sistema no autoriza aperturas desde esta pantalla.</div>
 <div class="card">
  <button id="refresh" type="button">↻ Actualizar registros privados</button>
@@ -45,6 +45,7 @@ button:focus-visible,a:focus-visible{outline:3px solid #9ccefe;outline-offset:3p
  <div class="fotoComparacion">
   <section id="fotoVistaInePanel" hidden><strong>🪪 INE</strong><img id="fotoVistaIne" alt="Fotografía de INE como evidencia privada"></section>
   <section id="fotoVistaRostroPanel" hidden><strong>📷 Selfie</strong><img id="fotoVistaRostro" alt="Selfie como evidencia privada"></section>
+  <section id="fotoVistaEtiquetaPanel" hidden><strong>📦 Etiqueta</strong><img id="fotoVistaEtiqueta" alt="Etiqueta del paquete como evidencia privada"></section>
  </div>
  <button type="button" id="closeView">Cerrar vista</button>
 </div>
@@ -73,7 +74,7 @@ async function call(action,props={}){
  return data;
 }
 function clearView(){
- for(const tipo of ['Ine','Rostro']){
+ for(const tipo of ['Ine','Rostro','Etiqueta']){
   byId('fotoVista'+tipo).removeAttribute('src');
   byId('fotoVista'+tipo+'Panel').hidden=true;
  }
@@ -99,9 +100,10 @@ async function load(){
    const item=fotos[0];
    const ine=fotos.find(x=>x.tipo==='ine');
    const rostro=fotos.find(x=>x.tipo==='rostro');
+   const etiqueta=fotos.find(x=>x.tipo==='etiqueta');
    const card=document.createElement('div');card.className='item';
    const title=document.createElement('strong');
-   title.textContent='Casa '+item.casa_numero+' · '+(ine&&rostro?'🪪 INE + 📷 selfie':'Evidencia incompleta');
+   title.textContent='Casa '+item.casa_numero+' · '+[ine?'🪪 INE':null,rostro?'📷 selfie':null,etiqueta?'📦 etiqueta':null].filter(Boolean).join(' + ');
    card.appendChild(title);
    const detail=document.createElement('p');detail.className='muted small';
    detail.textContent=(item.origen==='chat'?'Chat especial':'Solicitud de entrega')+
@@ -109,18 +111,18 @@ async function load(){
     ' · Caduca: '+new Date(item.vence_at).toLocaleDateString('es-MX');
    card.appendChild(detail);
    const view=document.createElement('button');view.type='button';
-   view.textContent=ine&&rostro?'👁 Revisar INE y selfie juntas':'👁 Ver evidencia disponible';
+   view.textContent=etiqueta?'👁 Revisar evidencias y etiqueta juntas':'👁 Revisar fotografías privadas';
    view.onclick=async()=>{
     view.disabled=true;clearView();
     try{
      const archivos=await Promise.all(
-      [ine,rostro].filter(Boolean).map(async foto=>({
+      [ine,rostro,etiqueta].filter(Boolean).map(async foto=>({
        tipo:foto.tipo,resultado:await call('view',{id:foto.id})
       }))
      );
      byId('photoTitle').textContent='Evidencias privadas · Casa '+item.casa_numero;
      for(const archivo of archivos){
-      const suff=archivo.tipo==='ine'?'Ine':'Rostro';
+      const suff=archivo.tipo==='ine'?'Ine':archivo.tipo==='rostro'?'Rostro':'Etiqueta';
       byId('fotoVista'+suff).src=archivo.resultado.url;
       byId('fotoVista'+suff+'Panel').hidden=false;
      }
@@ -132,7 +134,7 @@ async function load(){
    card.appendChild(view);
    for(const foto of fotos){
     const del=document.createElement('button');del.type='button';
-    del.textContent='Eliminar '+(foto.tipo==='ine'?'INE':'selfie');
+    del.textContent='Eliminar '+(foto.tipo==='ine'?'INE':foto.tipo==='rostro'?'selfie':'etiqueta');
     del.onclick=async()=>{
      if(!confirm('¿Eliminar definitivamente esta fotografía del registro privado?'))return;
      del.disabled=true;
