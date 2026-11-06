@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0c2130">
+<title>Evidencias privadas · Sistema Admin · Privada Beteles</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{color-scheme:dark;--bg:#0c1927;--panel:#152e40;--line:#496274;--text:#f4fafb;--muted:#c3d7db;--accent:#76efc2}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,sans-serif;padding:22px 12px 60px}
+main{width:min(760px,100%);margin:auto}
+h1{margin:15px 0 8px;font-size:1.65rem}
+p{margin:9px 0}
+a{color:#97dbfe}
+.card{padding:18px;border:1px solid var(--line);border-radius:18px;background:var(--panel);margin:14px 0}
+.muted{color:var(--muted)}
+button{font:inherit;background:#225d50;color:#f4fffb;border:1px solid #58a492;border-radius:11px;padding:10px 12px;cursor:pointer;font-weight:750}
+button:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,a:focus-visible{outline:3px solid #9ccefe;outline-offset:3px}
+.list{display:flex;flex-direction:column;gap:10px;margin:16px 0}
+.item{border:1px solid #486b7f;border-radius:15px;padding:13px;background:#123040}
+.item button{margin:8px 7px 0 0}
+.small{font-size:.85rem}
+#fotoVista{max-width:100%;max-height:72vh;object-fit:contain;border-radius:12px;display:block;margin:14px auto}
+#fotoVista[hidden],#viewPanel[hidden]{display:none!important}
+.alert{border-left:4px solid #f1c66d;padding:10px 12px;background:#473a23;border-radius:8px}
+</style>
+</head>
+<body><main>
+<a href="./index.html">← Volver a Administración Residencial</a>
+<h1>🔒 Evidencias fotográficas de repartidores</h1>
+<p class="muted">Exclusivo de Sistema Admin. Se muestra únicamente la fotografía que el visitante decidió aportar como evidencia; no es una verificación de identidad, ni confirma empleo en una plataforma.</p>
+<div class="card alert">Estas imágenes pueden contener datos personales. No las compartas en grupos ni las utilices para identificar automáticamente a personas. El sistema no autoriza aperturas desde esta pantalla.</div>
+<div class="card">
+ <button id="refresh" type="button">↻ Actualizar registros privados</button>
+ <p id="status" role="status" aria-live="polite" class="muted">Comprobando sesión de Sistema Admin…</p>
+ <div id="list" class="list"></div>
+</div>
+<div class="card" id="viewPanel" hidden>
+ <h2 id="photoTitle">Fotografía privada</h2>
+ <p class="muted small">El enlace de visualización vence después de un minuto. Evita descargar o reenviar datos personales innecesariamente.</p>
+ <img id="fotoVista" alt="Evidencia fotográfica de una solicitud de repartidor" hidden>
+ <button type="button" id="closeView">Cerrar vista</button>
+</div>
+</main>
+<script>
+"use strict";
+const sb=supabase.createClient(
+ 'https://nndlfkuelwpwklldvtfo.supabase.co',
+ 'sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_'
+);
+const byId=id=>document.getElementById(id);
+const status=text=>byId('status').textContent=text;
+let session=null;
+async function call(action,props={}){
+ const {data:{session:current}}=await sb.auth.getSession();
+ if(!current?.access_token)throw Error('Inicia sesión como Sistema Admin desde la plataforma.');
+ session=current;
+ const {data,error}=await sb.functions.invoke('portero-foto-evidencia',{
+  body:{action,...props},headers:{Authorization:'Bearer '+current.access_token}
+ });
+ if(error||data?.error){
+  let message=data?.error||error?.message||'No se pudo consultar el registro.';
+  try{const body=await error?.context?.json?.();if(body?.error)message=body.error;}catch(_){}
+  throw Error(message);
+ }
+ return data;
+}
+function clearView(){
+ byId('fotoVista').hidden=true;
+ byId('fotoVista').removeAttribute('src');
+ byId('viewPanel').hidden=true;
+}
+async function load(){
+ status('Consultando registros privados…');
+ byId('refresh').disabled=true;
+ byId('list').replaceChildren();
+ clearView();
+ try{
+  const result=await call('list');
+  const items=result.items||[];
+  status(items.length?items.length+' evidencia(s) dentro del periodo de conservación.':
+   'No hay evidencias disponibles. El módulo puede estar desactivado o todavía no se ha usado.');
+  for(const item of items){
+   const card=document.createElement('div');card.className='item';
+   const title=document.createElement('strong');
+   title.textContent=(item.tipo==='rostro'?'📷 Rostro':'🪪 INE')+' · Casa '+item.casa_numero;
+   card.appendChild(title);
+   const detail=document.createElement('p');detail.className='muted small';
+   detail.textContent=(item.origen==='chat'?'Chat especial':'Solicitud de entrega')+
+    ' · '+new Date(item.creado_at).toLocaleString('es-MX')+
+    ' · Caduca: '+new Date(item.vence_at).toLocaleDateString('es-MX');
+   card.appendChild(detail);
+   const view=document.createElement('button');view.type='button';view.textContent='👁 Ver foto';
+   view.onclick=async()=>{
+    view.disabled=true;
+    try{
+     const result=await call('view',{id:item.id});
+     byId('photoTitle').textContent='Evidencia '+(item.tipo==='ine'?'INE':'rostro')+' · Casa '+item.casa_numero;
+     byId('viewPanel').hidden=false;
+     byId('fotoVista').src=result.url;
+     byId('fotoVista').hidden=false;
+     byId('viewPanel').scrollIntoView({block:'start',behavior:'smooth'});
+    }catch(e){status(e?.message||'No se pudo consultar la imagen.');}
+    finally{view.disabled=false;}
+   };
+   card.appendChild(view);
+   const del=document.createElement('button');del.type='button';del.textContent='Eliminar evidencia';
+   del.onclick=async()=>{
+    if(!confirm('¿Eliminar definitivamente esta fotografía del registro privado?'))return;
+    del.disabled=true;
+    try{await call('delete',{id:item.id});await load();}
+    catch(e){status(e.message||'No se pudo eliminar.');del.disabled=false;}
+   };
+   card.appendChild(del);
+   byId('list').appendChild(card);
+  }
+ }catch(e){status(e?.message||'No fue posible consultar.');}
+ finally{byId('refresh').disabled=false;}
+}
+byId('refresh').onclick=load;
+byId('closeView').onclick=clearView;
+load();
+</script>
+</body>
+</html>
