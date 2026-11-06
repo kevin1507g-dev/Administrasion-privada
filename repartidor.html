@@ -188,9 +188,9 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
   </div>
 
   <div id="fotoEvidenciaCard" class="card hidden">
-    <h2>🪪 INE y selfie de evidencia</h2>
+    <h2>🪪 INE, selfie y etiqueta de paquetería</h2>
     <p class="muted portero-small">Para dejar evidencia de tu visita, puedes registrar una fotografía del frente de tu INE y una selfie tomada en este momento. La revisión es humana: no existe comparación facial automática y este registro no abre el portón.</p>
-    <p class="muted portero-small">Antes de tomar la foto de la INE, oculta domicilio, CURP, clave de elector, OCR y otros datos innecesarios. No compartas documentos de menores.</p>
+    <p class="muted portero-small">Antes de fotografiar la INE, oculta domicilio, CURP, clave de elector, OCR y otros datos innecesarios. No compartas documentos de menores. Para paquetería también se conserva, con consentimiento, la foto de la etiqueta usada para comprobar el número de casa.</p>
     <label for="fotoEvidenciaINE">1. Foto del frente de la INE</label>
     <input id="fotoEvidenciaINE" type="file" accept="image/*" capture="environment" onchange="previsualizarFotoEvidencia('ine')">
     <img id="fotoEvidenciaINEVista" alt="Vista previa de la INE con datos privados cubiertos" class="hidden" style="max-width:100%;max-height:220px;object-fit:contain;border-radius:12px;margin-top:12px">
@@ -199,10 +199,10 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
     <img id="fotoEvidenciaRostroVista" alt="Vista previa de la selfie" class="hidden" style="max-width:100%;max-height:220px;object-fit:contain;border-radius:12px;margin-top:12px">
     <label for="fotoEvidenciaConsentimiento" style="display:flex;gap:10px;align-items:flex-start">
       <input type="checkbox" id="fotoEvidenciaConsentimiento" style="width:22px;min-width:22px;margin-top:4px" onchange="actualizarFotoEvidenciaBoton()">
-      <span>Acepto voluntariamente guardar ambas imágenes exclusivamente como evidencia de esta visita, para consulta privada de Sistema Admin durante el plazo indicado en el aviso.</span>
+      <span>Acepto voluntariamente guardar INE, selfie y, en paquetería, la etiqueta, exclusivamente como evidencia de esta visita para Sistema Admin durante el plazo indicado en el aviso.</span>
     </label>
     <p class="muted portero-small">Lee el <a id="fotoEvidenciaAviso" href="#" target="_blank" rel="noopener noreferrer" style="color:#86efac">aviso de privacidad de fotografías</a> antes de compartirlas. La carga solo se ofrece si el almacenamiento privado y el aviso están habilitados. Si no consientes, solicita autorización por la vía ordinaria.</p>
-    <button type="button" id="fotoEvidenciaEnviar" class="primary" onclick="enviarFotoEvidencia()" disabled>🔐 Guardar INE y selfie privadas</button>
+    <button type="button" id="fotoEvidenciaEnviar" class="primary" onclick="enviarFotoEvidencia()" disabled>🔐 Guardar fotografías privadas</button>
     <p id="fotoEvidenciaEstado" class="muted" role="status" aria-live="polite"></p>
   </div>
 
@@ -510,7 +510,7 @@ function abrirChatPortero(token,expiresAt){
  consultarChatPortero();
  ownerDeliveryChatTimer=setInterval(consultarChatPortero,5000);
  ownerDeliveryChatExitTimer=setInterval(actualizarRelojChatEspecial,1000);
- mostrarFotoEvidencia('chat',token);
+ mostrarFotoEvidencia('chat',token,datosPortero().tipo==='paqueteria');
 }
 function mostrarChatPortero(mensajes){
  const box=document.getElementById('ownerDeliveryChatMessages');
@@ -728,14 +728,14 @@ function ocultarFotoEvidencia(){
  document.getElementById('fotoEvidenciaEstado').textContent='';
  actualizarFotoEvidenciaBoton();
 }
-async function mostrarFotoEvidencia(origen,tokenFoto){
+async function mostrarFotoEvidencia(origen,tokenFoto,requiereEtiqueta=false){
  if(fotoEvidenciaGuardada||!tokenFoto)return;
  const revision=++fotoEvidenciaCheck;
  try{
   const {data,error}=await sb.functions.invoke('portero-foto-evidencia',{body:{action:'capabilities'}});
   if(revision!==fotoEvidenciaCheck)return;
   if(error||!data?.enabled||!data.notice_url||!data.notice_url.startsWith('https://'))return;
-  fotoEvidenciaContext={origen,token:tokenFoto};
+  fotoEvidenciaContext={origen,token:tokenFoto,requiereEtiqueta:requiereEtiqueta===true};
   document.getElementById('fotoEvidenciaAviso').href=data.notice_url;
   document.getElementById('fotoEvidenciaCard').classList.remove('hidden');
  }catch(_){}
@@ -759,6 +759,9 @@ function actualizarFotoEvidenciaBoton(){
  btn.disabled=!fotoEvidenciaContext||
   !document.getElementById('fotoEvidenciaINE').files?.length||
   !document.getElementById('fotoEvidenciaRostro').files?.length||
+  (fotoEvidenciaContext?.requiereEtiqueta&&
+   (etiquetaCasaConfirmada!==document.getElementById('porteroCasa').value.trim()||
+    !document.getElementById('porteroEtiquetaArchivo').files?.length))||
   !document.getElementById('fotoEvidenciaConsentimiento').checked||
   fotoEvidenciaBusy||fotoEvidenciaGuardada;
 }
@@ -793,6 +796,11 @@ async function enviarFotoEvidencia(){
  const rostro=document.getElementById('fotoEvidenciaRostro');
  const status=document.getElementById('fotoEvidenciaEstado');
  if(!ine.files?.[0]||!rostro.files?.[0])return;
+ if(fotoEvidenciaContext.requiereEtiqueta&&
+   (etiquetaCasaConfirmada!==document.getElementById('porteroCasa').value.trim()||
+    !document.getElementById('porteroEtiquetaArchivo').files?.[0])){
+  status.textContent='Primero confirma el número de casa en la etiqueta del paquete.';return;
+ }
  fotoEvidenciaBusy=true;actualizarFotoEvidenciaBoton();
  status.textContent='Preparando las dos fotografías para el registro privado…';
  try{
@@ -802,9 +810,14 @@ async function enviarFotoEvidencia(){
    {tipo:'ine',blob:await convertirFotoEvidencia(ine.files[0])},
    {tipo:'rostro',blob:await convertirFotoEvidencia(rostro.files[0])}
   ];
+  if(context.requiereEtiqueta){
+   const archivo=document.getElementById('porteroEtiquetaArchivo').files?.[0];
+   if(!archivo)throw Error('Falta la foto de la etiqueta.');
+   fotos.push({tipo:'etiqueta',blob:await convertirFotoEvidencia(archivo)});
+  }
   for(let i=0;i<fotos.length;i++){
    if(fotoEvidenciaContext!==context)return;
-   status.textContent='Guardando evidencia privada ('+(i+1)+' de 2)…';
+   status.textContent='Guardando evidencia privada ('+(i+1)+' de '+fotos.length+')…';
    const form=new FormData();
    form.append('origen',context.origen);
    form.append('token',context.token);
@@ -820,7 +833,8 @@ async function enviarFotoEvidencia(){
   }
   if(fotoEvidenciaContext!==context)return;
   fotoEvidenciaGuardada=true;ine.disabled=true;rostro.disabled=true;
-  status.textContent='✅ INE y selfie registradas como evidencias privadas para revisión de Sistema Admin. No representan verificación automática de identidad ni abren el portón.';
+  status.textContent='✅ '+(context.requiereEtiqueta?'INE, selfie y etiqueta':'INE y selfie')+
+   ' guardadas como evidencias privadas. La lectura de la etiqueta no concede acceso al portón.';
  }catch(e){
   status.textContent=(e?.message||'No se pudieron registrar ambas imágenes.')+' Puedes reintentar sin duplicar las ya guardadas.';
  }finally{fotoEvidenciaBusy=false;actualizarFotoEvidenciaBoton();}
@@ -943,7 +957,7 @@ async function enviarSolicitud(opciones={}){
     document.getElementById('newBtn').classList.add('hidden');
 
     if(token){
-      mostrarFotoEvidencia('entrega',token);
+      mostrarFotoEvidencia('entrega',token,opciones?.porteroMixto===true&&tipo==='paqueteria');
       consultarEstado();
       pollTimer=setInterval(consultarEstado,3000);
     }
