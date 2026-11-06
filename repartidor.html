@@ -178,23 +178,21 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
   </div>
 
   <div id="fotoEvidenciaCard" class="card hidden">
-    <h2>🪪 Foto de INE para registro de acceso</h2>
-    <p class="muted portero-small">Te solicitamos una foto de tu INE como evidencia de la visita. Si prefieres no compartir un documento, puedes elegir una foto de tu rostro. No validamos tu empleo ni verificamos tu identidad con esta imagen. La foto por sí sola no autoriza abrir el portón.</p>
-    <label for="fotoEvidenciaTipo">Tipo de foto</label>
-    <select id="fotoEvidenciaTipo" onchange="elegirTipoFotoEvidencia()">
-      <option value="ine">🪪 Fotografía de mi INE</option>
-      <option value="rostro">📷 Fotografía de mi rostro (alternativa)</option>
-    </select>
-    <p class="muted portero-small">Antes de fotografiar la INE, tapa tu domicilio, CURP, clave de elector, OCR y otros números. Evita incluir reverso o datos innecesarios. No envíes documentos de menores.</p>
-    <label for="fotoEvidenciaArchivo">Tomar o elegir una fotografía</label>
-    <input id="fotoEvidenciaArchivo" type="file" accept="image/*" capture="environment" onchange="previsualizarFotoEvidencia()">
-    <img id="fotoEvidenciaVista" alt="Vista previa de la foto seleccionada" class="hidden" style="max-width:100%;max-height:260px;object-fit:contain;border-radius:12px;margin-top:12px">
+    <h2>🪪 INE y selfie de evidencia</h2>
+    <p class="muted portero-small">Para dejar evidencia de tu visita, puedes registrar una fotografía del frente de tu INE y una selfie tomada en este momento. La revisión es humana: no existe comparación facial automática y este registro no abre el portón.</p>
+    <p class="muted portero-small">Antes de tomar la foto de la INE, oculta domicilio, CURP, clave de elector, OCR y otros datos innecesarios. No compartas documentos de menores.</p>
+    <label for="fotoEvidenciaINE">1. Foto del frente de la INE</label>
+    <input id="fotoEvidenciaINE" type="file" accept="image/*" capture="environment" onchange="previsualizarFotoEvidencia('ine')">
+    <img id="fotoEvidenciaINEVista" alt="Vista previa de la INE con datos privados cubiertos" class="hidden" style="max-width:100%;max-height:220px;object-fit:contain;border-radius:12px;margin-top:12px">
+    <label for="fotoEvidenciaRostro">2. Selfie actual de tu rostro</label>
+    <input id="fotoEvidenciaRostro" type="file" accept="image/*" capture="user" onchange="previsualizarFotoEvidencia('rostro')">
+    <img id="fotoEvidenciaRostroVista" alt="Vista previa de la selfie" class="hidden" style="max-width:100%;max-height:220px;object-fit:contain;border-radius:12px;margin-top:12px">
     <label for="fotoEvidenciaConsentimiento" style="display:flex;gap:10px;align-items:flex-start">
       <input type="checkbox" id="fotoEvidenciaConsentimiento" style="width:22px;min-width:22px;margin-top:4px" onchange="actualizarFotoEvidenciaBoton()">
-      <span>Autorizo guardar voluntariamente esta imagen como evidencia de mi visita, para consulta privada de Sistema Admin durante el periodo de conservación indicado en el aviso.</span>
+      <span>Acepto voluntariamente guardar ambas imágenes exclusivamente como evidencia de esta visita, para consulta privada de Sistema Admin durante el plazo indicado en el aviso.</span>
     </label>
-    <p class="muted portero-small">Consulta el <a id="fotoEvidenciaAviso" href="#" target="_blank" rel="noopener noreferrer" style="color:#86efac">aviso de privacidad de fotografías</a> antes de subirla. La carga solo se ofrece si el almacenamiento privado está habilitado; si no consientes, puedes solicitar autorización por la vía ordinaria.</p>
-    <button type="button" id="fotoEvidenciaEnviar" class="primary" onclick="enviarFotoEvidencia()" disabled>🔐 Guardar evidencia de INE o rostro</button>
+    <p class="muted portero-small">Lee el <a id="fotoEvidenciaAviso" href="#" target="_blank" rel="noopener noreferrer" style="color:#86efac">aviso de privacidad de fotografías</a> antes de compartirlas. La carga solo se ofrece si el almacenamiento privado y el aviso están habilitados. Si no consientes, solicita autorización por la vía ordinaria.</p>
+    <button type="button" id="fotoEvidenciaEnviar" class="primary" onclick="enviarFotoEvidencia()" disabled>🔐 Guardar INE y selfie privadas</button>
     <p id="fotoEvidenciaEstado" class="muted" role="status" aria-live="polite"></p>
   </div>
 
@@ -577,23 +575,28 @@ async function confirmarSalidaRepartidor(){
  }
 }
 
-// Foto privada de evidencia. Inactiva hasta configurar un aviso de privacidad
-// en Supabase. Nunca se utiliza para autorizar apertura física del portón.
+// Captura voluntaria de INE y selfie como evidencias privadas para revisión humana.
+// Solo aparece cuando el servidor confirma un aviso de privacidad válido.
+// Ninguna fotografía habilita una orden física de apertura.
 let fotoEvidenciaContext=null;
 let fotoEvidenciaGuardada=false;
 let fotoEvidenciaBusy=false;
-let fotoEvidenciaObjectUrl=null;
+let fotoEvidenciaObjectUrls={ine:null,rostro:null};
 let fotoEvidenciaCheck=0;
 function ocultarFotoEvidencia(){
  ++fotoEvidenciaCheck;
  fotoEvidenciaContext=null;fotoEvidenciaGuardada=false;fotoEvidenciaBusy=false;
- if(fotoEvidenciaObjectUrl)URL.revokeObjectURL(fotoEvidenciaObjectUrl);
- fotoEvidenciaObjectUrl=null;
+ for(const tipo of ['ine','rostro']){
+  if(fotoEvidenciaObjectUrls[tipo])URL.revokeObjectURL(fotoEvidenciaObjectUrls[tipo]);
+  fotoEvidenciaObjectUrls[tipo]=null;
+  const input=document.getElementById(tipo==='ine'?'fotoEvidenciaINE':'fotoEvidenciaRostro');
+  input.value='';input.disabled=false;
+  const vista=document.getElementById(tipo==='ine'?'fotoEvidenciaINEVista':'fotoEvidenciaRostroVista');
+  vista.classList.add('hidden');vista.removeAttribute('src');
+ }
  const card=document.getElementById('fotoEvidenciaCard');
  if(card)card.classList.add('hidden');
- document.getElementById('fotoEvidenciaArchivo').value='';
  document.getElementById('fotoEvidenciaConsentimiento').checked=false;
- document.getElementById('fotoEvidenciaVista').classList.add('hidden');
  document.getElementById('fotoEvidenciaEstado').textContent='';
  actualizarFotoEvidenciaBoton();
 }
@@ -609,40 +612,36 @@ async function mostrarFotoEvidencia(origen,tokenFoto){
   document.getElementById('fotoEvidenciaCard').classList.remove('hidden');
  }catch(_){}
 }
-function elegirTipoFotoEvidencia(){
- const input=document.getElementById('fotoEvidenciaArchivo');
- input.setAttribute('capture',document.getElementById('fotoEvidenciaTipo').value==='rostro'?'user':'environment');
- input.value='';
- previsualizarFotoEvidencia();
-}
-function previsualizarFotoEvidencia(){
- if(fotoEvidenciaObjectUrl)URL.revokeObjectURL(fotoEvidenciaObjectUrl);
- fotoEvidenciaObjectUrl=null;
- const file=document.getElementById('fotoEvidenciaArchivo').files?.[0];
- const preview=document.getElementById('fotoEvidenciaVista');
- preview.classList.add('hidden');
+function previsualizarFotoEvidencia(tipo){
+ if(!['ine','rostro'].includes(tipo))return;
+ if(fotoEvidenciaObjectUrls[tipo])URL.revokeObjectURL(fotoEvidenciaObjectUrls[tipo]);
+ fotoEvidenciaObjectUrls[tipo]=null;
+ const file=document.getElementById(tipo==='ine'?'fotoEvidenciaINE':'fotoEvidenciaRostro').files?.[0];
+ const preview=document.getElementById(tipo==='ine'?'fotoEvidenciaINEVista':'fotoEvidenciaRostroVista');
+ preview.classList.add('hidden');preview.removeAttribute('src');
  if(file&&file.size<=10000000&&file.type.startsWith('image/')){
-  fotoEvidenciaObjectUrl=URL.createObjectURL(file);
-  preview.src=fotoEvidenciaObjectUrl;
-  preview.classList.remove('hidden');
+  fotoEvidenciaObjectUrls[tipo]=URL.createObjectURL(file);
+  preview.src=fotoEvidenciaObjectUrls[tipo];preview.classList.remove('hidden');
  }
  actualizarFotoEvidenciaBoton();
 }
 function actualizarFotoEvidenciaBoton(){
  const btn=document.getElementById('fotoEvidenciaEnviar');
  if(!btn)return;
- btn.disabled=!fotoEvidenciaContext||!document.getElementById('fotoEvidenciaArchivo').files?.length||
+ btn.disabled=!fotoEvidenciaContext||
+  !document.getElementById('fotoEvidenciaINE').files?.length||
+  !document.getElementById('fotoEvidenciaRostro').files?.length||
   !document.getElementById('fotoEvidenciaConsentimiento').checked||
   fotoEvidenciaBusy||fotoEvidenciaGuardada;
 }
 function convertirFotoEvidencia(file){
  return new Promise((resolve,reject)=>{
-  if(!file||!file.type.startsWith('image/')||file.size>10000000)return reject(Error('Elige una fotografía de hasta 10 MB.'));
+  if(!file||!file.type.startsWith('image/')||file.size>10000000)return reject(Error('Elige fotografías de hasta 10 MB cada una.'));
   const url=URL.createObjectURL(file);
   const image=new Image();
   image.onload=()=>{
    URL.revokeObjectURL(url);
-   if(image.naturalWidth<200||image.naturalHeight<200)return reject(Error('La fotografía es demasiado pequeña.'));
+   if(image.naturalWidth<200||image.naturalHeight<200)return reject(Error('Una fotografía es demasiado pequeña.'));
    const ratio=Math.min(1,1600/Math.max(image.naturalWidth,image.naturalHeight));
    const canvas=document.createElement('canvas');
    canvas.width=Math.round(image.naturalWidth*ratio);
@@ -651,45 +650,51 @@ function convertirFotoEvidencia(file){
    if(!ctx)return reject(Error('No se pudo preparar la foto.'));
    ctx.drawImage(image,0,0,canvas.width,canvas.height);
    canvas.toBlob(blob=>{
-    if(!blob||blob.size>3145728||blob.size<1024)return reject(Error('La foto no pudo procesarse para el registro seguro.'));
+    if(!blob||blob.size>3145728||blob.size<1024)return reject(Error('Una foto no pudo procesarse para el registro privado.'));
     resolve(blob);
    },'image/jpeg',0.82);
   };
-  image.onerror=()=>{URL.revokeObjectURL(url);reject(Error('El teléfono no pudo leer la imagen.'));};
+  image.onerror=()=>{URL.revokeObjectURL(url);reject(Error('El teléfono no pudo leer una imagen.'));};
   image.src=url;
  });
 }
 async function enviarFotoEvidencia(){
  if(!fotoEvidenciaContext||fotoEvidenciaGuardada||fotoEvidenciaBusy||
   !document.getElementById('fotoEvidenciaConsentimiento').checked)return;
- const input=document.getElementById('fotoEvidenciaArchivo');
+ const ine=document.getElementById('fotoEvidenciaINE');
+ const rostro=document.getElementById('fotoEvidenciaRostro');
  const status=document.getElementById('fotoEvidenciaEstado');
- if(!input.files?.[0])return;
+ if(!ine.files?.[0]||!rostro.files?.[0])return;
  fotoEvidenciaBusy=true;actualizarFotoEvidenciaBoton();
- status.textContent='Preparando y guardando la fotografía en el registro privado…';
+ status.textContent='Preparando las dos fotografías para el registro privado…';
  try{
   const context=fotoEvidenciaContext;
-  // Reexportar a JPEG con canvas elimina los metadatos EXIF del archivo original.
-  const blob=await convertirFotoEvidencia(input.files[0]);
-  const form=new FormData();
-  form.append('origen',context.origen);
-  form.append('token',context.token);
-  form.append('tipo',document.getElementById('fotoEvidenciaTipo').value);
-  form.append('consentimiento','si');
-  form.append('foto',blob,'evidencia.jpg');
-  const {data,error}=await sb.functions.invoke('portero-foto-evidencia',{body:form});
-  if(error||data?.error){
-   let msg=data?.error||error?.message||'No se pudo guardar la foto.';
-   try{const body=await error?.context?.json?.();if(body?.error)msg=body.error;}catch(_){}
-   throw Error(msg);
+  // Reexportar a JPEG elimina metadatos EXIF del archivo original.
+  const fotos=[
+   {tipo:'ine',blob:await convertirFotoEvidencia(ine.files[0])},
+   {tipo:'rostro',blob:await convertirFotoEvidencia(rostro.files[0])}
+  ];
+  for(let i=0;i<fotos.length;i++){
+   if(fotoEvidenciaContext!==context)return;
+   status.textContent='Guardando evidencia privada ('+(i+1)+' de 2)…';
+   const form=new FormData();
+   form.append('origen',context.origen);
+   form.append('token',context.token);
+   form.append('tipo',fotos[i].tipo);
+   form.append('consentimiento','si');
+   form.append('foto',fotos[i].blob,'evidencia-'+fotos[i].tipo+'.jpg');
+   const {data,error}=await sb.functions.invoke('portero-foto-evidencia',{body:form});
+   if(error||data?.error){
+    let msg=data?.error||error?.message||'No se pudo guardar la imagen.';
+    try{const body=await error?.context?.json?.();if(body?.error)msg=body.error;}catch(_){}
+    throw Error(msg);
+   }
   }
   if(fotoEvidenciaContext!==context)return;
-  fotoEvidenciaGuardada=true;
-  input.disabled=true;
-  document.getElementById('fotoEvidenciaTipo').disabled=true;
-  status.textContent='✅ Foto registrada de forma privada como evidencia de la entrega. No verifica identidad ni abre el portón.';
+  fotoEvidenciaGuardada=true;ine.disabled=true;rostro.disabled=true;
+  status.textContent='✅ INE y selfie registradas como evidencias privadas para revisión de Sistema Admin. No representan verificación automática de identidad ni abren el portón.';
  }catch(e){
-  status.textContent=e.message||'No se pudo registrar la fotografía.';
+  status.textContent=(e?.message||'No se pudieron registrar ambas imágenes.')+' Puedes reintentar sin duplicar las ya guardadas.';
  }finally{fotoEvidenciaBusy=false;actualizarFotoEvidenciaBoton();}
 }
 
