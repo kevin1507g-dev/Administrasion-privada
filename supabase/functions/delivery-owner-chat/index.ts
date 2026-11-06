@@ -66,6 +66,7 @@ Deno.serve(async (req:Request)=>{
     .select("nombre,hora_inicio,hora_fin").eq("activa",true).limit(500);
    if(empresaError)return reply({error:"No se pudieron consultar las empresas. Intenta más tarde."},503);
    const hhmm=new Intl.DateTimeFormat("en-GB",{timeZone:"America/Mexico_City",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date());
+   const registrada=(empresas||[]).some((e:any)=>companyKey(String(e.nombre))===companyKey(empresa));
    const autorizada=(empresas||[]).some((e:any)=>
     companyKey(String(e.nombre))===companyKey(empresa) &&
     hhmm>=String(e.hora_inicio||"").slice(0,5) && hhmm<String(e.hora_fin||"").slice(0,5));
@@ -75,7 +76,7 @@ Deno.serve(async (req:Request)=>{
    // Normalmente las empresas autorizadas siguen el flujo del residente.
    // Si pasaron 2 minutos SIN respuesta, el token original de esa solicitud
    // permite escalar a Sistema Admin; no concede ninguna orden de apertura.
-   if(autorizada&&!escalacion)return reply({ok:true,autorizada:true});
+   if(autorizada&&!escalacion)return reply({ok:true,autorizada:true,empresa_registrada:registrada});
    if(escalacion&&!uuid(solicitudToken))
     return reply({error:"Solicitud de reparto no válida."},400);
 
@@ -103,7 +104,7 @@ Deno.serve(async (req:Request)=>{
     if(exists){
      if(exists.estado!=="abierto"||new Date(exists.expires_at).getTime()<=Date.now())
       return reply({error:"La conversación de esta entrega ya terminó."},410);
-     return reply({ok:true,autorizada:false,escalado:true,chat_token:solicitudToken,expires_at:exists.expires_at});
+     return reply({ok:true,autorizada:false,empresa_registrada:registrada,escalado:true,chat_token:solicitudToken,expires_at:exists.expires_at});
     }
    }
    const {data:owners,error:ownerError}=await admin.from("profiles")
@@ -132,7 +133,7 @@ Deno.serve(async (req:Request)=>{
      const {data:created}=await admin.from("portero_owner_chats")
        .select("id,estado,expires_at").eq("entrega_id",entregaId).maybeSingle();
      if(created&&created.estado==="abierto"&&new Date(created.expires_at).getTime()>Date.now())
-      return reply({ok:true,autorizada:false,escalado:true,chat_token:solicitudToken,expires_at:created.expires_at});
+      return reply({ok:true,autorizada:false,empresa_registrada:registrada,escalado:true,chat_token:solicitudToken,expires_at:created.expires_at});
     }
     return reply({error:"No se pudo crear el chat especial."},503);
    }
@@ -146,7 +147,7 @@ Deno.serve(async (req:Request)=>{
     "Casa "+casa+" · "+empresa+" · "+repartidor+
       (escalacion?". El residente no respondió en 2 minutos.":". Solicita atención de Sistema Admin."),
     "portero_chat:"+chat.id+":"+owners[0].id);
-   return reply({ok:true,autorizada:false,escalado:escalacion,chat_token:token,expires_at:chat.expires_at});
+   return reply({ok:true,autorizada:false,empresa_registrada:registrada,escalado:escalacion,chat_token:token,expires_at:chat.expires_at});
   }
 
   if(["poll","send","report_exit"].includes(action)){
