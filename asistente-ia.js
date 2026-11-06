@@ -2,7 +2,7 @@
 (function(){
 "use strict";
 let mount=null,opened=false,busy=false,conversationId=null,voiceEnabled=false,recognizer=null,chatOriginalParent=null,chatOriginalNext=null,chatSelected=false,chatLoading=false;
-let specialSelected=false,specialCurrent=null,specialChats=[],specialUnread=0,specialPolling=null,specialLoading=false,specialReading=false,specialSending=false;
+let specialSelected=false,specialCurrent=null,specialChats=[],specialUnread=0,specialPolling=null,specialLoading=false,specialReading=false,specialSending=false,specialAuthorizing=false;
 const refs={};
 function node(tag,opts={},parent){
  const n=document.createElement(tag);
@@ -119,7 +119,10 @@ async function showSpecialConversation(chatId){
  refs.specialListWrap.hidden=true;
  refs.specialConversation.hidden=false;
  refs.specialTitle.textContent="Casa "+entry.casa_numero+" · "+entry.repartidor;
- refs.specialDetails.textContent=entry.empresa+" · "+entry.motivo+" · Solo mensajes; no abre el portón.";
+ refs.specialDetails.textContent=entry.empresa+" · "+entry.motivo+
+  " · El botón de apertura requiere tu confirmación y envía un único pulso.";
+ refs.specialAuthorize.hidden=true;
+ refs.specialAuthorize.disabled=true;
  refs.specialSend.disabled=entry.estado!=="abierto"||new Date(entry.expires_at).getTime()<=Date.now();
  refs.specialInput.disabled=refs.specialSend.disabled;
  refs.specialStatus.textContent="Cargando mensajes…";
@@ -137,12 +140,14 @@ async function readSpecialConversation(){
   const active=data.estado==="abierto" &&
    specialChats.some(c=>c.id===current&&new Date(c.expires_at).getTime()>Date.now());
   const authorized=!!data.autorizado_at;
+  refs.specialAuthorize.hidden=!active||authorized;
+  refs.specialAuthorize.disabled=!active||authorized||specialAuthorizing;
   refs.specialInput.disabled=!active;
   refs.specialSend.disabled=!active;
   refs.specialStatus.textContent=authorized?
    "✅ Sistema Admin emitió la orden de apertura. El repartidor tiene 7 minutos para reportar su salida; el portón NO se mantiene abierto. "+
      (data.salida_reportada_at?"Salida declarada registrada.":"Verifica físicamente la apertura y el paso libre."):
-    active?"Puedes conversar con el repartidor. Este chat no autoriza aperturas.":"Conversación finalizada.";
+    active?"Puedes conversar y, si decides permitir la entrada, pulsar «Abrir portón» después de revisar la solicitud.":"Conversación finalizada.";
   const c=specialChats.find(c=>c.id===current);
   if(c)c.last_owner_read_at=new Date().toISOString();
   setSpecialCount(countPendingSpecial(specialChats));
@@ -168,6 +173,44 @@ async function replySpecialConversation(event){
   specialSending=false;
   if(current===specialCurrent && new Date(specialChats.find(c=>c.id===current)?.expires_at).getTime()>Date.now())
    refs.specialSend.disabled=false;
+ }
+}
+async function authorizeSpecialConversation(){
+ if(!ownerSession()||!specialCurrent||specialAuthorizing||!refs.specialAuthorize)return;
+ const current=specialCurrent;
+ const c=specialChats.find(x=>x.id===current);
+ if(!c||c.estado!=="abierto"||new Date(c.expires_at).getTime()<=Date.now()||c.autorizado_at){
+  refs.specialStatus.textContent="Este chat no admite una nueva apertura. Actualiza la conversación.";
+  return;
+ }
+ const confirmed=window.confirm(
+  "¿Enviar una orden de APERTURA del portón vehicular para casa "+c.casa_numero+
+  " ("+c.empresa+")?\n\nSolo se enviará un pulso; el portón NO se mantendrá abierto 7 minutos."+
+  "\n\nVerifica antes que el paso esté libre y que quieras autorizar esta entrada."
+ );
+ if(!confirmed)return;
+ specialAuthorizing=true;
+ refs.specialAuthorize.disabled=true;
+ refs.specialStatus.textContent="Solicitando la apertura al ESP32…";
+ try{
+  if(typeof sb==="undefined")throw Error("No hay conexión con Supabase.");
+  const {data,error}=await sb.rpc("portero_owner_autorizar",{p_chat_id:current});
+  if(error||!data?.ok)throw Error(error?.message||"No se pudo emitir la orden de apertura.");
+  if(current!==specialCurrent)return;
+  const found=specialChats.find(x=>x.id===current);
+  if(found)found.autorizado_at=data.autorizado_at||new Date().toISOString();
+  refs.specialAuthorize.hidden=true;
+  refs.specialStatus.textContent="✅ "+(data.ya_autorizado?"Apertura ya autorizada anteriormente.":"Orden de apertura enviada.")+
+   " Confirma que el portón haya abierto físicamente. Los 7 minutos son para reportar la salida; no mantiene el portón abierto.";
+  await readSpecialConversation();
+ }catch(e){
+  if(current===specialCurrent)
+   refs.specialStatus.textContent="No se completó la apertura: "+(e?.message||"Error de conexión. Revisa el estado del portón.");
+ }finally{
+  specialAuthorizing=false;
+  if(current===specialCurrent&&!refs.specialAuthorize.hidden){
+   refs.specialAuthorize.disabled=false;
+  }
  }
 }
 async function closeSpecialConversation(){
@@ -563,7 +606,7 @@ function init(){
  node("strong",{text:"💬 Repartidores sin autorización"},listHeader);
  const refresh=node("button",{type:"button",text:"↻ Actualizar"},listHeader);
  refresh.onclick=loadSpecialChats;
- node("p",{className:"ia-special-hint",text:"Conversaciones exclusivas de Sistema Admin. No se autoriza la apertura desde este chat."},chatListWrap);
+ node("p",{className:"ia-special-hint",text:"Conversaciones exclusivas de Sistema Admin. Puedes autorizar una apertura manual desde cada chat vigente."},chatListWrap);
  refs.specialFeedback=node("p",{className:"ia-special-feedback",text:""},chatListWrap);
  refs.specialList=node("div",{className:"ia-special-list"},chatListWrap);
  refs.specialConversation=node("section",{className:"ia-special-conversation"},refs.specialHost);
@@ -580,6 +623,11 @@ function init(){
  refs.specialInput.maxLength=600;refs.specialInput.rows=2;refs.specialInput.required=true;refs.specialInput.placeholder="Escribe tu respuesta…";
  const specialActions=node("div",{className:"ia-special-actions"},specialForm);
  refs.specialSend=node("button",{type:"submit",text:"Responder"},specialActions);
+ refs.specialAuthorize=node("button",{type:"button",className:"ia-special-authorize",text:"🔓 Abrir portón"},specialActions);
+ refs.specialAuthorize.hidden=true;
+ refs.specialAuthorize.disabled=true;
+ refs.specialAuthorize.title="Autorizar manualmente un único pulso de apertura (no 7 minutos abierto)";
+ refs.specialAuthorize.onclick=authorizeSpecialConversation;
  const endSpecial=node("button",{type:"button",text:"Finalizar chat"},specialActions);endSpecial.onclick=closeSpecialConversation;
  refs.specialStatus=node("p",{className:"ia-special-feedback"},refs.specialConversation);
  refs.compose=node("div",{className:"ia-compose"},refs.panel);
