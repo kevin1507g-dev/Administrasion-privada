@@ -154,3 +154,7 @@ body.ia-open{overflow:hidden!important}
 .ia-special-actions button:first-child{background:#087b64!important}
 .ia-special-actions button:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:370px){.ia-tabs-three .ia-tab{font-size:11px!important;padding:8px 2px!important}}
+
+/* Apertura manual de Sistema Admin dentro de Especiales. */
+.ia-special-actions .ia-special-open-btn{min-height:44px!important;background:#16634f!important;border-color:#36bc9a!important;font-weight:750!important;white-space:normal!important}
+.ia-special-actions .ia-special-open-btn:focus-visible{outline:3px solid #7ff9d8!important;outline-offset:2px}
