@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#0f172a">
 <title>Acceso de visitas y repartidores · Privada Beteles</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js"></script>
 <style>
 :root{--bg:#0f172a;--card:#111827;--line:#334155;--text:#f8fafc;--muted:#94a3b8;--green:#22c55e;--blue:#38bdf8;--red:#ef4444}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;padding:20px}
@@ -56,9 +57,9 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
     <h2>🤖 Portero Inteligente</h2>
     <form id="porteroForm" onsubmit="procesarPortero(event)">
       <label for="porteroCasa">Número de casa (40 a 66) *</label>
-      <input id="porteroCasa" inputmode="numeric" pattern="(4[0-9]|5[0-9]|6[0-6])" maxlength="2" autocomplete="off" required>
+      <input id="porteroCasa" inputmode="numeric" pattern="(4[0-9]|5[0-9]|6[0-6])" maxlength="2" autocomplete="off" oninput="invalidarEtiquetaPortero()" required>
       <label for="porteroTipo">¿Qué tipo de entrega realizas? *</label>
-      <select id="porteroTipo" required>
+      <select id="porteroTipo" required onchange="alternarEtiquetaPortero()">
         <option value="" disabled selected>Selecciona una opción</option>
         <option value="comida">🍔 Comida</option>
         <option value="paqueteria">📦 Paquetería</option>
@@ -66,6 +67,15 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
         <option value="visita">🚶 Visita</option>
         <option value="otro">🛵 Otra entrega</option>
       </select>
+      <div id="porteroEtiquetaGrupo" class="hidden" style="padding:14px;border:1px solid #475569;border-radius:14px;margin-top:15px">
+        <strong>📦 Verificación de etiqueta del paquete</strong>
+        <p class="muted portero-small">Fotografía la parte de la etiqueta que indique claramente «Casa 40–66». Oculta el teléfono, nombre completo y otros datos del destinatario. El texto se lee en tu dispositivo; no autoriza por sí solo abrir el portón.</p>
+        <label for="porteroEtiquetaArchivo">Foto de la etiqueta *</label>
+        <input id="porteroEtiquetaArchivo" type="file" accept="image/*" capture="environment" onchange="cambiarEtiquetaPortero()">
+        <img id="porteroEtiquetaVista" class="hidden" alt="Vista previa de la etiqueta" style="max-width:100%;max-height:220px;object-fit:contain;border-radius:12px;margin-top:12px">
+        <button type="button" id="porteroEtiquetaLeer" onclick="validarEtiquetaPortero()" style="margin-top:10px">🔎 Leer y comprobar casa en la etiqueta</button>
+        <p id="porteroEtiquetaEstado" role="status" aria-live="polite" class="muted portero-small">Toma una foto donde se lea «Casa XX» para comprobarla.</p>
+      </div>
       <label for="porteroEmpresa">Empresa / plataforma *</label>
       <input id="porteroEmpresa" required maxlength="80" autocomplete="organization">
       <label for="porteroNombre">Tu nombre completo * (obligatorio)</label>
@@ -227,9 +237,125 @@ function volverASeleccion(){
  document.getElementById('ownerDeliveryChatCard').classList.add('hidden');
  document.getElementById('salidaRepartidorCard').classList.add('hidden');
  document.getElementById('accessChoice').classList.remove('hidden');
+ limpiarEtiquetaPortero();
  document.getElementById('vpEstado').textContent='';
  document.getElementById('error').textContent='';
  document.getElementById('accessChoice').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+
+// OCR local de etiqueta. Los números de guías o códigos no se tratan como casas.
+// Ninguna coincidencia de texto autoriza por sí sola una orden física.
+let etiquetaCasaConfirmada=null;
+let etiquetaLeyendo=false;
+let etiquetaRevision=0;
+let etiquetaVistaUrl=null;
+function esPaqueteriaPortero(){return document.getElementById('porteroTipo').value==='paqueteria';}
+function limpiarEtiquetaPortero(){
+ ++etiquetaRevision;etiquetaCasaConfirmada=null;etiquetaLeyendo=false;
+ if(etiquetaVistaUrl)URL.revokeObjectURL(etiquetaVistaUrl);
+ etiquetaVistaUrl=null;
+ const archivo=document.getElementById('porteroEtiquetaArchivo');
+ archivo.value='';archivo.disabled=false;
+ const vista=document.getElementById('porteroEtiquetaVista');
+ vista.classList.add('hidden');vista.removeAttribute('src');
+ document.getElementById('porteroEtiquetaEstado').textContent='Toma una foto donde se lea «Casa XX» para comprobarla.';
+ document.getElementById('porteroEtiquetaLeer').disabled=false;
+}
+function invalidarEtiquetaPortero(){
+ etiquetaCasaConfirmada=null;
+ if(esPaqueteriaPortero())
+  document.getElementById('porteroEtiquetaEstado').textContent='El número de casa cambió. Comprueba de nuevo la etiqueta.';
+}
+function alternarEtiquetaPortero(){
+ const necesaria=esPaqueteriaPortero();
+ document.getElementById('porteroEtiquetaGrupo').classList.toggle('hidden',!necesaria);
+ document.getElementById('porteroEtiquetaArchivo').required=necesaria;
+ limpiarEtiquetaPortero();
+}
+function casasDetectadasEtiqueta(texto){
+ const normal=String(texto||'').normalize('NFKC').normalize('NFD')
+  .replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[\r\n]+/g,' ');
+ const encontrado=new Set();
+ // Buscar números 40-66 asociados expresamente con CASA, no números aleatorios.
+ const exp=/\b(?:CASA|CAS\.?|VIVIENDA|HOUSE|NUMERO\s+DE\s+CASA|NO\.?\s+DE\s+CASA)\s*(?:N(?:UMERO|O)\s*[º°.\-]?\s*)?[:#.\-]?\s*(4[0-9]|5[0-9]|6[0-6])\b/g;
+ let m;
+ while((m=exp.exec(normal))!==null)encontrado.add(m[1]);
+ return Array.from(encontrado);
+}
+function cambiarEtiquetaPortero(){
+ ++etiquetaRevision;etiquetaCasaConfirmada=null;
+ const file=document.getElementById('porteroEtiquetaArchivo').files?.[0];
+ const vista=document.getElementById('porteroEtiquetaVista');
+ if(etiquetaVistaUrl)URL.revokeObjectURL(etiquetaVistaUrl);
+ etiquetaVistaUrl=null;vista.classList.add('hidden');vista.removeAttribute('src');
+ if(!file){document.getElementById('porteroEtiquetaEstado').textContent='Selecciona una foto de la etiqueta.';return;}
+ if(file.size>10000000||!file.type.startsWith('image/')){
+  document.getElementById('porteroEtiquetaEstado').textContent='La fotografía debe ser una imagen de hasta 10 MB.';
+  return;
+ }
+ etiquetaVistaUrl=URL.createObjectURL(file);
+ vista.src=etiquetaVistaUrl;vista.classList.remove('hidden');
+ validarEtiquetaPortero();
+}
+async function validarEtiquetaPortero(){
+ if(etiquetaLeyendo)return false;
+ const archivo=document.getElementById('porteroEtiquetaArchivo');
+ const file=archivo.files?.[0];
+ const casa=document.getElementById('porteroCasa').value.trim();
+ const estado=document.getElementById('porteroEtiquetaEstado');
+ if(!esPaqueteriaPortero())return true;
+ if(!/^(4[0-9]|5[0-9]|6[0-6])$/.test(casa)){
+  estado.textContent='Primero indica un número de casa válido (40 a 66).';return false;
+ }
+ if(!file||file.size>10000000||!file.type.startsWith('image/')){
+  estado.textContent='Toma una foto clara de la etiqueta (hasta 10 MB).';return false;
+ }
+ if(!window.Tesseract?.createWorker){
+  estado.textContent='No se cargó el lector de texto. Revisa tu conexión e intenta de nuevo.';return false;
+ }
+ const revision=etiquetaRevision;
+ etiquetaLeyendo=true;
+ etiquetaCasaConfirmada=null;
+ document.getElementById('porteroEtiquetaLeer').disabled=true;
+ estado.textContent='Leyendo el número de casa en la fotografía…';
+ let worker=null;
+ try{
+  worker=await window.Tesseract.createWorker('eng');
+  const {data}=await worker.recognize(file);
+  if(revision!==etiquetaRevision||casa!==document.getElementById('porteroCasa').value.trim())return false;
+  const casas=casasDetectadasEtiqueta(data?.text);
+  if(casas.length===1&&casas[0]===casa){
+   etiquetaCasaConfirmada=casa;
+   estado.textContent='✅ Etiqueta: Casa '+casa+'. Coincide con el formulario. Esto solo compara el texto visible.';
+   return true;
+  }
+  if(casas.length){
+   estado.textContent='❌ La etiqueta indica '+casas.map(x=>'Casa '+x).join(', ')+
+    ', pero el formulario dice casa '+casa+'. Corrige el número o toma otra foto.';
+  }else{
+   estado.textContent='⚠️ No encontré un número claro después de CASA. Enfoca esa parte y vuelve a tomar la foto.';
+  }
+  return false;
+ }catch(_){
+  if(revision===etiquetaRevision)
+   estado.textContent='No pude leer la etiqueta. Verifica la conexión o vuelve a tomar la foto.';
+  return false;
+ }finally{
+  try{if(worker)await worker.terminate();}catch(_){}
+  etiquetaLeyendo=false;
+  if(revision===etiquetaRevision)
+   document.getElementById('porteroEtiquetaLeer').disabled=false;
+ }
+}
+function etiquetaValidaParaCasa(casa,tipo){
+ if(tipo!=='paqueteria')return true;
+ if(etiquetaLeyendo){porteroEstado('Todavía se está leyendo la etiqueta.');return false;}
+ if(etiquetaCasaConfirmada!==casa||!document.getElementById('porteroEtiquetaArchivo').files?.[0]){
+  porteroEstado('No pude confirmar que la etiqueta diga Casa '+casa+'. Toma una foto legible y usa «Leer y comprobar casa».');
+  return false;
+ }
+ return true;
 }
 
 let porteroBusy=false;
@@ -269,6 +395,7 @@ async function pedirConfirmacionPortero(){
   porteroEstado('La casa debe encontrarse entre la 40 y la 66.');
   return;
  }
+ if(!etiquetaValidaParaCasa(d.casa,d.tipo))return;
  porteroBusy=true;
  const btn=document.getElementById('porteroEnviar');
  const fallback=document.getElementById('porteroPedirConfirmacion');
@@ -320,6 +447,7 @@ async function procesarPortero(event){
  if(!/^(4[0-9]|5[0-9]|6[0-6])$/.test(d.casa)){
   porteroEstado('Solo se atienden casas de la 40 a la 66.');return;
  }
+ if(!etiquetaValidaParaCasa(d.casa,d.tipo))return;
  if(!d.conCodigo){await pedirConfirmacionPortero();return;}
  if(!/^([A-HJ-NP-Z][0-9]{6}|[A-F0-9]{16})$/.test(d.codigo)){
   porteroEstado('El código no tiene un formato válido. Revísalo o solicita confirmación al residente.');
