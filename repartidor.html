@@ -153,7 +153,7 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
     <label for="mensaje">Motivo de entrega *</label>
     <textarea id="mensaje" required maxlength="240"></textarea>
 
-    <p class="muted portero-small">Tu descripción de entrega puede analizarse automáticamente para orientar al residente, sin identificarte ni autorizar la apertura.</p>
+    <p class="muted portero-small">Al registrar la entrega se te solicitará una foto de INE como evidencia, si está habilitado el registro privado y aceptas el aviso de privacidad. No se comprobará que trabajas para la empresa indicada.</p>
     <button id="sendBtn" class="primary" style="margin-top:18px" onclick="enviarSolicitud()">🔔 Contactar residente</button>
     <div id="error" style="margin-top:12px;color:#fecaca"></div>
     <button type="button" class="back" onclick="volverASeleccion()">← Cambiar tipo de acceso</button>
@@ -178,23 +178,23 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
   </div>
 
   <div id="fotoEvidenciaCard" class="card hidden">
-    <h2>📷 Evidencia fotográfica de la entrega</h2>
-    <p class="muted portero-small">Elige una foto de tu rostro o, si prefieres, de tu INE. No se leen los datos del documento ni se comparan rostros. Esta foto no autoriza la apertura del portón.</p>
+    <h2>🪪 Foto de INE para registro de acceso</h2>
+    <p class="muted portero-small">Te solicitamos una foto de tu INE como evidencia de la visita. Si prefieres no compartir un documento, puedes elegir una foto de tu rostro. No validamos tu empleo ni verificamos tu identidad con esta imagen. La foto por sí sola no autoriza abrir el portón.</p>
     <label for="fotoEvidenciaTipo">Tipo de foto</label>
     <select id="fotoEvidenciaTipo" onchange="elegirTipoFotoEvidencia()">
-      <option value="rostro">Fotografía de mi rostro</option>
-      <option value="ine">Fotografía de mi INE</option>
+      <option value="ine">🪪 Fotografía de mi INE</option>
+      <option value="rostro">📷 Fotografía de mi rostro (alternativa)</option>
     </select>
-    <p class="muted portero-small">Si eliges INE, cubre el domicilio, CURP y números de la credencial. La foto debe conservar únicamente lo necesario como evidencia. No compartas documentos de menores.</p>
+    <p class="muted portero-small">Antes de fotografiar la INE, tapa tu domicilio, CURP, clave de elector, OCR y otros números. Evita incluir reverso o datos innecesarios. No envíes documentos de menores.</p>
     <label for="fotoEvidenciaArchivo">Tomar o elegir una fotografía</label>
-    <input id="fotoEvidenciaArchivo" type="file" accept="image/*" capture="user" onchange="previsualizarFotoEvidencia()">
+    <input id="fotoEvidenciaArchivo" type="file" accept="image/*" capture="environment" onchange="previsualizarFotoEvidencia()">
     <img id="fotoEvidenciaVista" alt="Vista previa de la foto seleccionada" class="hidden" style="max-width:100%;max-height:260px;object-fit:contain;border-radius:12px;margin-top:12px">
     <label for="fotoEvidenciaConsentimiento" style="display:flex;gap:10px;align-items:flex-start">
       <input type="checkbox" id="fotoEvidenciaConsentimiento" style="width:22px;min-width:22px;margin-top:4px" onchange="actualizarFotoEvidenciaBoton()">
-      <span>Autorizo guardar esta fotografía únicamente para seguridad y registro de mi visita. Entiendo que estará disponible solo para Sistema Admin y se conservará un máximo inicial de siete días.</span>
+      <span>Autorizo guardar voluntariamente esta imagen como evidencia de mi visita, para consulta privada de Sistema Admin durante el periodo de conservación indicado en el aviso.</span>
     </label>
-    <p class="muted portero-small">Lee antes el <a id="fotoEvidenciaAviso" href="#" target="_blank" rel="noopener noreferrer" style="color:#86efac">aviso de privacidad de fotografías</a>. La imagen no verifica identidad ni empresa. Puedes continuar con la autorización ordinaria si no consientes.</p>
-    <button type="button" id="fotoEvidenciaEnviar" class="primary" onclick="enviarFotoEvidencia()" disabled>🔐 Guardar foto de evidencia</button>
+    <p class="muted portero-small">Consulta el <a id="fotoEvidenciaAviso" href="#" target="_blank" rel="noopener noreferrer" style="color:#86efac">aviso de privacidad de fotografías</a> antes de subirla. La carga solo se ofrece si el almacenamiento privado está habilitado; si no consientes, puedes solicitar autorización por la vía ordinaria.</p>
+    <button type="button" id="fotoEvidenciaEnviar" class="primary" onclick="enviarFotoEvidencia()" disabled>🔐 Guardar evidencia de INE o rostro</button>
     <p id="fotoEvidenciaEstado" class="muted" role="status" aria-live="polite"></p>
   </div>
 
