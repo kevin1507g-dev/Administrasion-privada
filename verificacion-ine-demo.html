@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#091a25">
+<title>Laboratorio INE · Portero IA · Privada Beteles</title>
+<style>
+:root{color-scheme:dark;--bg:#081821;--panel:#112836;--line:#365064;--green:#34d399;--text:#eefaf7;--muted:#bfd2dd;--red:#ff818c;--blue:#79c8ff}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at 100% 0%,#15483c 0,#081821 58%);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh;padding:22px 14px 50px}
+main{width:min(660px,100%);margin:auto}
+a{color:#8edcff;text-underline-offset:3px}
+.pill{display:inline-flex;gap:6px;align-items:center;font-size:.8rem;letter-spacing:.06em;font-weight:850;color:#061e19;background:var(--green);border-radius:30px;padding:7px 12px}
+header{margin:20px 0}
+h1{font-size:clamp(1.65rem,5vw,2.25rem);margin:10px 0 8px;line-height:1.15}
+h2{font-size:1.2rem;margin:0 0 7px}
+p{margin:8px 0}
+small,.hint{font-size:.9rem;color:var(--muted)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:20px;margin:15px 0;box-shadow:0 12px 36px #030e1830}
+.notice{border-left:4px solid var(--green);padding:10px 12px;background:#16423c;border-radius:8px;margin-top:14px;font-size:.92rem}
+.notice.warn{border-color:#f9b76b;background:#4a3422}
+.notice.fail{border-color:var(--red);background:#4b2633}
+label{display:block;margin:15px 0 7px;color:#e2f2f3;font-size:.95rem;font-weight:680}
+select,input{font:inherit;width:100%;background:#081e2a;color:var(--text);border:1px solid #587487;border-radius:12px;padding:13px}
+select:focus-visible,input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #79c8ff;outline-offset:3px}
+button{width:100%;min-height:49px;font:inherit;font-weight:800;color:#082420;background:var(--green);border:1px solid transparent;border-radius:12px;padding:12px 14px;margin-top:9px;cursor:pointer}
+button:disabled{opacity:.48;cursor:not-allowed}
+button.secondary{color:var(--text);background:#263f52;border-color:#55798b}
+button.outline{color:#d7eff7;background:transparent;border-color:#648397}
+button.danger{color:#fff;background:#7d333f}
+button.small{width:auto;min-height:39px;padding:7px 13px}
+button:hover:not(:disabled){filter:brightness(1.1)}
+[hidden]{display:none!important}
+.progress{display:flex;gap:7px;margin:20px 0}
+.progress span{flex:1;border-radius:12px;height:7px;background:#345263}
+.progress span.done{background:var(--green)}
+.fake{padding:16px;border:1px dashed #5d96a1;border-radius:15px;background:linear-gradient(130deg,#123240,#16423b);margin:16px 0}
+.fake strong{display:block;font-size:1.1rem}
+.fake code{color:#c5fff5;display:block;margin-top:8px}
+.fake .hint{margin:6px 0 0}
+.result{padding:17px;border-radius:14px;background:#10252f;border:1px solid #335970;margin:14px 0}
+.result strong{font-size:1.13rem}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.two button{margin-top:0}
+.clock{font-variant-numeric:tabular-nums;font-size:2.3rem;font-weight:850;letter-spacing:.04em;text-align:center;color:#a5f7d9;margin:12px 0}
+.timeline{padding:10px 10px 10px 22px;background:#0c2130;border:1px solid #29495d;border-radius:13px;min-height:90px}
+.timeline li{padding:4px 2px;color:#d4eae8}
+.footer{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:.87rem;margin:23px 0}
+@media(max-width:390px){.two{grid-template-columns:1fr}.card{padding:16px}body{padding:15px 10px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<main>
+<a href="./repartidor.html">← Volver al QR de repartidores</a>
+<header>
+<span class="pill">🧪 LABORATORIO · SIMULACIÓN</span>
+<h1>Verificación INE del Portero IA</h1>
+<p class="hint">Prueba gratuita para Privada Beteles. Ensaya el recorrido de una entrega sin utilizar una INE real, cámara, selfies, cuentas ni datos personales.</p>
+<div class="notice warn"><strong>Esta pantalla no verifica identidades reales.</strong> No se conecta con Supabase, no registra accesos y nunca envía órdenes al ESP32 ni abre puertas o portones.</div>
+</header>
+<div class="progress" aria-label="Progreso de la demostración">
+ <span id="pr1" class="done"></span><span id="pr2"></span><span id="pr3"></span><span id="pr4"></span>
+</div>
+
+<section class="card" id="stepCompany">
+ <h2>1. Datos ficticios de la entrega</h2>
+ <p class="hint">Puedes probar una plataforma incluida en la lista de ejemplo o una no registrada. No hace falta proporcionar nombre ni datos de una persona.</p>
+ <label for="company">Plataforma de ejemplo</label>
+ <select id="company">
+  <option value="Mercado Libre">Mercado Libre · autorizada en la demostración</option>
+  <option value="Amazon">Amazon · autorizada en la demostración</option>
+  <option value="Didi Food">Didi Food · autorizada en la demostración</option>
+  <option value="Uber">Uber · autorizada en la demostración</option>
+  <option value="DHL">DHL · autorizada en la demostración</option>
+  <option value="CFE">CFE · autorizada en la demostración</option>
+  <option value="Total Play">Total Play · autorizada en la demostración</option>
+  <option value="Plataforma no registrada">Plataforma no registrada · chat especial</option>
+ </select>
+ <label for="home">Casa ficticia</label>
+ <select id="home">
+  <option value="63">63 (prueba)</option><option value="45">45 (prueba)</option><option value="60">60 (prueba)</option>
+ </select>
+ <button id="continue">Continuar con INE ficticia</button>
+</section>
+
+<section class="card" id="stepCredential" hidden>
+ <h2>2. Simulación del resultado de la INE</h2>
+ <div class="fake" aria-label="Identificación simulada que no reproduce una credencial oficial">
+  <strong>🪪 Identificación ficticia</strong>
+  <p class="hint">Ejemplo para pruebas. No representa una INE auténtica ni contiene números o información personal.</p>
+  <code>DOCUMENTO DE PRUEBA · SIN VALIDEZ OFICIAL</code>
+ </div>
+ <p class="hint">En producción, un proveedor especializado verificaría la credencial y la identidad. Aquí solo eliges el resultado que deseas ensayar.</p>
+ <div class="two">
+  <button id="approveCredential">✓ Simular verificación aprobada</button>
+  <button id="rejectCredential" class="danger">✕ Simular verificación rechazada</button>
+ </div>
+ <button id="backCompany" class="outline">← Cambiar plataforma</button>
+</section>
+
+<section class="card" id="stepResult" hidden>
+ <h2>3. Resultado simulado</h2>
+ <div class="result" role="status" aria-live="polite">
+  <strong id="resultTitle">Resultado</strong>
+  <p id="resultBody"></p>
+ </div>
+ <div id="resultApproved" hidden>
+  <p class="hint">La verificación de identidad no confirma el empleo en una plataforma y tampoco equivale al permiso de abrir el portón.</p>
+  <button id="goRoute">Continuar al flujo del Portero IA</button>
+ </div>
+ <div id="resultRejected" hidden>
+  <button id="retryRejected">Volver a intentar la simulación</button>
+ </div>
+</section>
+
+<section class="card" id="stepRoute" hidden>
+ <h2>4. Recorrido del Portero IA</h2>
+ <div class="result">
+  <strong id="routeTitle">Comprobando plataforma…</strong>
+  <p id="routeMessage"></p>
+ </div>
+ <div id="authorizedRoute" hidden>
+  <p class="hint">En este ensayo, la plataforma está en la lista de ejemplo. El residente sigue teniendo que autorizar la entrada: la identidad no abre el portón por sí sola.</p>
+  <button id="demoResident">Simular aprobación del residente</button>
+  <button id="demoWait" class="secondary">Simular 2 minutos sin respuesta</button>
+ </div>
+ <div id="ownerRoute" hidden>
+  <div class="notice">💬 <strong>Chat especial simulado con Sistema Admin</strong></div>
+  <div class="timeline" aria-live="polite">
+    <p id="ownerMessage">El Portero IA envió una consulta a Sistema Admin. Esta conversación es ficticia.</p>
+  </div>
+  <button id="ownerReply">Simular respuesta de Sistema Admin</button>
+  <p class="hint">En esta demostración el chat no autoriza entradas ni puede controlar el portón.</p>
+ </div>
+ <div id="accessRoute" hidden>
+  <div class="notice">✅ <strong>Acceso autorizado (SOLO SIMULACIÓN)</strong></div>
+  <p class="hint">En una prueba real del mecanismo habría que comprobar físicamente que abrió y que el paso es seguro. Este ensayo NO envía ningún comando.</p>
+  <p class="hint">El contador de 7 minutos está acelerado: 35 segundos en esta demostración. No mantiene abierto el portón.</p>
+  <div class="clock" id="exitClock" role="timer" aria-live="off">07:00</div>
+  <button id="exitButton">✅ Ya estoy fuera de la privada (simulación)</button>
+  <p id="exitNote" role="status" class="hint">En esta prueba solo se guarda el estado en la pantalla.</p>
+ </div>
+</section>
+
+<section class="card" id="stepLog" hidden>
+ <h2>Historial de la prueba</h2>
+ <ol class="timeline" id="log" aria-live="polite"></ol>
+ <button id="restart" class="secondary">↻ Repetir otra prueba</button>
+</section>
+
+<div class="footer"><span>🛡️ Sin fotos, sin datos reales, sin apertura física</span><a href="./repartidor.html">Regresar al portal</a></div>
+</main>
+<script>
+"use strict";
+const ids=["stepCompany","stepCredential","stepResult","stepRoute"];
+const el=id=>document.getElementById(id);
+const states={screen:0,verified:false,company:"",house:"",demoAuthorized:false,exitEnd:0,exitTimer:null,exitDeclared:false};
+const allowed=new Set(["Mercado Libre","Amazon","Didi Food","Uber","DHL","CFE","Total Play"]);
+function log(message){
+ const li=document.createElement("li");
+ li.textContent=message;
+ el("log").appendChild(li);
+ el("stepLog").hidden=false;
+}
+function screen(idx){
+ states.screen=idx;
+ ids.forEach((id,i)=>el(id).hidden=i!==idx);
+ for(let i=1;i<=4;i++)el("pr"+i).classList.toggle("done",i<=idx+1);
+}
+function begin(){
+ if(states.exitTimer)clearInterval(states.exitTimer);
+ states.exitTimer=null;
+ states.verified=false;states.company="";states.house="";states.demoAuthorized=false;states.exitEnd=0;states.exitDeclared=false;
+ el("log").replaceChildren();el("stepLog").hidden=true;
+ el("authorizedRoute").hidden=true;el("ownerRoute").hidden=true;el("accessRoute").hidden=true;
+ el("ownerReply").disabled=false;el("exitButton").disabled=false;
+ el("exitButton").hidden=false;
+ el("exitNote").textContent="En esta prueba solo se guarda el estado en la pantalla.";
+ screen(0);
+}
+function decide(ok){
+ states.verified=ok;
+ el("resultTitle").textContent=ok?"✓ Identidad aprobada (simulación)":"✕ Identidad no verificada (simulación)";
+ el("resultBody").textContent=ok?
+  "El verificador ficticio devolvió un resultado positivo. No se consultó ni escaneó ninguna INE.":
+  "El verificador ficticio devolvió un resultado no aprobado. El acceso no puede continuar en este recorrido.";
+ el("resultApproved").hidden=!ok;
+ el("resultRejected").hidden=ok;
+ log(ok?"Resultado INE ficticia: aprobado.":"Resultado INE ficticia: rechazado. Sin acceso.");
+ screen(2);
+}
+function route(){
+ if(!states.verified)return;
+ el("authorizedRoute").hidden=true;
+ el("ownerRoute").hidden=true;
+ el("accessRoute").hidden=true;
+ const recognized=allowed.has(states.company);
+ el("routeTitle").textContent=recognized?"✓ Plataforma en lista de ejemplo":"! Plataforma fuera de lista de ejemplo";
+ el("routeMessage").textContent=recognized?
+  states.company+" aparece como autorizada en esta simulación para la casa "+states.house+". Eso no prueba que el repartidor sea empleado ni otorga apertura.":
+  states.company+" no pertenece a las plataformas autorizadas de este ensayo. Se muestra el chat especial ficticio.";
+ el("authorizedRoute").hidden=!recognized;
+ el("ownerRoute").hidden=recognized;
+ log(recognized?"Plataforma reconocida: "+states.company+". Pendiente de respuesta del residente.":
+  "Plataforma no reconocida: se abre chat especial ficticio.");
+ screen(3);
+}
+function showOwner(reason){
+ el("authorizedRoute").hidden=true;
+ el("ownerRoute").hidden=false;
+ el("accessRoute").hidden=true;
+ el("ownerReply").disabled=false;
+ el("ownerMessage").textContent=reason;
+ log("Aviso y chat a Sistema Admin (simulados; ninguna notificación real).");
+}
+function showAccess(){
+ states.demoAuthorized=true;
+ el("authorizedRoute").hidden=true;
+ el("ownerRoute").hidden=true;
+ el("accessRoute").hidden=false;
+ states.exitEnd=Date.now()+35000;
+ states.exitDeclared=false;
+ el("exitButton").hidden=false;el("exitButton").disabled=false;
+ el("exitNote").textContent="Verifica que ya saliste antes de confirmar. Este botón no envía ninguna orden.";
+ log("Aprobación del residente (ficticia). No se generó orden física.");
+ updateTimer();
+ if(states.exitTimer)clearInterval(states.exitTimer);
+ states.exitTimer=setInterval(updateTimer,250);
+}
+function updateTimer(){
+ if(!states.demoAuthorized)return;
+ const remain=Math.max(0,states.exitEnd-Date.now());
+ const seconds=Math.ceil(remain/1000);
+ // 35 segundos de demostración representan 7 minutos.
+ const virtualSeconds=Math.ceil(seconds*12);
+ const mm=Math.floor(virtualSeconds/60);
+ const ss=virtualSeconds%60;
+ if(!states.exitDeclared)el("exitClock").textContent=String(mm).padStart(2,"0")+":"+String(ss).padStart(2,"0");
+ if(!remain&&!states.exitDeclared){
+  el("exitButton").disabled=true;
+  el("exitNote").textContent="Finalizó el tiempo simulado. No hubo ninguna acción física.";
+  if(states.exitTimer)clearInterval(states.exitTimer);
+  states.exitTimer=null;
+ }
+}
+el("continue").onclick=()=>{
+ states.company=el("company").value;states.house=el("home").value;
+ log("Caso ficticio: "+states.company+" · casa "+states.house+".");
+ screen(1);
+};
+el("backCompany").onclick=()=>screen(0);
+el("approveCredential").onclick=()=>decide(true);
+el("rejectCredential").onclick=()=>decide(false);
+el("retryRejected").onclick=()=>screen(1);
+el("goRoute").onclick=route;
+el("demoResident").onclick=showAccess;
+el("demoWait").onclick=()=>showOwner("El residente no respondió después de 2 minutos simulados. El Portero IA solicita atención de Sistema Admin, pero el portón permanece sin abrir.");
+el("ownerReply").onclick=()=>{
+ el("ownerMessage").textContent="Sistema Admin (respuesta ficticia): Recibí tu mensaje. Contactaré al residente para coordinar la entrega. Sin orden de apertura.";
+ el("ownerReply").disabled=true;
+ log("Sistema Admin respondió (simulación solamente).");
+};
+el("exitButton").onclick=()=>{
+ if(!states.demoAuthorized||states.exitDeclared||Date.now()>=states.exitEnd)return;
+ states.exitDeclared=true;
+ el("exitClock").textContent="Salida reportada";
+ el("exitNote").textContent="Salida declarada (solo en la demostración). No se comprobó ubicación y no se cerró el portón.";
+ el("exitButton").hidden=true;
+ if(states.exitTimer)clearInterval(states.exitTimer);
+ states.exitTimer=null;
+ log("Repartidor declaró estar fuera (simulación; sin registro real).");
+};
+el("restart").onclick=begin;
+begin();
+</script>
+</body>
+</html>
