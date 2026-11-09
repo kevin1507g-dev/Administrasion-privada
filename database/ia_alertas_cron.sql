@@ -45,15 +45,8 @@ begin
  on conflict(usuario_id,tipo,fecha,titulo) do nothing;
  get diagnostics eventos_count=row_count;
 
- -- Estado de comunicación sin afirmar que el portón esté abierto o cerrado.
- insert into public.ia_alertas(usuario_id,tipo,titulo,detalle,fecha)
- select p.id,'esp32','ESP32 sin comunicación reciente',
- 'El último contacto con el ESP32 supera 60 segundos. Revisar la conectividad; no confirma el estado del portón.',hoy
- from public.profiles p
- where p.rol='owner' and p.activo and p.estado_registro='aprobado'
- and exists(select 1 from access_private.device d where d.singleton and d.enabled
-   and (d.last_seen is null or d.last_seen<now()-interval '60 seconds'))
- on conflict(usuario_id,tipo,fecha,titulo) do nothing;
+ -- Alertas ESP32: ahora se notifican una vez por desconexión a Owner y Admin
+ -- mediante access_private.verificar_esp32_offline y su cron de 30 segundos.
 
  -- Resumen mensual informativo en el primer día del mes, por movimientos con fecha contable.
  if extract(day from hoy)=1 then
