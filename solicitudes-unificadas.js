@@ -5,13 +5,13 @@
  let ready=false,selected="",refreshing=false;
  const panels=new Map(),buttons=new Map();
  const roles={
-  registros:["owner","admin"],reservaciones:["owner","admin","residente"],
+  registros:["owner","admin"],cuotas:["owner","admin"],reservaciones:["owner","admin","residente"],
   permanentes:["owner","residente"],huellas:["owner","admin","residente"],
   entradas:["owner","residente"],comunicacion:["residente"],
   empresas:["owner"]
  };
  const labels={
-  registros:"👥 Registros",reservaciones:"📅 Reservaciones",
+  registros:"👥 Registros",cuotas:"🧾 Eliminar cuotas",reservaciones:"📅 Reservaciones",
   permanentes:"🔑 Códigos permanentes",huellas:"🖐️ Huellas",
   entradas:"🚪 Acceso y repartidores",comunicacion:"💬 Comunicación",
   empresas:"🛵 Permisos de empresas"
@@ -61,6 +61,7 @@
   root.appendChild(hub);
 
   if(original){original.classList.add("adminOnly");move("registros",original);}
+  move("cuotas",document.getElementById("solicitudesBajaCuotasCard"));
   const rolesCard=document.getElementById("ownerRolesRows")?.closest(".card");
   if(rolesCard){
    rolesCard.classList.add("ownerOnly");
@@ -133,6 +134,7 @@
  function count(id){
   try{
    if(id==="registros")return profiles.filter(x=>x.rol==="residente"&&x.estado_registro==="pendiente").length;
+   if(id==="cuotas")return (window.solicitudesBajaCuotasDatos||[]).filter(x=>x.estado==="pendiente").length;
    if(id==="reservaciones")return reservas.filter(x=>x.estado==="pendiente"&&(profile?.rol!=="residente" || String(x.creado_por)===String(user?.id))).length;
    if(id==="huellas")return bioSolicitudesActuales.filter(x=>x.estado==="pendiente_captura").length;
    if(id==="permanentes"){
@@ -175,6 +177,8 @@
   refreshing=true;
   try{
    const tasks=[];
+   if(["owner","admin"].includes(profile.rol) && typeof window.cargarSolicitudesBajaCuotas==="function")
+    tasks.push(window.cargarSolicitudesBajaCuotas());
    if(["owner","admin","residente"].includes(profile.rol) && typeof cargarSolicitudesHuellas==="function")
     tasks.push(cargarSolicitudesHuellas());
    if(["owner","residente"].includes(profile.rol) && (profile.rol!=="owner"||ownerPanelMode==="owner") && typeof cargarCodigosPermanentes==="function")
