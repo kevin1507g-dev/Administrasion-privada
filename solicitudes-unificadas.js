@@ -62,7 +62,12 @@
 
   if(original){original.classList.add("adminOnly");move("registros",original);}
   const rolesCard=document.getElementById("ownerRolesRows")?.closest(".card");
-  if(rolesCard){rolesCard.classList.add("ownerOnly");move("registros",rolesCard);}
+  if(rolesCard){
+   rolesCard.classList.add("ownerOnly");
+   rolesCard.classList.toggle("hidden",typeof profile==="undefined"||profile?.rol!=="owner"||
+    (typeof ownerPanelMode!=="undefined"&&ownerPanelMode!=="owner"));
+   move("registros",rolesCard);
+  }
   // Las solicitudes de reservaciones y sus acciones se atienden solo aquí.
   const reservas=document.getElementById("reservaciones");
   if(reservas){
@@ -110,7 +115,11 @@
 
   // Solo Sistema Admin gestiona empresas; la lista NO prueba la identidad del repartidor.
   const empresas=document.getElementById("ownerEmpresasReparto");
-  if(empresas)empresas.classList.add("ownerOnly");
+  if(empresas){
+   empresas.classList.add("ownerOnly");
+   empresas.classList.toggle("hidden",typeof profile==="undefined"||profile?.rol!=="owner"||
+    (typeof ownerPanelMode!=="undefined"&&ownerPanelMode!=="owner"));
+  }
   move("empresas",empresas);
   link(document.getElementById("ownerPanel"),"📝 Revisar permisos y solicitudes");
   const reservationTitle=document.querySelector("#reservaciones > h2");
