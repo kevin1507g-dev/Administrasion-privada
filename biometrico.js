@@ -131,10 +131,10 @@ async function eliminarSolicitudHuellaSistemaAdmin(id){
  }
  const nombre=profiles.find(p=>p.id===solicitud.residente_id)?.nombre||'Residente';
  const casa=casaNumero(solicitud.casa_id)||'sin número';
- if(!confirm('¿Eliminar esta solicitud de huella pendiente?\\n\\n'+
-    nombre+' · Casa '+casa+'\\n'+
+ if(!confirm('¿Eliminar esta solicitud de huella pendiente?\n\n'+
+    nombre+' · Casa '+casa+'\n'+
     (bioNombresDedo[solicitud.dedo]||solicitud.dedo)+
-    '\\n\\nLa petición desaparecerá de la lista, pero no se eliminarán huellas ya registradas en el lector.'))return;
+    '\n\nLa petición desaparecerá de la lista, pero no se eliminarán huellas ya registradas en el lector.'))return;
  bioEliminacionOwnerBusy=true;
  try{
   const {data,error}=await sb.from('solicitudes_huella').delete()
