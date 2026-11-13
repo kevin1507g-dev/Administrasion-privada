@@ -11,7 +11,7 @@ for(const script of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)){
  if(script[1].trim())new Function(script[1]);
 }
 assert.match(html,/panel-organizado\.css\?v=2/);
-assert.ok(html.indexOf('panel-organizado.css?v=1')>html.indexOf('solicitudes-unificadas.css?v=1'));
+assert.ok(html.indexOf('panel-organizado.css?v=2')>html.indexOf('solicitudes-unificadas.css?v=1'));
 assert.equal((css.match(/\{/g)||[]).length,(css.match(/\}/g)||[]).length);
 assert.match(css,/main>section\.active\s*\{/);
 assert.match(css,/#inicio\.active>\.grid/);
