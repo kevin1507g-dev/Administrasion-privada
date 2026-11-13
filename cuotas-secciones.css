@@ -1,0 +1,106 @@
+/* Cuotas en pestañas, alineado visualmente con Solicitudes y permisos. */
+#cuotas #cuotasSecciones{
+ grid-column:1/-1;
+ width:100%;
+ min-width:0;
+ margin:0;
+}
+#cuotas .cu-intro{margin:0 0 13px;line-height:1.5}
+#cuotas .cu-tabs{
+ display:grid;
+ grid-template-columns:repeat(3,minmax(0,1fr));
+ align-items:stretch;
+ gap:10px;
+ margin:0 0 18px;
+}
+#cuotas .cu-tab{
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ width:100%;
+ min-width:0;
+ min-height:54px;
+ padding:10px 12px;
+ background:#183841;
+ color:#d9ece6;
+ border:1px solid #3d756f;
+ border-radius:13px;
+ font-size:13px;
+ font-weight:700;
+ line-height:1.35;
+ text-align:center;
+ white-space:normal;
+}
+#cuotas .cu-tab.cu-selected{
+ background:#0b765e;
+ border-color:#50c9ab;
+ color:#fff;
+ box-shadow:0 0 0 1px rgba(80,201,171,.24);
+}
+#cuotas .cu-tab:focus-visible{
+ outline:3px solid #60dfc0;
+ outline-offset:3px;
+}
+#cuotas .cu-tab[hidden],
+#cuotas .cu-panel[hidden]{display:none!important}
+#cuotas .cu-content{min-width:0;width:100%}
+#cuotas .cu-panel{
+ display:flex;
+ flex-direction:column;
+ gap:14px;
+ min-width:0;
+}
+#cuotas .cu-panel>.card{
+ width:100%;
+ max-width:100%;
+ min-width:0;
+ margin:0!important;
+ padding:clamp(14px,1.6vw,22px);
+ border-radius:18px;
+}
+#cuotas .cu-panel>.card>h3:first-child{
+ margin:0 0 14px!important;
+ padding:0 0 11px!important;
+ border-bottom:1px solid var(--ui-line);
+}
+#cuotas .cu-panel .form{
+ display:grid;
+ grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:14px;
+}
+#cuotas .cu-panel .form>*{min-width:0}
+#cuotas .cu-panel :is(input,select,textarea){max-width:100%;min-width:0}
+#cuotas .cu-panel .table,
+#cuotas .cu-panel>.card.table{
+ overflow-x:auto;
+ max-width:100%;
+ -webkit-overflow-scrolling:touch;
+}
+#cuotas .cu-panel>.card.table table{width:100%;min-width:650px}
+#cuotas .cu-panel .actions{gap:10px;flex-wrap:wrap}
+#cuotas .cu-panel button{max-width:100%;white-space:normal}
+#cuotas .cu-panel #residentPaidUntil{overflow-wrap:anywhere}
+#cuotas .cu-panel #duplicatedDuesWarning{line-height:1.55}
+/* Light mode inherits the same variables and colors as the rest of the app. */
+html[data-ui-theme="light"] #cuotas .cu-tab{
+ background:var(--p2);
+ border-color:var(--ui-line);
+ color:var(--t);
+}
+html[data-ui-theme="light"] #cuotas .cu-tab.cu-selected{
+ background:#087b69;
+ border-color:#087b69;
+ color:#fff;
+}
+@media(max-width:850px){
+ #cuotas .cu-tabs{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+}
+@media(max-width:560px){
+ #cuotas .cu-tabs{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:13px}
+ #cuotas .cu-tab{font-size:12px;min-height:50px;padding:9px 7px}
+ #cuotas .cu-panel>.card{padding:13px!important;border-radius:15px}
+ #cuotas .cu-panel .form{grid-template-columns:minmax(0,1fr);gap:12px}
+ #cuotas .cu-panel button{min-height:43px}
+ #cuotas .cu-panel>.card.table{padding:11px!important}
+}
+@media(max-width:340px){#cuotas .cu-tabs{grid-template-columns:minmax(0,1fr)}}
