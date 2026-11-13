@@ -31,12 +31,12 @@
  function move(id,element){
   if(element&&panels.has(id))panels.get(id).appendChild(element);
  }
- function link(source,label){
+ function link(source,label,category){
   if(!source||source.querySelector(".su-redirect"))return;
   const btn=document.createElement("button");
   btn.type="button";btn.className="primary su-redirect";
   btn.textContent=label||"📝 Ir a Solicitudes";
-  btn.addEventListener("click",()=>window.solicitudesIr());
+  btn.addEventListener("click",()=>window.solicitudesIr(category));
   source.insertBefore(btn,source.firstElementChild?.nextSibling||null);
  }
  function init(){
@@ -74,14 +74,14 @@
    const form=reservas.querySelector(".card:not(.adminOnly)");
    const table=document.getElementById("reservasRows")?.closest(".card");
    move("reservaciones",form);move("reservaciones",table);
-   link(reservas,"📝 Gestionar reservaciones en Solicitudes");
+   link(reservas,"📝 Gestionar reservaciones en Solicitudes","reservaciones");
   }
 
   // Las autorizaciones de código permanente continúan bajo el control de Sistema Admin.
   const visita=document.getElementById("visitas");
   move("permanentes",document.getElementById("vpPermanentList")?.closest(".card"));
   move("permanentes",document.getElementById("vpPermanentAdminList")?.closest(".card"));
-  link(visita,"📝 Ver solicitudes de códigos permanentes");
+  link(visita,"📝 Ver solicitudes de códigos permanentes","permanentes");
 
   // El residente mantiene su consentimiento y la captura real sigue pendiente de R503Pro.
   move("huellas",document.getElementById("bioMisSolicitudes")?.closest(".card.residentOnly"));
@@ -97,12 +97,12 @@
     [...old.querySelectorAll("p")].find(x=>x.textContent?.includes("Cada residente solicita sus huellas"))?.remove();
     [...old.querySelectorAll("button")].find(x=>x.getAttribute("onclick")==="cargarSolicitudesHuellas()")?.remove();}
   }
-  link(document.getElementById("biometrico"),"📝 Solicitar o revisar huellas");
+  link(document.getElementById("biometrico"),"📝 Solicitar o revisar huellas","huellas");
 
   // Accesos solicitados desde el QR: responder es una acción del residente.
   move("entradas",document.getElementById("entregasPendientes")?.closest(".card"));
   move("entradas",document.getElementById("ownerChatEspecialListaCard"));
-  link(document.getElementById("entregas"),"📝 Responder solicitudes en la entrada");
+  link(document.getElementById("entregas"),"📝 Responder solicitudes en la entrada","entradas");
 
   // El chat entre casas solo puede comenzar cuando el destinatario aceptó.
   const contacto=document.getElementById("comunicacion");
@@ -111,7 +111,7 @@
   move("comunicacion",document.getElementById("contactoSolicitudesEntrantes")?.closest(".card"));
   move("comunicacion",document.getElementById("contactoSolicitudesLista")?.closest(".card"));
   move("comunicacion",document.getElementById("contactoChatPanel"));
-  link(contacto,"📝 Gestionar permisos de comunicación");
+  link(contacto,"📝 Gestionar permisos de comunicación","comunicacion");
 
   // Solo Sistema Admin gestiona empresas; la lista NO prueba la identidad del repartidor.
   const empresas=document.getElementById("ownerEmpresasReparto");
@@ -150,7 +150,7 @@
  function display(){
   if(!ready||!profile)return;
   const ids=[...panels.keys()].filter(allowed);
-  if(!ids.includes(selected))selected=ids.includes("registros")?"registros":ids[0]||"";
+  if(!ids.includes(selected))selected=ids.find(id=>count(id)>0)||ids[0]||"";
   for(const [id,panel] of panels){
    const btn=buttons.get(id),visible=allowed(id);
    btn.hidden=!visible;
