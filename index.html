@@ -6088,7 +6088,7 @@ function renderReservas(){
   let acciones='';
   if(profile?.rol==='owner'&&r.estado==='aprobada'){
    acciones=`<button class="danger mini" onclick="cancelarReservaSistemaAdmin('${r.id}')">Cancelar evento</button>`;
-  }else if(isAdminProfileRole(profile?.rol)&&r.estado!=='aprobada'&&r.estado!=='cancelada'){
+  }else if(profile?.rol==='owner'&&ownerPanelMode==='owner'&&r.estado!=='aprobada'&&r.estado!=='cancelada'){
    acciones=`<div class="actions"><button class="primary mini" onclick="setReservaEstado('${r.id}','aprobada')">Aprobar</button><button class="mini" onclick="setReservaEstado('${r.id}','rechazada')">Rechazar</button><button class="danger mini" onclick="eliminarReserva('${r.id}')">Eliminar</button></div>`;
   }else if(profile?.rol==='residente' && String(r.creado_por)===String(user?.id) &&
     String(r.casa_id)===String(profile.casa_id) && ['pendiente','aprobada'].includes(r.estado)){
