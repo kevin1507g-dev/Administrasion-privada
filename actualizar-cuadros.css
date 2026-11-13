@@ -1,0 +1,82 @@
+/* Botón de actualización en todas las pantallas de Administración Residencial. */
+main>section.active>.actualizar-cuadro-barra,
+#cuotas .actualizar-cuadro-barra,
+#solicitudes .actualizar-cuadro-barra{
+ display:flex;
+ align-items:center;
+ justify-content:flex-end;
+ flex-wrap:wrap;
+ column-gap:13px;
+ row-gap:7px;
+ min-width:0;
+ max-width:100%;
+}
+main>section.active>.actualizar-cuadro-barra{
+ grid-column:1/-1;
+ margin:0;
+}
+.actualizar-cuadro-barra .actualizar-cuadro-boton{
+ display:inline-flex;
+ align-items:center;
+ justify-content:center;
+ gap:7px;
+ min-height:43px;
+ min-width:124px;
+ flex:0 0 auto;
+ padding:9px 15px;
+ border-radius:12px;
+ background:var(--p2);
+ color:var(--t);
+ border:1px solid var(--ui-line);
+ box-shadow:none;
+ font-size:.87rem;
+ font-weight:700;
+ white-space:nowrap;
+ touch-action:manipulation;
+}
+.actualizar-cuadro-barra .actualizar-cuadro-boton:hover:not(:disabled){
+ color:var(--g);
+ border-color:var(--g);
+}
+.actualizar-cuadro-barra .actualizar-cuadro-boton:focus-visible{
+ outline:3px solid var(--b);
+ outline-offset:3px;
+}
+.actualizar-cuadro-barra .actualizar-cuadro-boton:disabled{
+ cursor:progress;
+ opacity:.68;
+}
+.actualizar-cuadro-barra .actualizar-cuadro-estado{
+ min-width:0;
+ font-size:.79rem;
+ line-height:1.45;
+ color:var(--m);
+ overflow-wrap:anywhere;
+}
+.actualizar-cuadro-barra .actualizar-cuadro-estado[data-estado="ok"]{color:var(--g)}
+.actualizar-cuadro-barra .actualizar-cuadro-estado[data-estado="parcial"]{color:#f6bb53}
+.actualizar-cuadro-barra .actualizar-cuadro-estado[data-estado="error"]{color:var(--r)}
+#cuotas .cu-panel>.actualizar-cuadro-barra,
+#solicitudes .su-panel>.actualizar-cuadro-barra{
+ align-self:stretch;
+ margin:0 0 2px;
+ padding:0;
+}
+@media(max-width:560px){
+ main>section.active>.actualizar-cuadro-barra{margin:0}
+ .actualizar-cuadro-barra .actualizar-cuadro-boton{
+  min-height:44px;
+  min-width:118px;
+  font-size:.83rem;
+ }
+ .actualizar-cuadro-barra .actualizar-cuadro-estado{
+  flex:1 1 140px;
+  text-align:right;
+  font-size:.74rem;
+ }
+}
+@media(max-width:340px){
+ .actualizar-cuadro-barra{justify-content:stretch}
+ .actualizar-cuadro-barra .actualizar-cuadro-boton{flex:1 1 100%}
+ .actualizar-cuadro-barra .actualizar-cuadro-estado{text-align:center}
+}
