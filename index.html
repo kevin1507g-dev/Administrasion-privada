@@ -193,6 +193,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <link rel="stylesheet" href="./aviso-cuotas-residente.css?v=1" />
 <link rel="stylesheet" href="./pendientes-residente.css?v=1" />
 <link rel="stylesheet" href="./panel-organizado.css?v=2" />
+<link rel="stylesheet" href="./cuotas-secciones.css?v=1" />
 <style>
 /* Lista de perfiles: solo nombre, casa y rol según tipo de usuario. */
 #profilesRows tr.perfil-residente td:nth-child(-n+3),
@@ -3204,8 +3205,9 @@ function show(id){
   }
 
 
-  if(id==='cuotas' && isAdminProfileRole(profile?.rol)){
-    cargarConfigCobroAutomatico();
+  if(id==='cuotas'){
+    window.cuotasSeccionesAbrir?.();
+    if(isAdminProfileRole(profile?.rol))cargarConfigCobroAutomatico();
   }
 
   closeMenu();
@@ -6342,6 +6344,7 @@ function render(){
  renderGastos();
  renderMetodosPago();
  renderCuotasArchivadas();
+ window.cuotasSeccionesActualizar?.();
  window.solicitudesUnificadasActualizar?.();
  window.residenteCuotasPendientesActualizar?.();
 }
@@ -8142,6 +8145,7 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizar
 <script src="./disciplina.js?v=11"></script>
 <script src="./biometrico.js?v=1"></script>
 <script src="./solicitudes-unificadas.js?v=1"></script>
+<script src="./cuotas-secciones.js?v=1"></script>
 <script src="./asistente-ia.js?v=13"></script>
 <script src="./pendientes-residente.js?v=3"></script>
 <script src="./aviso-cuotas-residente.js?v=1"></script>
