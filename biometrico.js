@@ -66,7 +66,7 @@ async function cargarSolicitudesHuellas(){
    const adminBody=document.getElementById('bioAdminSolicitudes');
    if(adminBody && isAdminProfileRole(profile.rol))adminBody.innerHTML='<tr><td colspan="5" class="muted">'+esc(msg)+'</td></tr>';
    bioSolicitudesActuales=[];
- }finally{bioSolicitudesEnCarga=false;actualizarBotonesHuella();}
+ }finally{bioSolicitudesEnCarga=false;actualizarBotonesHuella();window.solicitudesUnificadasActualizar?.();}
 }
 async function solicitarHuellaResidente(dedo){
  if(profile?.rol!=='residente'||!user?.id||bioSolicitudGuardando||bioSolicitudesEnCarga)return;
