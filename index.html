@@ -898,7 +898,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       <button type="button" onclick="abrirHistorialBasuraOwner()">🚛 Quién activó camión de basura</button>
       <button type="button" onclick="show('entregas')">🛵 Repartidores y proveedores</button>
       <button type="button" onclick="show('eventos')">📅 Eventos</button>
-      <button type="button" onclick="show('reservaciones')">🏡 Reservaciones</button>
+      <button type="button" onclick="solicitudesIr('reservaciones')">🏡 Solicitudes de reservación</button>
       <button type="button" onclick="show('paqueteria')">📦 Paquetería</button>
       <button type="button" onclick="show('avisos')">📢 Avisos</button>
       <button type="button" onclick="show('notificaciones')">🔔 Notificaciones</button>
@@ -4672,7 +4672,7 @@ async function actualizarSolicitudesEntrega(){
   renderEntregas();
  }catch(error){
   if(box&&profile?.rol==='residente')box.textContent='No se pudieron cargar las solicitudes: '+(error.message||'intenta de nuevo');
- }finally{entregasRefreshBusy=false;}
+ }finally{entregasRefreshBusy=false;window.solicitudesUnificadasActualizar?.();}
 }
 function renderEntregas(){
   if(!['owner','admin','residente'].includes(profile?.rol))return;
@@ -7640,6 +7640,7 @@ async function cargarCodigosPermanentes(){
    }
    wrap.appendChild(actions);box.appendChild(wrap);
   }
+  window.solicitudesUnificadasActualizar?.();
  }catch(e){box.textContent='No se pudieron cargar los códigos: '+(e.message||'error');}
 }
 
