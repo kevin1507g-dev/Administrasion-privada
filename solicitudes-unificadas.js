@@ -197,6 +197,11 @@
   void refresh();
  };
  window.solicitudesUnificadasActualizar=function(){if(init())display();};
+ window.solicitudesUnificadasRefrescar=async function(){
+  if(!init())throw new Error("No se pudo inicializar Solicitudes.");
+  await refresh();
+  display();
+ };
  window.solicitudesIr=function(tab){
   if(!profile||!["owner","admin","residente"].includes(profile.rol))return;
   show("solicitudes");
