@@ -36,11 +36,11 @@
   body.replaceChildren();
   if(!authorized()){
    const tr=elem("tr");const td=rowCell(tr,"No tienes permiso para consultar solicitudes.");
-   td.colSpan=8;body.appendChild(tr);return;
+   td.colSpan=9;body.appendChild(tr);return;
   }
   if(!rows.length){
    const tr=elem("tr"),td=rowCell(tr,"No hay solicitudes de eliminación de cuotas.");
-   td.colSpan=8;td.className="muted";body.appendChild(tr);return;
+   td.colSpan=9;td.className="muted";body.appendChild(tr);return;
   }
   for(const request of [...rows].sort((a,b)=>
     Number(a.estado!=="pendiente")-Number(b.estado!=="pendiente")||
@@ -52,6 +52,10 @@
    rowCell(tr,request.vencimiento||"—");
    const motivo=rowCell(tr,request.motivo||"—");
    motivo.style.maxWidth="300px";motivo.style.whiteSpace="normal";
+   const quien=(typeof profiles!=="undefined"&&Array.isArray(profiles))
+    ? profiles.find(x=>String(x.id)===String(request.solicitante_id))?.nombre
+    : null;
+   rowCell(tr,quien||"Administrador");
    rowCell(tr,new Date(request.creado_el).toLocaleString("es-MX"));
    rowCell(tr,estados[request.estado]||request.estado+
      (request.resultado?" · "+(resultados[request.resultado]||request.resultado):""));
