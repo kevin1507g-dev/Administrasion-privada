@@ -2127,6 +2127,7 @@ async function cargarChatsEspecialesOwner(){
   if(badge){badge.hidden=!pendientes.length;badge.textContent=String(pendientes.length);}
   // Actualizar el contador del botón ✦ IA, conservando las notificaciones actuales.
   window.dispatchEvent(new CustomEvent('portero-owner-chat-unread',{detail:{count:pendientes.length}}));
+  window.solicitudesUnificadasActualizar?.();
   const dialog=document.getElementById('ownerChatEspecialDialog');
   if(!dialog?.open){
    const next=pendientes.find(c=>!chatEspecialMostrados.has(c.id+':'+c.last_visitor_at));
@@ -4762,6 +4763,7 @@ async function cargarContactoResidenteDatos(){
   if(!cm.error)mensajesContacto=cm.data||[];
 
   renderComunicacionResidentes();
+  window.solicitudesUnificadasActualizar?.();
 
   if(contactoActualId){
     renderContactoMensajes();
