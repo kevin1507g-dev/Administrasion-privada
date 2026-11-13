@@ -14,9 +14,9 @@ for(const script of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)){
 }
 const sections=[...html.matchAll(/<section\s+id="([^"]+)"/g)].map(x=>x[1]);
 assert.equal(sections.length,32,"todos los apartados existentes siguen visibles en el HTML");
-assert.match(html,/actualizar-cuadros\.js\?v=2/);
+assert.match(html,/actualizar-cuadros\.js\?v=3/);
 assert.match(html,/actualizar-cuadros\.css\?v=2/);
-assert.ok(html.indexOf("actualizar-cuadros.js?v=2")>html.indexOf("cuotas-secciones.js?v=1"));
+assert.ok(html.indexOf("actualizar-cuadros.js?v=3")>html.indexOf("cuotas-secciones.js?v=1"));
 assert.ok(html.indexOf("actualizar-cuadros.css?v=2")>html.indexOf("cuotas-secciones.css?v=1"));
 assert.match(css,/\.actualizar-cuadro-barra/);
 assert.match(css,/display:none!important/);
@@ -34,6 +34,7 @@ assert.match(js,/if\(changed&&typeof render==="function"\)/);
 assert.match(js,/models\[keys\[i\]\]\.save\(data\)/);
 assert.match(js,/currentSection\(\)!==section/);
 assert.match(js,/requestedSources\(id\)/);
+assert.match(js,/cargarSolicitudesBajaCuotas/);
 assert.match(js,/#cuotas \.cu-panel:not\(\[hidden\]\)/);
 assert.match(js,/#solicitudes \.su-panel:not\(\[hidden\]\)/);
 for(const id of sections){
