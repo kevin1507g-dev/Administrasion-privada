@@ -12,7 +12,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)){
  if(m[1].trim())new Function(m[1]);
 }
 assert.match(html,/<section id="solicitudes" class="residentAdminOnly">/);
-assert.match(html,/solicitudes-unificadas\.js\?v=2/);
+assert.match(html,/solicitudes-unificadas\.js\?v=3/);
 assert.match(html,/solicitudes-unificadas\.css\?v=1/);
 assert.match(html,/window\.solicitudesUnificadasAbrir\?\.\(\)/);
 assert.match(hub,/roles\[id\]\.includes\(rol\)/);
