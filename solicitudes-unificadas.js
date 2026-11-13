@@ -61,6 +61,8 @@
   root.appendChild(hub);
 
   if(original){original.classList.add("adminOnly");move("registros",original);}
+  const rolesCard=document.getElementById("ownerRolesRows")?.closest(".card");
+  if(rolesCard){rolesCard.classList.add("ownerOnly");move("registros",rolesCard);}
   // Las solicitudes de reservaciones y sus acciones se atienden solo aquí.
   const reservas=document.getElementById("reservaciones");
   if(reservas){
@@ -111,6 +113,10 @@
   if(empresas)empresas.classList.add("ownerOnly");
   move("empresas",empresas);
   link(document.getElementById("ownerPanel"),"📝 Revisar permisos y solicitudes");
+  const reservationTitle=document.querySelector("#reservaciones > h2");
+  if(reservationTitle)reservationTitle.textContent="⚡ Modo Evento ESP32";
+  const oldChatHint=document.querySelector("#ownerChatEspecialListaCard .muted");
+  if(oldChatHint)oldChatHint.textContent="La entrada se autoriza desde el chat Especiales con un botón manual y confirmación de Sistema Admin, no por los mensajes.";
 
   ready=true;
   return true;
