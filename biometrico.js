@@ -50,8 +50,14 @@ async function cargarSolicitudesHuellas(){
    if(adminBody && isAdminProfileRole(profile.rol)){
      adminBody.innerHTML=bioSolicitudesActuales.map(x=>{
        const residente=profiles.find(p=>p.id===x.residente_id);
+       const puedeEliminar=profile?.rol==='owner' && profile.activo===true &&
+         profile.estado_registro==='aprobado' && x.estado==='pendiente_captura';
        return `<tr>
-         <td>${esc(residente?.nombre||'Residente')}</td>
+         <td>${esc(residente?.nombre||'Residente')}
+           ${puedeEliminar?`<div style="margin-top:9px">
+             <button type="button" class="danger mini" onclick="eliminarSolicitudHuellaSistemaAdmin('${x.id}')">🗑️ Eliminar solicitud</button>
+           </div>`:''}
+         </td>
          <td>${esc(casaNumero(x.casa_id))}</td>
          <td>${esc(bioNombresDedo[x.dedo]||x.dedo)}</td>
          <td>${esc(bioNombreEstado(x.estado))}</td>
@@ -108,4 +114,39 @@ async function cancelarSolicitudHuella(id){
    await cargarSolicitudesHuellas();
  }catch(e){if(msg)msg.textContent='No se pudo cancelar: '+(e?.message||'intenta de nuevo');}
  finally{bioSolicitudGuardando=false;actualizarBotonesHuella();}
+}
+
+/* La política RLS existente sólo autoriza al propietario (Sistema Admin)
+   a eliminar solicitudes en estado pendiente_captura. No modifica
+   huellas inscritas, plantillas biométricas ni al R503Pro. */
+let bioEliminacionOwnerBusy=false;
+async function eliminarSolicitudHuellaSistemaAdmin(id){
+ if(bioEliminacionOwnerBusy||bioSolicitudesEnCarga||!user||
+    profile?.rol!=='owner'||profile?.activo!==true||
+    profile?.estado_registro!=='aprobado')return;
+ const solicitud=bioSolicitudesActuales.find(x=>x.id===id);
+ if(!solicitud||solicitud.estado!=='pendiente_captura'){
+  alert('Esta solicitud ya no está pendiente. Actualiza la lista.');
+  return;
+ }
+ const nombre=profiles.find(p=>p.id===solicitud.residente_id)?.nombre||'Residente';
+ const casa=casaNumero(solicitud.casa_id)||'sin número';
+ if(!confirm('¿Eliminar esta solicitud de huella pendiente?\\n\\n'+
+    nombre+' · Casa '+casa+'\\n'+
+    (bioNombresDedo[solicitud.dedo]||solicitud.dedo)+
+    '\\n\\nLa petición desaparecerá de la lista, pero no se eliminarán huellas ya registradas en el lector.'))return;
+ bioEliminacionOwnerBusy=true;
+ try{
+  const {data,error}=await sb.from('solicitudes_huella').delete()
+   .eq('id',id).eq('estado','pendiente_captura').select('id');
+  if(error)throw error;
+  if(!data?.length)throw new Error('No se eliminó: la solicitud ya cambió de estado o no tienes permiso.');
+  bioSolicitudesActuales=bioSolicitudesActuales.filter(x=>x.id!==id);
+  await cargarSolicitudesHuellas();
+  alert('✅ Solicitud pendiente eliminada. No se modificaron huellas físicas.');
+ }catch(e){
+  alert('No se pudo eliminar la solicitud: '+(e?.message||'Intenta de nuevo.'));
+ }finally{
+  bioEliminacionOwnerBusy=false;
+ }
 }
