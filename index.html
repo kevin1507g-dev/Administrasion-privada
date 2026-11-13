@@ -194,7 +194,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <link rel="stylesheet" href="./pendientes-residente.css?v=1" />
 <link rel="stylesheet" href="./panel-organizado.css?v=2" />
 <link rel="stylesheet" href="./cuotas-secciones.css?v=1" />
-<link rel="stylesheet" href="./actualizar-cuadros.css?v=1" />
+<link rel="stylesheet" href="./actualizar-cuadros.css?v=2" />
 <style>
 /* Lista de perfiles: solo nombre, casa y rol según tipo de usuario. */
 #profilesRows tr.perfil-residente td:nth-child(-n+3),
@@ -8141,9 +8141,8 @@ async function actualizarVistaActiva(){
  }catch(error){console.warn('Actualización automática:',error);}
  finally{liveRefreshRunning=false;}
 }
-setInterval(actualizarVistaActiva,3000);
-setInterval(()=>{if(!document.hidden)refreshEsp32History();},15000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizarVistaActiva();});
+/* La actualización automática unificada cada 5 s está en actualizar-cuadros.js.
+   Evitar intervalos duplicados de ESP32, huellas y controles digitales. */
 
 
 </script>
@@ -8151,7 +8150,7 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizar
 <script src="./biometrico.js?v=1"></script>
 <script src="./solicitudes-unificadas.js?v=1"></script>
 <script src="./cuotas-secciones.js?v=1"></script>
-<script src="./actualizar-cuadros.js?v=1"></script>
+<script src="./actualizar-cuadros.js?v=2"></script>
 <script src="./asistente-ia.js?v=13"></script>
 <script src="./pendientes-residente.js?v=3"></script>
 <script src="./aviso-cuotas-residente.js?v=1"></script>
