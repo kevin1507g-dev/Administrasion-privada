@@ -90,8 +90,7 @@
   if(bioTabla){
    const bioCard=card("Solicitudes de huellas recibidas","Solo se registra la petición. Una huella no se activa sin captura física y comprobación del lector R503Pro.");
    bioCard.classList.add("adminOnly");
-   const refresh=document.createElement("button");refresh.type="button";refresh.textContent="↻ Actualizar huellas";
-   refresh.addEventListener("click",()=>window.cargarSolicitudesHuellas?.());bioCard.appendChild(refresh);
+   // Huellas se actualiza sola cada 5 segundos; no mostrar botón manual.
    bioCard.appendChild(bioTabla);move("huellas",bioCard);
    const old=document.querySelector("#biometrico .card.adminOnly");
    if(old){const title=[...old.querySelectorAll("h3")].find(x=>x.textContent?.trim()==="Solicitudes recibidas");title?.remove();
