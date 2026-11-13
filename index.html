@@ -187,6 +187,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <link rel="stylesheet" href="./ui-modern.css?v=owner-circular22" />
 <link rel="stylesheet" href="./mp-sandbox.css?v=mp-lab1" />
 <link rel="stylesheet" href="./asistente-ia.css?v=9" />
+<link rel="stylesheet" href="./solicitudes-unificadas.css?v=1" />
 <link rel="stylesheet" href="./acciones-menu.css?v=1" />
 <link rel="stylesheet" href="./chat-destinos.css?v=2" />
 <link rel="stylesheet" href="./aviso-cuotas-residente.css?v=1" />
@@ -299,13 +300,14 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
 <div class="navSectionLabel">Gestión y accesos</div>
 <button class="adminOnly" onclick="show('residentes')">👥 Residentes</button>
 <button class="ownerOnly hidden" onclick="show('ownerPanel')">👑 Panel Sistema Admin</button>
-<button class="adminOnly" onclick="show('solicitudes')">📝 Solicitudes</button>
+<button class="residentAdminOnly" onclick="show('solicitudes')">📝 Solicitudes y permisos <span id="solicitudesMenuCount" class="badge" hidden>0</span></button>
 <button class="adminOnly" onclick="show('casas')">🏠 Casas</button>
 <button class="adminOnly" onclick="show('deudas')">💰 Deuda total</button>
 <button class="controlAccessOnly" onclick="show('porton')">🚧 Controles de portón</button>
 <button class="controlAccessOnly" onclick="show('controlDigital')">📲 Control digital</button>
 <button class="adminOnly" type="button" onclick="show('esp32Panel')">🖥️ Panel ESP32</button>
-<button class="residentAdminOnly" type="button" onclick="show('biometrico')">🖐️ Huellas de mi casa</button>
+<button class="adminOnly" type="button" onclick="show('biometrico')">🖐️ Lector de huellas</button>
+<button class="residentOnly" type="button" onclick="solicitudesIr('huellas')">🖐️ Solicitar mis huellas</button>
 <div class="navSectionLabel">Cobros y pagos</div>
 <button onclick="show('cuotas')">🧾 Cuotas</button>
 <button onclick="show('pagos')">💳 Pagos</button>
@@ -317,8 +319,9 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
 <button class="residentAdminOnly" onclick="show('mantenimiento')">🛠️ Mantenimiento</button>
 <button class="residentAdminOnly" onclick="show('incidentes')">⚠️ Reportar incidente</button>
 <button class="residentAdminOnly" onclick="show('visitas')">🚗 Registrar visitas y códigos</button>
-<button class="residentAdminOnly" onclick="show('entregas')">🛵 Repartidores y visitas · Responder</button>
-<button class="residentAdminOnly" onclick="show('reservaciones')">🏡 Reservaciones</button>
+<button class="residentAdminOnly" onclick="show('entregas')">🛵 Portal de repartidores y visitas</button>
+<button class="adminOnly" onclick="show('reservaciones')">⚡ Modo Evento ESP32</button>
+<button class="residentOnly" onclick="solicitudesIr('reservaciones')">🏡 Solicitar reservación</button>
 <button onclick="show('documentos')">📄 Documentos</button>
 <button class="residentAdminOnly" onclick="show('historialCasa')">📚 Historial por casa</button>
 <button onclick="show('accesos')">📋 Historial de accesos</button>
@@ -563,9 +566,10 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
   </form>
 </dialog>
 
-<section id="solicitudes" class="adminOnly"><h2>📝 Solicitudes de registro</h2>
-<div class="card">
-<p class="muted">Aquí aparecen las cuentas creadas por residentes que todavía esperan tu autorización.</p>
+<section id="solicitudes" class="residentAdminOnly"><h2>📝 Solicitudes y permisos</h2>
+<div class="card adminOnly">
+<h3>👥 Registros de residentes pendientes</h3>
+<p class="muted">Las aprobaciones y rechazos de cuentas corresponden únicamente a Sistema Admin. Los administradores pueden consultar el estado.</p>
 <div class="table solicitudesResponsive"><table><thead><tr><th>Nombre</th><th>Unidad</th><th>Correo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="solicitudesRows"></tbody></table></div>
 </div></section>
 
@@ -3186,6 +3190,7 @@ function show(id){
   if(id==='visitas'&&['residente','admin','owner'].includes(profile?.rol))cargarCodigosPermanentes();
   if(id==='accesos'&&['owner','admin','residente'].includes(profile?.rol))cargarHistorialCodigosVisita();
   if(id==='entregas')actualizarSolicitudesEntrega();
+  if(id==='solicitudes')window.solicitudesUnificadasAbrir?.();
 
   if(id==='camaras'){
     cargarCamara();
@@ -3221,9 +3226,9 @@ function destinoPorTipoNotificacion(tipo){
     incidente_respuesta:'incidentes',
     incidente_seguimiento:'incidentes',
     incidente_estado:'incidentes',
-    entrega_entrada:'entregas',
+    entrega_entrada:'solicitudes',
     chat_mensaje:'chat',
-    contacto_residente_solicitud:'comunicacion',
+    contacto_residente_solicitud:'solicitudes',
     contacto_residente_aceptada:'comunicacion',
     contacto_residente_rechazada:'comunicacion',
     contacto_residente_mensaje:'comunicacion',
@@ -3253,12 +3258,15 @@ function destinoPorTipoNotificacion(tipo){
 }
 
 function abrirDestinoNotificacion(destino,referencia,tipo){
-  const seccion=destino||(['disciplina','disciplina_aclaracion','disciplina_respuesta'].includes(tipo)?'disciplina':destinoPorTipoNotificacion(tipo));
+  let seccion=destino||(['disciplina','disciplina_aclaracion','disciplina_respuesta'].includes(tipo)?'disciplina':destinoPorTipoNotificacion(tipo));
+  if(profile?.rol==='residente'&&(tipo==='entrega_entrada'||String(tipo||'').startsWith('contacto_residente_')))seccion='solicitudes';
 
   // La revisión de 2 minutos es una conversación de Sistema Admin, NO
   // una apertura física ni una notificación genérica del panel Entregas.
   if(seccion==='portero_owner_chat'||tipo==='portero_chat_owner'||tipo==='portero_ia_intervencion'){
     if(profile?.rol!=='owner')return;
+    show('solicitudes');
+    window.solicitudesUnificadasAbrir?.('entradas');
     const referenciaPartes=String(referencia||'').split(':');
     const chatId=referenciaPartes[0]==='portero_chat'?referenciaPartes[1]:null;
     const entregaId=referenciaPartes[0]==='portero_ia'?referenciaPartes[1]:null;
@@ -3302,7 +3310,7 @@ function abrirDestinoNotificacion(destino,referencia,tipo){
 
   if(document.getElementById(seccion))show(seccion);
 
-  if(seccion==='comunicacion' && referencia){
+  if((seccion==='comunicacion'||seccion==='solicitudes') && referencia){
     const partes=String(referencia).split(':');
     const solicitudId=partes[0]==='contacto'?partes[1]:null;
     if(solicitudId){
@@ -6269,11 +6277,12 @@ function render(){
   renderResidentes();
  const solicitudesBody=document.getElementById('solicitudesRows');
  if(solicitudesBody){
-   const pendientes=profiles.filter(x=>x.rol==='residente' && (x.estado_registro==='pendiente' || x.activo===false));
+   const pendientes=profiles.filter(x=>x.rol==='residente' && x.estado_registro==='pendiente');
+   const puedeAutorizar=profile?.rol==='owner'&&ownerPanelMode==='owner';
    solicitudesBody.innerHTML=pendientes.map(x=>`<tr>
      <td data-label="Nombre">${esc(x.nombre||'')}</td><td data-label="Unidad">${esc(x.unidad||'')}</td><td data-label="Correo">${esc(x.email||'')}</td>
      <td data-label="Estado"><span class="badge">${x.estado_registro==='rechazado'?'Rechazado':'Pendiente'}</span></td>
-     <td data-label="Acciones"><button class="primary" onclick="aprobarRegistro('${x.id}')">✅ Aprobar</button> <button class="danger" onclick="rechazarRegistro('${x.id}')">❌ Rechazar</button></td>
+     <td data-label="Acciones">${puedeAutorizar?`<button class="primary" onclick="aprobarRegistro('${x.id}')">✅ Aprobar</button> <button class="danger" onclick="rechazarRegistro('${x.id}')">❌ Rechazar</button>`:'🔒 Solo Sistema Admin'}</td>
    </tr>`).join('') || '<tr class="solicitudesEmpty"><td colspan="5" class="muted">No hay solicitudes pendientes.</td></tr>';
  }
  const collCasa=new Intl.Collator('es',{numeric:true,sensitivity:'base'}),casasActivas=[...casas].filter(c=>c.activo!==false).sort((a,b)=>collCasa.compare(String(a.numero||''),String(b.numero||'')));
@@ -6320,6 +6329,7 @@ function render(){
  renderGastos();
  renderMetodosPago();
  renderCuotasArchivadas();
+ window.solicitudesUnificadasActualizar?.();
  window.residenteCuotasPendientesActualizar?.();
 }
 
@@ -7591,6 +7601,7 @@ async function cargarCodigosPermanentes(){
   for(const item of data){
    const wrap=document.createElement('div');wrap.className='card vpPermanentEntry';wrap.style.marginTop='8px';
    wrap.dataset.passId=String(item.id);
+   wrap.dataset.status=String(item.status);
    const detail=document.createElement('div');
    detail.textContent=item.visitor+' · Casa '+item.house+(isAdmin?' · Residente: '+item.sponsor:'')+
     ' · '+(vpPermanentStatus[item.status]||item.status)+' · '+item.used_count+' solicitudes de apertura';
@@ -8116,6 +8127,7 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizar
 </script>
 <script src="./disciplina.js?v=11"></script>
 <script src="./biometrico.js?v=1"></script>
+<script src="./solicitudes-unificadas.js?v=1"></script>
 <script src="./asistente-ia.js?v=13"></script>
 <script src="./pendientes-residente.js?v=3"></script>
 <script src="./aviso-cuotas-residente.js?v=1"></script>
