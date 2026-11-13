@@ -192,7 +192,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <link rel="stylesheet" href="./chat-destinos.css?v=2" />
 <link rel="stylesheet" href="./aviso-cuotas-residente.css?v=1" />
 <link rel="stylesheet" href="./pendientes-residente.css?v=1" />
-<link rel="stylesheet" href="./panel-organizado.css?v=1" />
+<link rel="stylesheet" href="./panel-organizado.css?v=2" />
 <style>
 /* Lista de perfiles: solo nombre, casa y rol según tipo de usuario. */
 #profilesRows tr.perfil-residente td:nth-child(-n+3),
@@ -549,7 +549,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
 
 <section id="casas" class="adminOnly"><h2>🏠 Casas</h2>
 <div class="card"><h3>Agregar casa</h3><div class="form"><div><label>Número / Unidad</label><input id="casaNumeroInput" placeholder="Ej. 24"></div><div><label>Nombre (opcional)</label><input id="casaNombre" placeholder="Ej. Casa esquina"></div></div><button class="primary" style="margin-top:12px" onclick="addCasa()">➕ Agregar casa</button></div>
-<div class="card table" style="margin-top:14px"><table><thead><tr><th>Casa</th><th>Nombre</th><th>Residentes</th><th>Pagado hasta</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="casasRows"></tbody></table></div></section>
+<div class="card table" style="margin-top:14px"><h3>🏘️ Casas registradas</h3><table><thead><tr><th>Casa</th><th>Nombre</th><th>Residentes</th><th>Pagado hasta</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="casasRows"></tbody></table></div></section>
 
 <dialog id="editarNombreCasaDialog" class="casaNombreDialog" aria-labelledby="editarNombreCasaTitulo">
   <form id="editarNombreCasaForm" onsubmit="guardarNombreCasa(event)">
@@ -574,12 +574,13 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
 <div class="table solicitudesResponsive"><table><thead><tr><th>Nombre</th><th>Unidad</th><th>Correo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="solicitudesRows"></tbody></table></div>
 </div></section>
 
-<section id="deudas" class="adminOnly"><h2>Deuda total</h2>
+<section id="deudas" class="adminOnly"><h2>💰 Deuda total</h2>
 <div class="grid">
   <div class="card"><div class="muted">Deuda total pendiente</div><div id="deudaTotal" class="kpi">$0.00</div></div>
   <div class="card"><div class="muted">Casas con deuda</div><div id="deudoresCount" class="kpi">0</div></div>
 </div>
 <div class="card table" style="margin-top:14px">
+<h3>📋 Deudas por casa</h3>
 <table>
 <thead><tr><th>Casa</th><th>Residentes</th><th>Cuotas</th><th>Pagado</th><th>Deuda pendiente</th><th>Acciones</th></tr></thead>
 <tbody id="deudasRows"></tbody>
@@ -1062,6 +1063,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
   </div>
 
   <div class="card table" style="margin-top:14px">
+    <h3>👥 Directorio de residentes</h3>
     <table>
       <thead>
         <tr><th>Nombre</th><th>Unidad</th><th>Rol</th><th>Activo</th><th>Acciones</th></tr>
@@ -1174,6 +1176,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
     <div id="duplicatedDuesWarning" role="status" class="muted">Cargando revisión...</div>
   </div>
   <div class="card table" style="margin-top:14px">
+    <h3>📋 Cuotas registradas</h3>
     <table>
       <thead>
         <tr><th>Casa</th><th>Concepto</th><th>Monto</th><th>Vencimiento</th><th>Estado</th><th class="adminOnly">Acción</th></tr>
@@ -1184,7 +1187,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
 </section>
 
 <section id="pagos">
-  <h2>Pagos</h2>
+  <h2>💳 Pagos</h2>
 
   <button class="adminOnly" style="margin-top:12px" onclick="verTotalPagado()">
     💰 Ver total pagado
@@ -1201,6 +1204,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
   </div>
 
   <div class="card adminOnly" style="margin-top:14px">
+    <h3>💳 Registrar pago</h3>
     <div class="form">
       <div><label>Cuota</label><select id="pCuota"></select></div>
       <div><label>Monto</label><input id="pMonto" type="number" step=".01"></div>
@@ -1220,6 +1224,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
   </div>
 
   <div class="card table" style="margin-top:14px">
+    <h3>📋 Historial de pagos</h3>
     <table>
       <thead>
         <tr><th>Fecha</th><th>Casa</th><th>Monto</th><th>Método</th><th>Referencia</th><th class="adminOnly">Acciones</th></tr>
