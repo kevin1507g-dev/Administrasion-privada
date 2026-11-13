@@ -194,6 +194,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <link rel="stylesheet" href="./pendientes-residente.css?v=1" />
 <link rel="stylesheet" href="./panel-organizado.css?v=2" />
 <link rel="stylesheet" href="./cuotas-secciones.css?v=1" />
+<link rel="stylesheet" href="./actualizar-cuadros.css?v=1" />
 <style>
 /* Lista de perfiles: solo nombre, casa y rol según tipo de usuario. */
 #profilesRows tr.perfil-residente td:nth-child(-n+3),
@@ -3646,6 +3647,10 @@ async function loadAll(){
  if(ga.error && isAdminProfileRole(profile.rol)) console.warn('Gastos:',ga.error);
  if(mp.error && ['owner','admin','residente'].includes(profile.rol)) console.warn('Métodos de pago:',mp.error);
  render();
+ // Sólo informativo para el botón Actualizar; no altera los datos ni la lógica existente.
+ const consultas=[ca,pr,cu,pa,vi,ac,ev,ct,ga,mp,av,rp,inc,im,ia,en,cs,cm,nt,nl,pk,rs,dc,em];
+ const fallos=consultas.filter(item=>item?.error).length;
+ return {ok:fallos===0,consultas:consultas.length,fallos};
 }
 
 function pname(id){return profiles.find(x=>x.id===id)?.nombre||''}
@@ -8146,6 +8151,7 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualizar
 <script src="./biometrico.js?v=1"></script>
 <script src="./solicitudes-unificadas.js?v=1"></script>
 <script src="./cuotas-secciones.js?v=1"></script>
+<script src="./actualizar-cuadros.js?v=1"></script>
 <script src="./asistente-ia.js?v=13"></script>
 <script src="./pendientes-residente.js?v=3"></script>
 <script src="./aviso-cuotas-residente.js?v=1"></script>
