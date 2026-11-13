@@ -12,16 +12,18 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)){
  if(m[1].trim())new Function(m[1]);
 }
 assert.match(html,/<section id="solicitudes" class="residentAdminOnly">/);
-assert.match(html,/solicitudes-unificadas\.js\?v=1/);
+assert.match(html,/solicitudes-unificadas\.js\?v=2/);
 assert.match(html,/solicitudes-unificadas\.css\?v=1/);
 assert.match(html,/window\.solicitudesUnificadasAbrir\?\.\(\)/);
 assert.match(hub,/roles\[id\]\.includes\(rol\)/);
 assert.match(hub,/ownerPanelMode!=="owner"/);
 assert.match(hub,/rolesCard\.classList\.toggle\("hidden"/);
-for(const id of ['registros','reservaciones','permanentes','huellas','entradas','comunicacion','empresas']){
+for(const id of ['registros','cuotas','reservaciones','permanentes','huellas','entradas','comunicacion','empresas']){
  assert.ok(hub.includes(id+':['),id+' debe ser una categoría');
 }
 assert.ok(html.includes('id="solicitudesRows"'),'el listado original de registros debe permanecer en la sección');
+assert.ok(html.includes('id="solicitudesBajaCuotasRows"'));
+assert.match(hub,/move\("cuotas",document\.getElementById\("solicitudesBajaCuotasCard"\)\)/);
 for(const id of ['reservasRows','vpPermanentAdminList','vpPermanentList',
  'bioAdminSolicitudes','bioMisSolicitudes','entregasPendientes','contactoSolicitudesEntrantes',
  'contactoChatPanel','ownerChatEspecialListaCard','ownerEmpresasReparto','ownerRolesRows']){
