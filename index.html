@@ -574,6 +574,15 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
 <h3>👥 Registros de residentes pendientes</h3>
 <p class="muted">Las aprobaciones y rechazos de cuentas corresponden únicamente a Sistema Admin. Los administradores pueden consultar el estado.</p>
 <div class="table solicitudesResponsive"><table><thead><tr><th>Nombre</th><th>Unidad</th><th>Correo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="solicitudesRows"></tbody></table></div>
+</div>
+<div id="solicitudesBajaCuotasCard" class="card adminOnly">
+ <h3>🧾 Solicitudes de eliminación de cuotas</h3>
+ <p class="muted">Los administradores pueden solicitar eliminar una cuota, pero únicamente Sistema Admin puede aprobar o rechazar. Si existen pagos o movimientos externos, la cuota se archivará para conservar el historial.</p>
+ <div class="table solicitudesResponsive">
+  <table><thead><tr>
+   <th>Casa</th><th>Concepto</th><th>Monto</th><th>Vencimiento</th><th>Motivo</th><th>Solicitada</th><th>Estado</th><th>Autorización</th>
+  </tr></thead><tbody id="solicitudesBajaCuotasRows"><tr><td colspan="8">Abre esta categoría para consultar las solicitudes.</td></tr></tbody></table>
+ </div>
 </div></section>
 
 <section id="deudas" class="adminOnly"><h2>💰 Deuda total</h2>
@@ -3225,6 +3234,8 @@ function destinoPorTipoNotificacion(tipo){
     cuota_vence_manana:'cuotas',
     cuota_vencida:'cuotas',
     pago_registrado:'pagos',
+    solicitud_eliminacion_cuota:'solicitudes',
+    eliminacion_cuota_resuelta:'solicitudes',
     paquete_recibido:'paqueteria',
     paquete_entregado:'paqueteria',
     visita_registrada:'visitas',
@@ -3270,6 +3281,11 @@ function destinoPorTipoNotificacion(tipo){
 function abrirDestinoNotificacion(destino,referencia,tipo){
   let seccion=destino||(['disciplina','disciplina_aclaracion','disciplina_respuesta'].includes(tipo)?'disciplina':destinoPorTipoNotificacion(tipo));
   if(profile?.rol==='residente'&&(tipo==='entrega_entrada'||String(tipo||'').startsWith('contacto_residente_')))seccion='solicitudes';
+  if(['solicitud_eliminacion_cuota','eliminacion_cuota_resuelta'].includes(tipo)){
+    show('solicitudes');
+    window.solicitudesUnificadasAbrir?.('cuotas');
+    return;
+  }
 
   // La revisión de 2 minutos es una conversación de Sistema Admin, NO
   // una apertura física ni una notificación genérica del panel Entregas.
@@ -3947,34 +3963,6 @@ function renderCuotasArchivadas(){
  '</td><td>'+esc(q.estado||'')+'</td><td><button type="button" onclick="archivarCuota('+Number(q.id)+',false)">↩️ Restaurar</button></td></tr>'
  ).join('')||'<tr><td colspan="5">No hay cuotas archivadas.</td></tr>';
 }
-async function eliminarCuota(id){
-  if(profile?.rol!=='owner')return alert('Solo Sistema Admin puede modificar o eliminar registros.');
- if(!isAdminProfileRole(profile?.rol))return;
- const cuota=cuotas.find(q=>String(q.id)===String(id));
- if(!cuota)return alert('No se encontró la cuota.');
- const tienePagos=pagos.some(p=>String(p.cuota_id)===String(id));
- const residente='Casa '+(casaNumero(casaIdDeRegistro(cuota))||'');
- const concepto=cuota.concepto||'Cuota';
- if(tienePagos){
-  if(!confirm('Esta cuota ya tiene pagos registrados.\n\n'+residente+'\n'+concepto+
-   ' · '+money(cuota.monto)+'\n\nPara conservar los comprobantes, se archivará en vez de eliminarla. ¿Continuar?'))return;
-  return archivarCuota(id,true);
- }
- if(!confirm('¿Eliminar esta cuota?\n\n'+residente+'\n'+concepto+' · '+money(cuota.monto)+
-    '\n\nSolo se permite borrar cuotas sin pagos ni referencias externas activas.'))return;
- const {error}=await sb.from('cuotas').delete().eq('id',id);
- if(error){
-   if(error.code==='23503'||String(error.message||'').includes('intents_cuota_id_fkey')){
-      const aceptado=confirm('Esta cuota está relacionada con un cobro externo antiguo.\\n\\n¿QUITARLA DE LA LISTA aunque su enlace anterior pudiera seguir activo?\\n\\nSe conservará internamente la cuota y su historial para poder reconocer pagos que lleguen después. No se cancela automáticamente el enlace.');
-      if(aceptado)return archivarCuota(id,true);
-      return;
-   }
-   return alert('No se pudo eliminar la cuota: '+error.message);
- }
- await loadAll();
- alert('✅ Cuota sin pagos eliminada correctamente.');
-}
-
 function fechaHora(v){
  if(!v) return '';
  try{return new Date(v).toLocaleString('es-MX')}catch(_){return String(v)}
@@ -6325,7 +6313,7 @@ function render(){
       : 'Sin adelanto registrado';
   }
 
-  cuotasRows.innerHTML=cuotas.map(x=>'<tr><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td>'+esc(x.concepto)+'</td><td>'+money(x.monto)+'</td><td>'+esc(x.vencimiento)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td><td class="adminOnly">'+(isAdminProfileRole(profile?.rol)?'<button onclick="editarVencimientoCuota('+x.id+', \''+esc(x.vencimiento||'')+'\')">Editar vencimiento</button> <button class="danger" onclick="eliminarCuota('+x.id+')">'+(pagos.some(p=>String(p.cuota_id)===String(x.id))?'📦 Archivar':'🗑️ Eliminar')+'</button>':'')+'</td></tr>').join('');
+  cuotasRows.innerHTML=cuotas.map(x=>'<tr><td><strong>Casa '+esc(casaNumero(casaIdDeRegistro(x)))+'</strong></td><td>'+esc(x.concepto)+'</td><td>'+money(x.monto)+'</td><td>'+esc(x.vencimiento)+'</td><td><span class="badge">'+esc(x.estado)+'</span></td><td class="adminOnly">'+(isAdminProfileRole(profile?.rol)?'<button onclick="editarVencimientoCuota('+x.id+', \''+esc(x.vencimiento||'')+'\')">Editar vencimiento</button> <button class="primary mini" type="button" onclick="solicitarBajaCuota('+Number(x.id)+')">📝 Solicitar eliminación</button>':'')+'</td></tr>').join('');
   const previouslySelectedQuota=pCuota.value;
   pCuota.innerHTML=cuotas.filter(x=>x.estado!=='pagada').map(x=>{
     const pagado=pagos.filter(p=>String(p.cuota_id)===String(x.id)).reduce((total,p)=>total+Number(p.monto||0),0);
@@ -8148,9 +8136,10 @@ async function actualizarVistaActiva(){
 </script>
 <script src="./disciplina.js?v=11"></script>
 <script src="./biometrico.js?v=1"></script>
-<script src="./solicitudes-unificadas.js?v=1"></script>
+<script src="./solicitudes-unificadas.js?v=2"></script>
+<script src="./solicitudes-baja-cuotas.js?v=1"></script>
 <script src="./cuotas-secciones.js?v=1"></script>
-<script src="./actualizar-cuadros.js?v=2"></script>
+<script src="./actualizar-cuadros.js?v=3"></script>
 <script src="./asistente-ia.js?v=13"></script>
 <script src="./pendientes-residente.js?v=3"></script>
 <script src="./aviso-cuotas-residente.js?v=1"></script>
