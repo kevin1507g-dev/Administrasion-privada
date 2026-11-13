@@ -192,6 +192,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <link rel="stylesheet" href="./chat-destinos.css?v=2" />
 <link rel="stylesheet" href="./aviso-cuotas-residente.css?v=1" />
 <link rel="stylesheet" href="./pendientes-residente.css?v=1" />
+<link rel="stylesheet" href="./panel-organizado.css?v=1" />
 <style>
 /* Lista de perfiles: solo nombre, casa y rol según tipo de usuario. */
 #profilesRows tr.perfil-residente td:nth-child(-n+3),
@@ -353,7 +354,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
   <div class="heroActions">
     <button class="primary controlAccessOnly" onclick="show('controlDigital')">🚪 Control digital</button>
     <button class="residentOnly" onclick="show('visitas')">🔑 Registrar visita y generar código</button>
-    <button class="residentOnly" onclick="show('entregas')">🛵 Responder a repartidores y visitas</button>
+    <button class="residentOnly" onclick="solicitudesIr('entradas')">🛵 Responder a repartidores y visitas</button>
     <button class="residentAdminOnly" onclick="show('notificaciones')">🔔 Ver avisos</button>
   </div>
 </div>
@@ -657,7 +658,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
         <span aria-hidden="true">🚗</span><span>Portón</span>
       </button>
     </div>
-    <button type="button" class="residentOnly" style="margin-top:14px" onclick="show('biometrico')">🖐️ Solicitar registro de mis huellas</button>
+    <button type="button" class="residentOnly" style="margin-top:14px" onclick="solicitudesIr('huellas')">🖐️ Solicitar registro de mis huellas</button>
   </div>
   <div class="card" style="margin-top:14px">
     <h3>🚛 Apertura a camión de basura</h3>
