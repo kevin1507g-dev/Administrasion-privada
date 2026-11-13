@@ -21,7 +21,8 @@ assert.match(hub,/rolesCard\.classList\.toggle\("hidden"/);
 for(const id of ['registros','reservaciones','permanentes','huellas','entradas','comunicacion','empresas']){
  assert.ok(hub.includes(id+':['),id+' debe ser una categoría');
 }
-for(const id of ['solicitudesRows','reservasRows','vpPermanentAdminList','vpPermanentList',
+assert.ok(html.includes('id="solicitudesRows"'),'el listado original de registros debe permanecer en la sección');
+for(const id of ['reservasRows','vpPermanentAdminList','vpPermanentList',
  'bioAdminSolicitudes','bioMisSolicitudes','entregasPendientes','contactoSolicitudesEntrantes',
  'contactoChatPanel','ownerChatEspecialListaCard','ownerEmpresasReparto','ownerRolesRows']){
  assert.ok(hub.includes(id),id+' debe trasladarse sin duplicarse');
