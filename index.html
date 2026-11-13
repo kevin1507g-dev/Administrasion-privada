@@ -3310,6 +3310,11 @@ function abrirDestinoNotificacion(destino,referencia,tipo){
   }
 
   if(document.getElementById(seccion))show(seccion);
+  if(seccion==='solicitudes'){
+    const tab=tipo==='entrega_entrada'?'entradas':
+      String(tipo||'').startsWith('contacto_residente_')?'comunicacion':null;
+    if(tab)window.solicitudesUnificadasAbrir?.(tab);
+  }
 
   if((seccion==='comunicacion'||seccion==='solicitudes') && referencia){
     const partes=String(referencia).split(':');
