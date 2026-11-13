@@ -214,7 +214,8 @@
    }
    case "solicitudes":{
     const tab=document.querySelector("#solicitudes .su-panel:not([hidden])")?.id||"";
-    if(tab.endsWith("-huellas")&&residentStaff())await cargarSolicitudesHuellas();
+    if(tab.endsWith("-cuotas")&&staff())await window.cargarSolicitudesBajaCuotas?.();
+    else if(tab.endsWith("-huellas")&&residentStaff())await cargarSolicitudesHuellas();
     else if(tab.endsWith("-permanentes")&&residentStaff())await cargarCodigosPermanentes();
     else if(tab.endsWith("-entradas")){
      if(profile?.rol==="residente")await actualizarSolicitudesEntrega();
