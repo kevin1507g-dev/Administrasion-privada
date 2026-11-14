@@ -305,6 +305,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
 <button class="ownerOnly hidden" onclick="show('ownerPanel')">👑 Panel Sistema Admin</button>
 <button class="residentAdminOnly" onclick="show('solicitudes')">📝 Solicitudes y permisos <span id="solicitudesMenuCount" class="badge" hidden>0</span></button>
 <button class="adminOnly" onclick="show('casas')">🏠 Casas</button>
+<button class="adminOnly" type="button" onclick="abrirAgregarCasa()">➕ Agregar casa</button>
 <button class="adminOnly" onclick="show('deudas')">💰 Deuda total</button>
 <button class="controlAccessOnly" onclick="show('porton')">🚧 Controles de portón</button>
 <button class="controlAccessOnly" onclick="show('controlDigital')">📲 Control digital</button>
@@ -550,8 +551,21 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
 </section>
 
 <section id="casas" class="adminOnly"><h2>🏠 Casas</h2>
-<div class="card"><h3>Agregar casa</h3><div class="form"><div><label>Número / Unidad</label><input id="casaNumeroInput" placeholder="Ej. 24"></div><div><label>Nombre (opcional)</label><input id="casaNombre" placeholder="Ej. Casa esquina"></div></div><button class="primary" style="margin-top:12px" onclick="addCasa()">➕ Agregar casa</button></div>
 <div class="card table" style="margin-top:14px"><h3>🏘️ Casas registradas</h3><table><thead><tr><th>Casa</th><th>Nombre</th><th>Residentes</th><th>Pagado hasta</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="casasRows"></tbody></table></div></section>
+<dialog id="agregarCasaDialog" class="casaNombreDialog" aria-labelledby="agregarCasaTitulo">
+  <form id="agregarCasaForm" onsubmit="event.preventDefault();addCasa()">
+    <h3 id="agregarCasaTitulo">➕ Agregar casa</h3>
+    <p class="muted">Esta opción está disponible desde el menú de administración.</p>
+    <label for="casaNumeroInput">Número / Unidad</label>
+    <input id="casaNumeroInput" type="text" placeholder="Ej. 40" required autocomplete="off">
+    <label for="casaNombre">Nombre (opcional)</label>
+    <input id="casaNombre" type="text" placeholder="Ej. Casa esquina" autocomplete="off">
+    <div class="actions" style="margin-top:16px">
+      <button type="button" onclick="cerrarAgregarCasa()">Cancelar</button>
+      <button id="confirmarAgregarCasa" class="primary" type="submit">➕ Agregar casa</button>
+    </div>
+  </form>
+</dialog>
 
 <dialog id="editarNombreCasaDialog" class="casaNombreDialog" aria-labelledby="editarNombreCasaTitulo">
   <form id="editarNombreCasaForm" onsubmit="guardarNombreCasa(event)">
@@ -7022,9 +7036,40 @@ async function quitarPagadoHasta(){
   alert('Fecha eliminada correctamente.');
 }
 
+let agregandoCasa=false;
+function abrirAgregarCasa(){
+ if(!isAdminProfileRole(profile?.rol))return;
+ show('casas');
+ const dialog=document.getElementById('agregarCasaDialog');
+ if(!dialog)return;
+ if(!dialog.open)dialog.showModal();
+ document.getElementById('casaNumeroInput')?.focus();
+}
+function cerrarAgregarCasa(){
+ if(agregandoCasa)return;
+ document.getElementById('agregarCasaDialog')?.close();
+}
 async function addCasa(){
- if(!isAdminProfileRole(profile?.rol))return;const numero=document.getElementById('casaNumeroInput').value.trim(),nombre=document.getElementById('casaNombre').value.trim()||null;if(!numero)return alert('Escribe el número de la casa.');
- const {error}=await sb.from('casas').insert({numero,nombre,activo:true});if(error)return alert('No se pudo crear la casa: '+error.message);document.getElementById('casaNumeroInput').value='';document.getElementById('casaNombre').value='';await loadAll();
+ if(!isAdminProfileRole(profile?.rol)||agregandoCasa)return;
+ const numero=document.getElementById('casaNumeroInput')?.value.trim()||'';
+ const nombre=document.getElementById('casaNombre')?.value.trim()||null;
+ if(!numero)return alert('Escribe el número de la casa.');
+ const boton=document.getElementById('confirmarAgregarCasa');
+ agregandoCasa=true;
+ if(boton){boton.disabled=true;boton.textContent='Guardando…';}
+ try{
+  const {error}=await sb.from('casas').insert({numero,nombre,activo:true});
+  if(error)throw error;
+  document.getElementById('casaNumeroInput').value='';
+  document.getElementById('casaNombre').value='';
+  document.getElementById('agregarCasaDialog')?.close();
+  await loadAll();
+ }catch(error){
+  alert('No se pudo crear la casa: '+(error?.message||String(error)));
+ }finally{
+  agregandoCasa=false;
+  if(boton){boton.disabled=false;boton.textContent='➕ Agregar casa';}
+ }
 }
 let casaNombreGuardando=false;
 
