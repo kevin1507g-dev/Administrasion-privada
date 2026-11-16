@@ -25,7 +25,7 @@ for(const id of ['iaConocimientoForm','iaConocimientoTitulo','iaConocimientoTipo
 }
 assert.match(client,/profile\?\.rol!=="owner"/);
 assert.match(client,/async function importFile/);
-assert.match(client,/\.txt\|md/);
+assert.ok(client.includes("(txt|md)"),"Importación de archivos .txt y .md");
 assert.match(client,/window\.cargarConocimientosIA=async function/);
 assert.match(client,/sb\.from\("ia_conocimientos"\)/);
 assert.match(client,/Guardar conocimiento/);
