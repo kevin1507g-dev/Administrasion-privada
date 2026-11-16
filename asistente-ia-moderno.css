@@ -1,0 +1,391 @@
+/* Diseño IA 2026 | Capa visual sobre asistente-ia.css.
+ * No cambia la lógica, funciones ni controles de seguridad.
+ * Todas las reglas se limitan al asistente, sin alterar el resto de la app.
+ */
+.ia-root{
+ --ia-bg:#08151b;--ia-surface:#10272e;--ia-card:#18323b;
+ --ia-line:#31545a;--ia-ink:#f2fbf8;--ia-muted:#b2c8c9;
+ --ia-accent:#41e5bf;--ia-accent-strong:#00ac8c;
+ color-scheme:dark;
+}
+.ia-root .ia-launch{
+ width:82px!important;min-height:62px!important;
+ border-radius:22px!important;
+ background:linear-gradient(128deg,#037c68 3%,#0dbf9a 58%,#0b796e 100%)!important;
+ border:1px solid rgba(170,255,233,.76)!important;
+ box-shadow:0 8px 27px rgba(0,9,15,.46),inset 0 1px 0 rgba(255,255,255,.22),0 0 0 4px rgba(15,184,143,.10)!important;
+ font-size:17px!important;letter-spacing:.25px!important;font-weight:850!important;
+ color:#fff!important;
+ isolation:isolate;
+}
+.ia-root .ia-launch:hover:not(:disabled){
+ filter:brightness(1.08);box-shadow:0 11px 31px rgba(0,9,15,.5),0 0 0 5px rgba(26,217,170,.17)!important;
+}
+.ia-root .ia-launch:focus-visible,
+.ia-root button:focus-visible,
+.ia-root select:focus-visible,
+.ia-root textarea:focus-visible,
+.ia-root input:focus-visible{
+ outline:3px solid #65ffe1!important;outline-offset:2px!important;
+}
+.ia-root .ia-panel{
+ width:min(478px,calc(100vw - 34px))!important;
+ height:min(760px,calc(100dvh - 112px))!important;
+ border-radius:26px!important;
+ border:1px solid rgba(103,189,174,.45)!important;
+ background:#081820!important;
+ box-shadow:0 22px 85px rgba(0,10,15,.72),0 0 0 1px rgba(255,255,255,.045) inset!important;
+ overflow:hidden!important;
+}
+.ia-root .ia-head{
+ min-height:86px!important;padding:16px 19px!important;
+ background:radial-gradient(ellipse 270px 115px at 86% -28%,rgba(72,236,181,.20),transparent 90%),
+ linear-gradient(118deg,#0d3f3c 0%,#09584b 52%,#0c554a 100%)!important;
+ border-bottom:1px solid rgba(126,231,202,.22)!important;
+ position:relative;isolation:isolate;
+}
+.ia-root .ia-head:after{
+ content:"";pointer-events:none;position:absolute;
+ inset:0;z-index:-1;
+ background:linear-gradient(110deg,transparent 52%,rgba(255,255,255,.035));
+}
+.ia-root .ia-brand{gap:12px!important;min-width:0!important;}
+.ia-root .ia-avatar{
+ width:46px!important;height:46px!important;flex:0 0 46px!important;
+ border-radius:16px!important;
+ border:1px solid rgba(192,255,231,.36)!important;
+ background:radial-gradient(circle at 32% 26%,rgba(232,255,241,.34),transparent 65%),rgba(11,31,36,.34)!important;
+ box-shadow:0 7px 22px #001e244a,inset 0 1px 0 #ffffff24!important;
+ font-size:27px!important;color:#d4fff1!important;
+}
+.ia-root .ia-brand-copy{min-width:0;gap:4px!important}
+.ia-root .ia-head-title{
+ font-size:16px!important;line-height:1.3!important;
+ font-weight:800!important;letter-spacing:-.25px!important;
+ color:#f7fffc!important;
+}
+.ia-root .ia-head-subtitle{
+ color:#d0f4e8!important;font-size:11px!important;
+ letter-spacing:.15px!important;font-weight:650!important;
+}
+.ia-root .ia-close{
+ height:41px!important;width:41px!important;flex:0 0 41px!important;
+ border-radius:14px!important;
+ background:rgba(255,255,255,.115)!important;
+ border:1px solid rgba(255,255,255,.22)!important;
+ font-size:26px!important;color:#fff!important;
+}
+.ia-root .ia-close:hover{background:rgba(255,255,255,.21)!important;}
+.ia-root .ia-tabs{
+ display:grid!important;
+ grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ gap:5px!important;margin:0!important;
+ padding:12px 14px 9px!important;
+ border-bottom:1px solid rgba(72,124,124,.17)!important;
+ background:linear-gradient(180deg,#0e252d,#0b1e26)!important;
+}
+.ia-root .ia-tabs.ia-tabs-three{
+ grid-template-columns:repeat(3,minmax(0,1fr))!important;
+}
+.ia-root .ia-tabs .ia-tab{
+ min-height:44px!important;min-width:0!important;
+ border-radius:12px!important;border:1px solid transparent!important;
+ background:transparent!important;
+ color:#bbd1ce!important;
+ padding:10px 8px!important;white-space:nowrap!important;
+ font-size:13px!important;font-weight:700!important;
+ letter-spacing:-.1px!important;
+ transition:background .16s ease,color .16s ease,border-color .16s ease!important;
+}
+.ia-root .ia-tabs .ia-tab:hover:not([aria-selected="true"]){
+ background:#1b3b42!important;color:#effdfa!important;
+}
+.ia-root .ia-tabs .ia-tab[aria-selected="true"]{
+ background:linear-gradient(145deg,#176454,#0f8b71)!important;
+ border:1px solid rgba(72,222,177,.48)!important;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.11),0 3px 12px #001a183d!important;
+ color:#fff!important;
+}
+.ia-root .ia-top-controls{
+ padding:10px 14px 7px!important;
+ grid-template-columns:minmax(0,1fr) repeat(3,42px)!important;
+ column-gap:8px!important;
+ background:#0b1e26!important;
+}
+.ia-root .ia-top-controls select{
+ height:42px!important;padding:7px 24px 7px 12px!important;
+ border:1px solid #355760!important;border-radius:13px!important;
+ background:#16323c!important;color:#f2fbf7!important;
+ font-size:12px!important;font-weight:600!important;
+}
+.ia-root .ia-top-controls button{
+ width:42px!important;min-width:42px!important;height:42px!important;
+ padding:0!important;display:grid!important;place-items:center;
+ border-radius:13px!important;
+ background:#1a3940!important;border:1px solid #386368!important;
+ color:#f1fff9!important;font-size:19px!important;
+}
+.ia-root .ia-top-controls button:hover:not(:disabled){
+ background:#245650!important;border-color:#66b9a5!important;
+}
+.ia-root .ia-status{
+ display:block!important;margin:0!important;
+ padding:5px 16px 11px!important;min-height:28px!important;
+ background:#0b1e26!important;
+ color:#bcd6ce!important;font-size:11px!important;
+ font-weight:500!important;letter-spacing:.1px!important;
+}
+.ia-root .ia-status::before{
+ width:6px!important;height:6px!important;
+ margin-right:8px!important;
+ background:#51f1bd!important;
+ box-shadow:0 0 0 3px rgba(52,212,165,.11)!important;
+}
+.ia-root .ia-messages{
+ gap:14px!important;padding:20px 15px 22px!important;
+ background:
+ radial-gradient(circle at 85% 8%,rgba(31,124,117,.13),transparent 41%),
+ radial-gradient(circle at 4% 94%,rgba(15,92,117,.13),transparent 40%),
+ linear-gradient(180deg,#0b2028 0%,#0b1b23 100%)!important;
+ scrollbar-color:#3c7672 transparent!important;
+}
+.ia-root .ia-message{
+ width:fit-content!important;max-width:90%!important;
+ border-radius:18px!important;padding:13px 15px!important;
+ gap:10px!important;line-height:1.56!important;
+ font-size:14px!important;
+ box-shadow:0 5px 18px rgba(0,9,12,.13)!important;
+}
+.ia-root .ia-assistant{
+ background:linear-gradient(155deg,#1c3a43,#162e38)!important;
+ color:#f3fbf8!important;
+ border:1px solid rgba(104,164,162,.32)!important;
+ border-bottom-left-radius:5px!important;
+ align-self:flex-start!important;
+}
+.ia-root .ia-user{
+ max-width:85%!important;
+ background:linear-gradient(135deg,#137d67,#0c6b5b)!important;
+ border:1px solid rgba(102,233,189,.36)!important;
+ color:#fff!important;border-bottom-right-radius:5px!important;
+ align-self:flex-end!important;
+}
+.ia-root .ia-message-text{line-height:1.58!important;letter-spacing:.03px!important;}
+.ia-root .ia-thinking{
+ border-radius:17px 17px 17px 5px!important;
+ border:1px solid #315b60!important;
+ background:#163038!important;
+ padding:11px 16px!important;
+}
+.ia-root .ia-thinking span{background:#43e6b9!important;}
+/* Bienvenida dentro del historial vacío */
+.ia-root .ia-welcome{
+ align-self:stretch;max-width:100%;
+ padding:4px 1px 5px;
+ display:flex;align-items:flex-start;gap:10px;
+}
+.ia-root .ia-welcome-icon{
+ display:grid;place-items:center;flex:0 0 38px;
+ width:38px;height:38px;border-radius:13px;
+ border:1px solid rgba(96,233,195,.45);
+ background:linear-gradient(145deg,#125246,#127767);
+ color:#d7fff0;font-size:21px;
+}
+.ia-root .ia-welcome-text{min-width:0;flex:1;}
+.ia-root .ia-welcome-title{margin:0 0 3px!important;font-size:17px!important;font-weight:800!important;color:#f2fffa!important;}
+.ia-root .ia-welcome-description{margin:0!important;line-height:1.5!important;color:#b8d1cc!important;font-size:12px!important;}
+.ia-root .ia-starters{
+ align-self:stretch!important;max-width:100%;
+ display:grid!important;
+ grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ gap:9px!important;margin:2px 0 0!important;
+}
+.ia-root .ia-starters-heading{
+ grid-column:1/-1;
+ font-size:12px;font-weight:700;
+ letter-spacing:.3px;color:#b8d8d1;
+ margin:0 0 1px;
+}
+.ia-root .ia-starters button{
+ text-align:left!important;display:flex!important;
+ align-items:center;justify-content:flex-start;
+ width:100%!important;min-width:0!important;
+ min-height:52px!important;
+ border:1px solid rgba(71,141,132,.47)!important;
+ border-radius:15px!important;
+ padding:11px 12px!important;
+ background:linear-gradient(145deg,#13343b,#17323a)!important;
+ color:#e5faf2!important;
+ box-shadow:0 2px 8px rgba(1,16,18,.16)!important;
+ font-weight:650!important;font-size:12px!important;
+ line-height:1.36!important;white-space:normal!important;
+}
+.ia-root .ia-starters button:hover{
+ background:#1d4b47!important;border-color:#43c9a7!important;
+}
+.ia-root .ia-compose{
+ padding:12px 14px calc(13px + env(safe-area-inset-bottom,0px))!important;
+ gap:10px!important;
+ background:linear-gradient(180deg,#102a32,#0b2028)!important;
+ border-top:1px solid rgba(106,173,165,.29)!important;
+ box-shadow:0 -9px 28px rgba(0,0,0,.13)!important;
+}
+.ia-root .ia-compose textarea{
+ min-height:53px!important;max-height:110px!important;
+ border:1px solid #527b7a!important;
+ border-radius:15px!important;
+ padding:13px 14px!important;
+ background:#eaf3ef!important;
+ color:#1a3337!important;
+ box-shadow:0 2px 8px #00141728 inset!important;
+ font-size:16px!important;line-height:1.45!important;
+}
+.ia-root .ia-compose textarea:focus{
+ border-color:#5ce9bf!important;box-shadow:0 0 0 3px #36d5aa3b!important;
+}
+.ia-root .ia-actions{gap:9px!important;align-items:center!important;}
+.ia-root .ia-actions button{
+ min-width:44px!important;min-height:44px!important;
+ border:1px solid #44736f!important;
+ border-radius:13px!important;background:#204248!important;
+ font-size:17px!important;color:#f5fffb!important;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.07)!important;
+}
+.ia-root .ia-actions button:hover:not(:disabled){
+ background:#275f59!important;border-color:#62b9a5!important;
+}
+.ia-root .ia-actions .ia-send{
+ min-width:112px!important;min-height:44px!important;
+ border:1px solid #51e3bc!important;
+ background:linear-gradient(140deg,#0daf8b,#0d947b)!important;
+ border-radius:14px!important;
+ font-size:14px!important;font-weight:800!important;
+ box-shadow:0 5px 14px rgba(0,146,116,.18)!important;
+}
+.ia-root .ia-actions .ia-send:hover:not(:disabled){
+ background:linear-gradient(140deg,#10bd96,#099982)!important;
+}
+.ia-root .ia-actions button:disabled{opacity:.49!important;cursor:wait!important;}
+.ia-root .ia-table-wrap{border-radius:12px!important;border-color:#467477!important;}
+.ia-root .ia-table-wrap th{background:#215551!important;}
+.ia-root .ia-confirm{
+ border-top:1px solid #54857e!important;margin-top:5px;padding-top:12px!important;
+}
+.ia-root .ia-confirm button{
+ border:1px solid #477e75!important;min-height:43px!important;
+ border-radius:12px!important;
+}
+.ia-root .ia-reserva-wizard{
+ background:#15373c!important;border:1px solid #477d76!important;border-radius:16px!important;
+}
+.ia-root .ia-reserva-field input,.ia-root .ia-reserva-field select{
+ background:#112d37!important;border-color:#60817f!important;border-radius:12px!important;
+}
+.ia-root .ia-chat-host,.ia-root .ia-special-host{
+ background:linear-gradient(180deg,#0b1e26,#081b23)!important;
+}
+.ia-root .ia-chat-host{padding:10px 12px 13px!important;}
+.ia-root .ia-chat-host .chatPanel.ia-embedded-chat{
+ border:1px solid #42716a!important;border-radius:18px!important;
+ box-shadow:0 9px 25px #0002!important;
+}
+.ia-root .ia-chat-host .chatHeader{
+ background:linear-gradient(110deg,#145c50,#186b5a)!important;
+ border-bottom-color:#467b73!important;
+}
+.ia-root .ia-chat-host .chatBody{background:#0d242c!important;}
+.ia-root .ia-chat-host .chatBubble{
+ border-radius:15px!important;background:#243e48!important;box-shadow:0 2px 10px #00131635!important;
+}
+.ia-root .ia-chat-host .chatMsg.mine .chatBubble{background:#107862!important;}
+.ia-root .ia-chat-host .chatCompose{background:#102a33!important;}
+.ia-root .ia-chat-host .chatCompose textarea{border-radius:13px!important;}
+.ia-root .ia-chat-host .chatCompose button{
+ background:linear-gradient(140deg,#10b18d,#0d9378)!important;
+ border-radius:12px!important;font-weight:750!important;
+}
+.ia-root .ia-special-list-wrap,.ia-root .ia-special-conversation{
+ padding:15px!important;gap:11px!important;
+}
+.ia-root .ia-special-header{min-height:38px!important;}
+.ia-root .ia-special-header strong{font-weight:800!important;line-height:1.4!important;}
+.ia-root .ia-special-entry{
+ border-radius:15px!important;min-height:60px!important;
+ background:linear-gradient(145deg,#17363f,#122c35)!important;
+ border:1px solid #386b67!important;padding:14px!important;
+ box-shadow:0 3px 11px #00121734!important;
+}
+.ia-root .ia-special-entry:hover{
+ background:#1b4a47!important;border-color:#59c6a6!important;
+}
+.ia-root .ia-special-messages{
+ border-radius:16px!important;border:1px solid #376b6a!important;
+ background:linear-gradient(180deg,#0c2930,#0b2029)!important;
+ padding:14px!important;gap:11px!important;
+}
+.ia-root .ia-special-bubble{border-radius:16px 16px 16px 5px!important;background:#1c3943!important;}
+.ia-root .ia-special-bubble.owner{
+ background:linear-gradient(145deg,#147862,#125c50)!important;
+ border-color:#3eb59c!important;border-radius:16px 16px 5px 16px!important;
+}
+.ia-root .ia-special-compose{border-top-color:#3c7770!important;}
+.ia-root .ia-special-compose textarea{border-radius:13px!important;}
+.ia-root .ia-special-actions button,.ia-root .ia-special-header button{
+ border-radius:12px!important;min-height:43px!important;
+ white-space:normal!important;
+}
+.ia-root .ia-special-actions .ia-special-open-btn{
+ background:#145848!important;border-color:#3ba98f!important;
+}
+/* Escritorio medio: evitar que el panel invada otros controles. */
+@media(min-width:701px) and (max-height:730px){
+ .ia-root .ia-panel{height:calc(100dvh - 104px)!important;}
+}
+/* Pantalla completa iPhone / Android: altura real del viewport con teclado. */
+@media(max-width:700px){
+ .ia-root{right:14px!important;bottom:calc(13px + env(safe-area-inset-bottom,0px))!important;}
+ .ia-root .ia-launch{width:72px!important;min-height:58px!important;border-radius:21px!important;}
+ .ia-root .ia-panel{
+  position:fixed!important;inset:0!important;
+  top:var(--ia-visual-top,0px)!important;
+  left:0!important;right:0!important;bottom:auto!important;
+  width:100vw!important;max-width:100vw!important;
+  height:var(--ia-visual-height,100dvh)!important;max-height:none!important;
+  border:0!important;border-radius:0!important;
+ }
+ .ia-root .ia-head{
+  min-height:calc(84px + env(safe-area-inset-top,0px))!important;
+  padding:calc(11px + env(safe-area-inset-top,0px)) 15px 12px!important;
+ }
+ .ia-root .ia-avatar{width:43px!important;height:43px!important;flex-basis:43px!important;}
+ .ia-root .ia-head-title{font-size:15px!important;}
+ .ia-root .ia-top-controls{padding:8px 12px 7px!important;column-gap:6px!important;grid-template-columns:minmax(0,1fr) repeat(3,41px)!important;}
+ .ia-root .ia-top-controls button{min-width:41px!important;width:41px!important;height:41px!important;}
+ .ia-root .ia-top-controls select{height:41px!important;}
+ .ia-root .ia-tabs{padding:9px 12px 8px!important;}
+ .ia-root .ia-tabs .ia-tab{min-height:43px!important;}
+ .ia-root .ia-messages{padding:17px 13px 22px!important;gap:12px!important;}
+ .ia-root .ia-message{max-width:92%!important;font-size:14px!important;}
+ .ia-root .ia-user{max-width:88%!important;}
+ .ia-root .ia-compose{padding:11px 12px calc(13px + env(safe-area-inset-bottom,0px))!important;}
+ .ia-root .ia-compose textarea{min-height:49px!important;max-height:86px!important;}
+ .ia-root .ia-special-list-wrap,.ia-root .ia-special-conversation{padding:11px!important;}
+ .ia-root .ia-chat-host{padding:7px 9px calc(11px + env(safe-area-inset-bottom,0px))!important;}
+}
+@media(max-width:375px){
+ .ia-root .ia-brand{gap:8px!important;}
+ .ia-root .ia-head{padding-left:11px!important;padding-right:11px!important;}
+ .ia-root .ia-head-title{font-size:14px!important;}
+ .ia-root .ia-avatar{width:38px!important;height:38px!important;flex-basis:38px!important;font-size:22px!important;}
+ .ia-root .ia-close{width:37px!important;height:37px!important;flex-basis:37px!important;}
+ .ia-root .ia-tabs{gap:3px!important;padding:8px 9px!important;}
+ .ia-root .ia-tabs.ia-tabs-three .ia-tab{font-size:11px!important;padding:8px 3px!important;}
+ .ia-root .ia-top-controls{grid-template-columns:minmax(0,1fr) repeat(3,38px)!important;padding:8px 9px!important;column-gap:5px!important;}
+ .ia-root .ia-top-controls button{width:38px!important;min-width:38px!important;height:40px!important;}
+ .ia-root .ia-starters{grid-template-columns:minmax(0,1fr)!important;}
+ .ia-root .ia-actions .ia-send{min-width:94px!important;}
+}
+@media(prefers-reduced-motion:reduce){
+ .ia-root .ia-launch,.ia-root .ia-tab,.ia-root button{transition:none!important;}
+ .ia-root .ia-thinking span{animation:none!important;}
+}
