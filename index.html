@@ -195,6 +195,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <link rel="stylesheet" href="./panel-organizado.css?v=2" />
 <link rel="stylesheet" href="./cuotas-secciones.css?v=1" />
 <link rel="stylesheet" href="./actualizar-cuadros.css?v=2" />
+<link rel="stylesheet" href="./centro-conocimientos-ia.css?v=1" />
 <style>
 /* Lista de perfiles: solo nombre, casa y rol según tipo de usuario. */
 #profilesRows tr.perfil-residente td:nth-child(-n+3),
@@ -303,6 +304,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
 <div class="navSectionLabel">Gestión y accesos</div>
 <button class="adminOnly" onclick="show('residentes')">👥 Residentes</button>
 <button class="ownerOnly hidden" onclick="show('ownerPanel')">👑 Panel Sistema Admin</button>
+<button type="button" class="ownerOnly hidden" onclick="show('conocimientosIA')">🧠 Conocimientos de IA</button>
 <button class="residentAdminOnly" onclick="show('solicitudes')">📝 Solicitudes y permisos <span id="solicitudesMenuCount" class="badge" hidden>0</span></button>
 <button class="adminOnly" onclick="show('casas')">🏠 Casas</button>
 <button class="adminOnly" type="button" onclick="abrirAgregarCasa()">➕ Agregar casa</button>
@@ -810,6 +812,55 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       </table>
     </div>
   </div>
+</section>
+
+<section id="conocimientosIA" class="ownerOnly hidden">
+<h2>🧠 Centro de conocimientos de IA</h2>
+<p class="muted ia-kb-lead">Enseña reglas, respuestas y procedimientos oficiales al asistente. Solo Sistema Admin puede administrarlos. Cada rol consulta únicamente información publicada para él.</p>
+<div class="ia-kb-columns">
+ <div class="card">
+  <h3>➕ Enseñar algo nuevo</h3>
+  <form id="iaConocimientoForm" class="ia-kb-form" autocomplete="off">
+   <input id="iaConocimientoId" type="hidden">
+   <div><label for="iaConocimientoTipo">Tipo</label><select id="iaConocimientoTipo">
+    <option value="regla">Regla o procedimiento</option><option value="pregunta">Pregunta y respuesta</option>
+    <option value="documento">Documento de texto</option></select></div>
+   <div><label for="iaConocimientoCategoria">Categoría</label>
+    <input id="iaConocimientoCategoria" value="General" maxlength="70" required></div>
+   <div class="ia-kb-wide"><label for="iaConocimientoTitulo">Título</label>
+    <input id="iaConocimientoTitulo" maxlength="160" required placeholder="Ej. Reglamento de reservaciones"></div>
+   <div id="iaKbPreguntaWrap" class="ia-kb-wide" hidden><label for="iaConocimientoPregunta">Pregunta</label>
+    <textarea id="iaConocimientoPregunta" maxlength="500"></textarea></div>
+   <div id="iaKbRespuestaWrap" class="ia-kb-wide" hidden><label for="iaConocimientoRespuesta">Respuesta oficial</label>
+    <textarea id="iaConocimientoRespuesta" maxlength="6000"></textarea></div>
+   <div id="iaKbContenidoWrap" class="ia-kb-wide"><label for="iaConocimientoContenido">Información para la IA</label>
+    <textarea id="iaConocimientoContenido" maxlength="16000" placeholder="Escribe las reglas o instrucciones autorizadas"></textarea></div>
+   <div id="iaKbArchivoHint" class="ia-kb-wide" hidden><label for="iaConocimientoArchivo">Importar documento .txt o .md</label>
+    <input id="iaConocimientoArchivo" type="file" accept=".txt,.md,text/plain,text/markdown">
+    <small class="muted">Revisa el contenido antes de guardarlo. Para PDF o Word, copia primero el texto.</small></div>
+   <div><label for="iaConocimientoAudiencia">¿Quién puede consultarlo?</label>
+    <select id="iaConocimientoAudiencia">
+     <option value="todos">Todos los roles</option><option value="administracion">Administración y Sistema Admin</option>
+     <option value="residentes">Residentes y Sistema Admin</option><option value="sistema">Solo Sistema Admin</option>
+    </select></div>
+   <div><label for="iaConocimientoActivo" class="ia-kb-check">
+    <input id="iaConocimientoActivo" type="checkbox" checked> Publicado
+    </label><small class="muted">Desmarca para crear un borrador.</small></div>
+   <div class="ia-kb-wide ia-kb-buttons">
+    <button id="iaConocimientoGuardar" type="submit" class="primary">Guardar conocimiento</button>
+    <button id="iaConocimientoCancelar" type="button" hidden>Cancelar edición</button>
+   </div>
+   <p id="iaConocimientoEstado" class="ia-kb-wide muted" role="status" aria-live="polite"></p>
+  </form>
+ </div>
+ <div class="card">
+  <h3>📚 Biblioteca de conocimientos</h3>
+  <label for="iaConocimientoFiltro">Buscar por título o contenido</label>
+  <input id="iaConocimientoFiltro" type="search" placeholder="Buscar..." autocomplete="off">
+  <p id="iaConocimientoContador" class="muted">Sin consultar</p>
+  <div id="iaConocimientosLista" class="ia-kb-items"><p class="muted">Abre este apartado para cargar la biblioteca.</p></div>
+ </div>
+</div>
 </section>
 
 <section id="ownerPanel" class="ownerOnly hidden">
@@ -3223,6 +3274,7 @@ function show(id){
   if(id==='accesos'&&['owner','admin','residente'].includes(profile?.rol))cargarHistorialCodigosVisita();
   if(id==='entregas')actualizarSolicitudesEntrega();
   if(id==='solicitudes')window.solicitudesUnificadasAbrir?.();
+  if(id==='conocimientosIA'&&profile?.rol==='owner')window.cargarConocimientosIA?.();
 
   if(id==='camaras'){
     cargarCamara();
@@ -8186,6 +8238,7 @@ async function actualizarVistaActiva(){
 <script src="./cuotas-secciones.js?v=1"></script>
 <script src="./actualizar-cuadros.js?v=3"></script>
 <script src="./asistente-ia.js?v=13"></script>
+<script src="./centro-conocimientos-ia.js?v=1"></script>
 <script src="./pendientes-residente.js?v=3"></script>
 <script src="./aviso-cuotas-residente.js?v=1"></script>
 <script src="./acciones-menu.js?v=1"></script>
