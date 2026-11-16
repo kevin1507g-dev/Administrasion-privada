@@ -14,9 +14,9 @@ for(const script of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)){
 }
 const sections=[...html.matchAll(/<section\s+id="([^"]+)"/g)].map(x=>x[1]);
 assert.equal(sections.length,32,"todos los apartados existentes siguen visibles en el HTML");
-assert.match(html,/actualizar-cuadros\.js\?v=3/);
+assert.match(html,/actualizar-cuadros\.js\?v=4/);
 assert.match(html,/actualizar-cuadros\.css\?v=2/);
-assert.ok(html.indexOf("actualizar-cuadros.js?v=3")>html.indexOf("cuotas-secciones.js?v=1"));
+assert.ok(html.indexOf("actualizar-cuadros.js?v=4")>html.indexOf("cuotas-secciones.js?v=1"));
 assert.ok(html.indexOf("actualizar-cuadros.css?v=2")>html.indexOf("cuotas-secciones.css?v=1"));
 assert.match(css,/\.actualizar-cuadro-barra/);
 assert.match(css,/display:none!important/);
