@@ -128,7 +128,7 @@
   ui.preview.disabled=!supported()||!available.length;
   ui.save.disabled=!supported();
   const exact=available.findIndex(v=>voiceId(v)===draft.voz_id&&v.name===draft.voz_nombre);
-  ui.select.value=exact>=0?String(exact):available.length?"auto":"";
+  ui.select.value=exact>=0?String(exact):available.length?(draft.voz_perfil==="todas"?"auto":"0"):"";
   if(prev&&ui.select.value!==prev){} // La selección guardada tiene prioridad.
   ui.count.textContent=allVoices.length
    ?available.length+" de "+allVoices.length+" voces disponibles en español."
