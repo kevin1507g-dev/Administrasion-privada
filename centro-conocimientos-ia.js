@@ -202,7 +202,7 @@
   finally{e.target.value="";}
  }
  window.cargarConocimientosIA=async function(silent=false){
-  if(readonly()||!user||busy)return;
+  if(readonly()||!user)return;
   const actor=user.id;
   try{
    const {data,error}=await sb.from("ia_conocimientos")
