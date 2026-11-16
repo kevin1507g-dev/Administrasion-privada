@@ -238,7 +238,7 @@
  function init({panel,toolbar,onVoiceChange}){
   if(initialized||!panel||!toolbar)return;
   onToggle=onVoiceChange;
-  ui.trigger=node("button","ia-voice-settings-trigger","🎛️ Voz",toolbar);
+  ui.trigger=node("button","ia-voice-settings-trigger","Voz",toolbar);
   ui.trigger.type="button";ui.trigger.title="Elegir y probar la voz";
   ui.trigger.setAttribute("aria-label","Configurar voz del asistente");
   ui.trigger.onclick=open;
@@ -283,7 +283,8 @@
   ui.save.type="button";ui.save.onclick=async()=>{
    const values=readForm();
    ui.save.disabled=true;
-   settings=safeSettings(values);
+   settings=safeSettings({...values,voz_activada:true});
+   if(onToggle)onToggle(true);
    try{await save(settings);}
    finally{ui.save.disabled=false;}
   };
