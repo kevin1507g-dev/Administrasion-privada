@@ -61,6 +61,31 @@ function alcanceAnterior(prior){
  return {casa:casa?.[1]||"",pendientes:/pendient|aproba|huella/.test(m)||/Pendientes:|solicitudes pendientes/i.test(lastReply)};
 }
 
+
+/* Biblioteca oficial filtrada por las políticas RLS del usuario.
+   Los textos encontrados nunca son instrucciones de control. */
+function preguntaDeReglamento(message,tool,direct,intent,action){
+ if(direct||intent||action)return false;
+ if(tool==="ayuda")return true;
+ const m=String(message||"").toLowerCase().normalize("NFD")
+  .replace(/[\u0300-\u036f]/g,"").replace(/^[¿¡\s]+/,"").trim();
+ if(!/^(como|cuando|donde|cuantos|cuantas|cual|cuales|que es|que significa|que debo hacer|puedo|se puede|explica|reglamento|procedimiento|regla)\b/.test(m))
+  return false;
+ if(/\b(mi|mis|mio|saldo|debo|adeudo|tengo|casa\s*\d+)\b/.test(m))return false;
+ return !["ranking","finanzas","esp32","controles","perfil","alcance","chat","pendientes"].includes(tool);
+}
+async function responderConocimiento(ctx,message){
+ const {data,error}=await ctx.db.rpc("ia_buscar_conocimientos",{p_consulta:message,p_limite:3});
+ if(error){console.error("Consulta de biblioteca IA:",error.message);return null;}
+ if(!Array.isArray(data)||!data.length)return null;
+ const x=data[0],contenido=x.tipo==="pregunta"?x.respuesta:x.contenido;
+ if(!contenido?.trim())return null;
+ return {
+  answer:"Según la biblioteca oficial de la privada ("+corto(x.titulo,130)+"):\n\n"+corto(contenido,3300),
+  sources:[{titulo:corto(x.titulo,130),categoria:corto(x.categoria,70)}],
+  scope:"conocimiento"
+ };
+}
 async function plan(message,ctx,history,options){
  const key=Deno.env.get("OPENAI_API_KEY");
  if(!key)return {route:fallback(message),mode:"limitado_sin_modelo"};
@@ -348,8 +373,11 @@ Deno.serve(async(req)=>{
     direct?{route:{tool:direct,house:"",action:null,target_id:""},mode:"consulta_precisa"}:
     await plan(message,ctx,orderedPrior,opts);
   const {route,mode}=planned;
+  const conocimiento=preguntaDeReglamento(message,route.tool,direct,intent,route.action)
+    ?await responderConocimiento(ctx,message):null;
   const answer=intent?await reservationAssistance(ctx,intent,message):
-    route.action?await propose(ctx,route,opts):await runQuery(ctx,route.tool,route.house,orderedPrior);
+    route.action?await propose(ctx,route,opts):conocimiento||
+    await runQuery(ctx,route.tool,route.house,orderedPrior);
   if(!ctx.admin)throw Error("No está configurado el servicio de historial.");
   const {error:userErr}=await ctx.db.from("ia_mensajes").insert({conversacion_id:cid,usuario_id:ctx.uid,rol:"user",contenido:message});
   if(userErr)throw Error(userErr.message);
