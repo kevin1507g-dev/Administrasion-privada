@@ -14,7 +14,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)){
 }
 assert.match(html,/solicitudes-baja-cuotas\.js\?v=1/);
 assert.match(html,/solicitudes-unificadas\.js\?v=3/);
-assert.match(html,/actualizar-cuadros\.js\?v=3/);
+assert.match(html,/actualizar-cuadros\.js\?v=4/);
 assert.match(html,/id="solicitudesBajaCuotasRows"/);
 assert.match(html,/📝 Solicitar eliminación/);
 assert.match(html,/onclick="solicitarBajaCuota\('/);
