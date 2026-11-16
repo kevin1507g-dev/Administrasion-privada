@@ -35,3 +35,145 @@
  #conocimientosIA .ia-kb-actions{justify-content:flex-start}
  #conocimientosIA .ia-kb-buttons>button{flex:1 1 140px}
 }
+
+
+/* Refinamiento visual del Centro de conocimientos para acompañar el chat IA. */
+#conocimientosIA.active{
+ --kb-accent:#18b995;
+ row-gap:17px!important;
+}
+#conocimientosIA>h2{
+ font-size:clamp(1.35rem,2.8vw,1.85rem);
+ line-height:1.28;
+ letter-spacing:-.35px;
+ margin:0 0 2px!important;
+}
+#conocimientosIA .ia-kb-lead{
+ margin:0 0 2px!important;
+ padding:13px 17px;
+ border:1px solid var(--ui-line,#365d5b);
+ border-left:3px solid var(--kb-accent);
+ border-radius:12px;
+ background:var(--p2,#132e35);
+ color:var(--m,#bcd0cb);
+}
+#conocimientosIA .ia-kb-columns{
+ gap:clamp(13px,2vw,20px)!important;
+ align-items:start!important;
+}
+#conocimientosIA .ia-kb-columns>.card{
+ padding:clamp(16px,2.1vw,25px)!important;
+ border:1px solid var(--ui-line,#345d5a)!important;
+ border-radius:20px!important;
+ box-shadow:0 8px 26px rgba(0,17,23,.08)!important;
+ background:var(--p2,#132f36);
+}
+#conocimientosIA .ia-kb-columns>.card>h3:first-child{
+ display:flex;align-items:center;
+ min-height:37px;
+ font-size:clamp(1rem,1.8vw,1.2rem)!important;
+ line-height:1.35!important;
+ border-bottom:1px solid var(--ui-line,#3b5b59);
+ padding:0 0 14px!important;
+ margin:0 0 17px!important;
+ letter-spacing:-.2px;
+}
+#conocimientosIA .ia-kb-form{gap:14px!important;}
+#conocimientosIA .ia-kb-form label,
+#conocimientosIA .ia-kb-columns>div>label{
+ color:var(--t,#f4faf8);
+ font-weight:700;
+ font-size:.87rem;
+}
+#conocimientosIA .ia-kb-form :is(input:not([type="checkbox"]),select,textarea),
+#conocimientosIA #iaConocimientoFiltro{
+ min-height:46px!important;
+ width:100%!important;
+ border:1px solid var(--ui-line,#507b77)!important;
+ border-radius:12px!important;
+ padding:10px 13px!important;
+ line-height:1.4!important;
+ font-size:16px!important;
+ transition:border-color .16s ease,box-shadow .16s ease;
+}
+#conocimientosIA .ia-kb-form textarea{
+ min-height:122px!important;
+ padding:12px 13px!important;
+}
+#conocimientosIA .ia-kb-form :is(input,select,textarea):focus,
+#conocimientosIA #iaConocimientoFiltro:focus{
+ border-color:#20b995!important;
+ outline:2px solid rgba(24,185,149,.27)!important;
+ outline-offset:1px!important;
+}
+#conocimientosIA .ia-kb-check{
+ min-height:45px;
+ align-items:center!important;
+ gap:10px!important;
+ font-size:.94rem!important;
+}
+#conocimientosIA .ia-kb-check input{
+ width:20px!important;height:20px!important;
+ accent-color:#0eaa86;
+}
+#conocimientosIA .ia-kb-buttons{
+ margin-top:9px!important;
+ padding-top:13px;
+ border-top:1px solid var(--ui-line,#365e5c);
+}
+#conocimientosIA .ia-kb-buttons button{
+ border-radius:12px!important;
+ padding:10px 18px!important;
+ min-height:46px!important;
+ font-weight:700!important;
+}
+#conocimientosIA #iaConocimientoGuardar{
+ background:linear-gradient(135deg,#089e7f,#0ec29b)!important;
+ color:white!important;
+ border:1px solid #3bd5b1!important;
+}
+#conocimientosIA #iaConocimientoContador{
+ margin:12px 0!important;
+ font-size:.82rem;
+}
+#conocimientosIA .ia-kb-item{
+ border:1px solid var(--ui-line,#416360)!important;
+ border-radius:16px!important;
+ padding:16px!important;
+ box-shadow:0 3px 12px rgba(0,0,0,.05)!important;
+ background:var(--p2,#162f37)!important;
+}
+#conocimientosIA .ia-kb-item-head{
+ gap:13px!important;
+ align-items:flex-start!important;
+}
+#conocimientosIA .ia-kb-item-head h3{
+ line-height:1.35!important;
+ font-size:1rem!important;
+ font-weight:750!important;
+ margin-bottom:7px!important;
+}
+#conocimientosIA .ia-kb-preview{
+ padding-top:11px;
+ border-top:1px solid var(--ui-line,#45605d);
+ margin-top:13px!important;
+ line-height:1.58!important;
+}
+#conocimientosIA .ia-kb-actions button{
+ min-height:41px!important;
+ border-radius:11px!important;
+ padding:8px 13px!important;
+}
+#conocimientosIA .ia-kb-actions button:focus-visible{
+ outline:3px solid #40d5b1;
+ outline-offset:2px;
+}
+@media(max-width:560px){
+ #conocimientosIA .ia-kb-columns>.card{border-radius:16px!important;padding:15px!important}
+ #conocimientosIA .ia-kb-lead{font-size:.88rem;padding:12px 13px}
+ #conocimientosIA .ia-kb-item-head{display:block}
+ #conocimientosIA .ia-kb-actions{margin-top:12px}
+}
+@media(prefers-reduced-motion:reduce){
+ #conocimientosIA :is(input,select,textarea,button){transition:none!important}
+}
