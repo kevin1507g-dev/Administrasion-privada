@@ -15,10 +15,10 @@ for(const script of html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)){
  if(script[1].trim())new Function(script[1]);
 }
 assert.match(html,/asistente-ia\.css\?v=9/);
-assert.match(html,/asistente-ia-moderno\.css\?v=1/);
-assert.match(html,/asistente-ia\.js\?v=14/);
+assert.match(html,/asistente-ia-moderno\.css\?v=2/);
+assert.match(html,/asistente-ia\.js\?v=15/);
 assert.match(html,/centro-conocimientos-ia\.css\?v=2/);
-assert.ok(html.indexOf("asistente-ia-moderno.css?v=1")>html.indexOf("asistente-ia.css?v=9"));
+assert.ok(html.indexOf("asistente-ia-moderno.css?v=2")>html.indexOf("asistente-ia.css?v=9"));
 assert.equal((theme.match(/\{/g)||[]).length,(theme.match(/\}/g)||[]).length);
 assert.equal((knowledge.match(/\{/g)||[]).length,(knowledge.match(/\}/g)||[]).length);
 
@@ -46,6 +46,18 @@ assert.match(js,/window\.iaAbrirChatEspecial/);
 assert.match(js,/async function switchTab\(/);
 assert.match(js,/async function loadHistory\(/);
 assert.match(js,/refs\.mic\.onclick=startListening/);
+
+assert.match(js,/function setAudioIcon\(button,kind,active=false\)/);
+assert.match(js,/document\.createElementNS\("http:\/\/www\.w3\.org\/2000\/svg","svg"\)/);
+assert.match(js,/setAudioIcon\(refs\.mic,"mic",false\)/);
+assert.match(js,/setAudioIcon\(speak,"speaker",false\)/);
+assert.match(js,/setAudioIcon\(speak,"speaker",voiceEnabled\)/);
+assert.match(js,/aria-pressed/);
+assert.match(theme,/\.ia-root \.ia-actions \.ia-audio-control svg/);
+assert.match(theme,/\.ia-root \.ia-actions \.ia-microphone\[aria-pressed="true"\]/);
+assert.doesNotMatch(js,/refs\.mic\.textContent="🎤"/);
+assert.doesNotMatch(js,/speak\.textContent=voiceEnabled\?"🔊":"🔇"/);
+
 assert.match(js,/refs\.send\.onclick=send/);
 assert.match(js,/refs\.config\.hidden=st\.role!=="owner"/);
 assert.match(original,/\.ia-panel\[hidden\],\.ia-root \[hidden\]\{display:none!important\}/);
