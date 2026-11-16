@@ -595,15 +595,42 @@ async function open(startTab="ia",selectedConversationId=null){
   window.residentePendientesAlCerrarChatInicial?.();
  }
 }
+
+/* Iconos SVG nítidos; no incluyen datos externos ni modifican las funciones de audio. */
+const iaAudioIcons={
+ mic:'<rect x="9" y="2.8" width="6" height="11.6" rx="3"/><path d="M5.2 10.4v1.8a6.8 6.8 0 0 0 13.6 0v-1.8M12 19v2.5M8.5 21.5h7"/>',
+ stop:'<rect x="6.4" y="6.4" width="11.2" height="11.2" rx="2.2"/>',
+ muted:'<path d="M11 5.5 6.7 9H3.5v6h3.2l4.3 3.5v-13Z"/><path d="m16.1 8.1 5.2 7.8" stroke="#ff6577" stroke-width="2.7"/>',
+ sound:'<path d="M11 5.5 6.7 9H3.5v6h3.2l4.3 3.5v-13Z"/><path d="M15.2 9.2a4.4 4.4 0 0 1 0 5.6M18.2 6.4a8.3 8.3 0 0 1 0 11.2"/>'
+};
+function setAudioIcon(button,kind,active=false){
+ const icon=kind==="mic"?(active?"stop":"mic"):(active?"sound":"muted");
+ button.replaceChildren();
+ const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+ svg.setAttribute("viewBox","0 0 24 24");
+ svg.setAttribute("fill","none");
+ svg.setAttribute("stroke","currentColor");
+ svg.setAttribute("stroke-width","1.85");
+ svg.setAttribute("stroke-linecap","round");
+ svg.setAttribute("stroke-linejoin","round");
+ svg.setAttribute("aria-hidden","true");
+ svg.setAttribute("focusable","false");
+ svg.innerHTML=iaAudioIcons[icon];
+ button.appendChild(svg);
+ button.setAttribute("aria-pressed",String(active));
+ const label=kind==="mic"?(active?"Detener dictado":"Dictar mensaje"):
+  (active?"Desactivar voz":"Activar lectura en voz alta");
+ button.setAttribute("aria-label",label);button.title=label;
+}
 function startListening(){
  const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(!Recognition){status("Este navegador no permite reconocimiento de voz. Puedes escribir tu mensaje.");return;}
- if(recognizer){try{recognizer.stop();}catch{}recognizer=null;return;}
+ if(recognizer){try{recognizer.stop();}catch{}recognizer=null;setAudioIcon(refs.mic,"mic",false);return;}
  const rec=new Recognition();recognizer=rec;rec.lang="es-MX";rec.interimResults=false;rec.maxAlternatives=1;
  rec.onresult=e=>{refs.text.value=e.results[0][0].transcript;status("Texto recibido. Revísalo y pulsa Enviar.");};
  rec.onerror=()=>status("Micrófono no disponible o permiso denegado.");
- rec.onend=()=>{recognizer=null;refs.mic.textContent="🎤";};
- refs.mic.textContent="■";rec.start();status("Escuchando con permiso del navegador…");
+ rec.onend=()=>{recognizer=null;setAudioIcon(refs.mic,"mic",false);};
+ setAudioIcon(refs.mic,"mic",true);try{rec.start();status("Escuchando con permiso del navegador…");}catch(err){recognizer=null;setAudioIcon(refs.mic,"mic",false);status("No se pudo iniciar el micrófono.");}
 }
 function init(){
  if(mount||document.getElementById("app")?.classList.contains("hidden"))return;
@@ -675,8 +702,8 @@ function init(){
  const compose=refs.compose;
  refs.text=node("textarea",{aria:"Escribe tu consulta"},compose);refs.text.placeholder="Pregúntale algo a tu asistente…";refs.text.rows=2;refs.text.maxLength=900;
  const actionsRow=node("div",{className:"ia-actions"},compose);
- refs.mic=node("button",{type:"button",text:"🎤",aria:"Dictar mensaje"},actionsRow);
- const speak=node("button",{type:"button",text:"🔇",aria:"Activar lectura en voz alta"},actionsRow);
+ refs.mic=node("button",{type:"button",className:"ia-audio-control ia-microphone",aria:"Dictar mensaje"},actionsRow);setAudioIcon(refs.mic,"mic",false);
+ const speak=node("button",{type:"button",className:"ia-audio-control ia-speaker",aria:"Activar lectura en voz alta"},actionsRow);setAudioIcon(speak,"speaker",false);
  refs.send=node("button",{type:"button",className:"ia-send",text:"Enviar"},actionsRow);
  refs.launch.onclick=open;close.onclick=open;refs.send.onclick=send;refs.mic.onclick=startListening;
  refs.alerts.onclick=async()=>{
@@ -698,7 +725,7 @@ function init(){
    refs.headTitle.textContent=c.config.icono+" "+c.config.nombre;status("Configuración guardada.");
   }catch(e){status("No se guardó la configuración: "+e.message);}
  };
- speak.onclick=()=>{voiceEnabled=!voiceEnabled;speak.textContent=voiceEnabled?"🔊":"🔇";speak.setAttribute("aria-label",voiceEnabled?"Desactivar voz":"Activar voz");if(!voiceEnabled&&"speechSynthesis" in window)window.speechSynthesis.cancel();};
+ speak.onclick=()=>{voiceEnabled=!voiceEnabled;setAudioIcon(speak,"speaker",voiceEnabled);if(!voiceEnabled&&"speechSynthesis" in window)window.speechSynthesis.cancel();};
  refs.text.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}};
  newBtn.onclick=async()=>{conversationId=null;await loadHistory();if(window.matchMedia("(min-width:701px)").matches)refs.text.focus();};
  refs.history.onchange=async()=>{conversationId=refs.history.value||null;await loadHistory();};
