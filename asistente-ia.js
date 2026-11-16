@@ -537,7 +537,8 @@ async function send(){
   if(voiceEnabled&&"speechSynthesis" in window){
    window.speechSynthesis.cancel();
    const utterance=new SpeechSynthesisUtterance(String(r.answer||"").slice(0,600));
-   utterance.lang="es-MX";utterance.rate=1;
+   if(window.IAVoces)window.IAVoces.configure(utterance);
+   else {utterance.lang="es-MX";utterance.rate=1;}
    window.speechSynthesis.speak(utterance);
   }
  }catch(e){wait.remove();status("Error: "+e.message);addMessage("assistant","No pude consultar esa información: "+e.message);}
@@ -565,6 +566,7 @@ async function open(startTab="ia",selectedConversationId=null){
  document.body.classList.toggle("ia-open",opened);
  if(opened){
   viewport();
+  void window.IAVoces?.loadForUser(typeof user!=="undefined"?user?.id:null);
   // Si existe un chat pendiente, abrirlo directamente, sin cargar la IA
   // ni esperar llamadas al modelo. El mensaje real se muestra primero.
   if(refs.specialTab)refs.specialTab.hidden=!ownerSession();
@@ -584,6 +586,7 @@ async function open(startTab="ia",selectedConversationId=null){
   refreshChatTab();
   if(window.matchMedia("(min-width:701px)").matches)refs.text.focus();
  }else{
+  window.IAVoces?.close();
   restoreChat();
   stopSpecialPolling();
   specialSelected=false;specialCurrent=null;chatSelected=false;
@@ -703,7 +706,7 @@ function init(){
  refs.text=node("textarea",{aria:"Escribe tu consulta"},compose);refs.text.placeholder="Pregúntale algo a tu asistente…";refs.text.rows=2;refs.text.maxLength=900;
  const actionsRow=node("div",{className:"ia-actions"},compose);
  refs.mic=node("button",{type:"button",className:"ia-audio-control ia-microphone",aria:"Dictar mensaje"},actionsRow);setAudioIcon(refs.mic,"mic",false);
- const speak=node("button",{type:"button",className:"ia-audio-control ia-speaker",aria:"Activar lectura en voz alta"},actionsRow);setAudioIcon(speak,"speaker",false);
+ const speak=node("button",{type:"button",className:"ia-audio-control ia-speaker",aria:"Activar lectura en voz alta"},actionsRow);refs.speak=speak;setAudioIcon(speak,"speaker",false);
  refs.send=node("button",{type:"button",className:"ia-send",text:"Enviar"},actionsRow);
  refs.launch.onclick=open;close.onclick=open;refs.send.onclick=send;refs.mic.onclick=startListening;
  refs.alerts.onclick=async()=>{
@@ -725,13 +728,19 @@ function init(){
    refs.headTitle.textContent=c.config.icono+" "+c.config.nombre;status("Configuración guardada.");
   }catch(e){status("No se guardó la configuración: "+e.message);}
  };
- speak.onclick=()=>{voiceEnabled=!voiceEnabled;setAudioIcon(speak,"speaker",voiceEnabled);if(!voiceEnabled&&"speechSynthesis" in window)window.speechSynthesis.cancel();};
+ speak.onclick=()=>{voiceEnabled=!voiceEnabled;setAudioIcon(speak,"speaker",voiceEnabled);window.IAVoces?.setEnabled(voiceEnabled);if(!voiceEnabled&&"speechSynthesis" in window)window.speechSynthesis.cancel();};
+ window.IAVoces?.init({panel:refs.panel,toolbar:refs.aiToolbar,onVoiceChange:enabled=>{
+  voiceEnabled=!!enabled;setAudioIcon(speak,"speaker",voiceEnabled);
+  if(!voiceEnabled&&"speechSynthesis" in window)window.speechSynthesis.cancel();
+ }});
  refs.text.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}};
  newBtn.onclick=async()=>{conversationId=null;await loadHistory();if(window.matchMedia("(min-width:701px)").matches)refs.text.focus();};
  refs.history.onchange=async()=>{conversationId=refs.history.value||null;await loadHistory();};
  window.visualViewport?.addEventListener("resize",viewport,{passive:true});
  window.visualViewport?.addEventListener("scroll",viewport,{passive:true});
- document.addEventListener("keydown",e=>{if(opened&&e.key==="Escape"){e.preventDefault();open();}});
+ document.addEventListener("keydown",e=>{if(opened&&e.key==="Escape"){
+  e.preventDefault();if(window.IAVoces?.isOpen())window.IAVoces.close();else open();
+ }});
  window.setInterval(()=>{if(opened)refreshChatTab();},4500);
  window.addEventListener("portero-owner-chat-unread",e=>setSpecialCount(e?.detail?.count));
  setSpecialCount(0);
