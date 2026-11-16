@@ -16,7 +16,7 @@ for(const script of html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)){
 }
 assert.match(html,/asistente-ia\.css\?v=9/);
 assert.match(html,/asistente-ia-moderno\.css\?v=2/);
-assert.match(html,/asistente-ia\.js\?v=15/);
+assert.match(html,/asistente-ia\.js\?v=16/);
 assert.match(html,/centro-conocimientos-ia\.css\?v=2/);
 assert.ok(html.indexOf("asistente-ia-moderno.css?v=2")>html.indexOf("asistente-ia.css?v=9"));
 assert.equal((theme.match(/\{/g)||[]).length,(theme.match(/\}/g)||[]).length);
