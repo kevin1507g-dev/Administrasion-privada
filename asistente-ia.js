@@ -322,11 +322,31 @@ async function switchTab(target,conversationToOpen=null){
 }
 
 function starters(){
+ const welcome=node('section',{className:'ia-welcome'},refs.messages);
+ welcome.setAttribute('aria-label','Bienvenida al asistente');
+ node('span',{className:'ia-welcome-icon',text:'✦'},welcome).setAttribute('aria-hidden','true');
+ const copy=node('div',{className:'ia-welcome-text'},welcome);
+ node('h3',{className:'ia-welcome-title',text:'¿En qué te ayudo hoy?'},copy);
+ node('p',{className:'ia-welcome-description',
+  text:'Consulta información de la privada y tus solicitudes, respetando los permisos de tu cuenta.'},copy);
  const wrap=node('div',{className:'ia-starters'},refs.messages);
+ node('p',{className:'ia-starters-heading',text:'CONSULTAS RÁPIDAS'},wrap);
  const own=typeof profile!=='undefined'&&profile?.rol==='residente';
- const questions=own?['Quiero reservar el portón','Cancelar mi reservación','¿Cuánto debo?','Mis pagos']:
-  ['¿De qué casa soy?','Pendientes de toda la privada','Casas con más adeudos'];
- for(const q of questions){const b=node('button',{type:'button',text:q},wrap);b.onclick=()=>{refs.text.value=q;send();};}
+ const questions=own?[
+  ['📅 Quiero reservar el portón','Quiero reservar el portón'],
+  ['🗓️ Cancelar mi reservación','Cancelar mi reservación'],
+  ['💰 ¿Cuánto debo?','¿Cuánto debo?'],
+  ['💳 Mis pagos','Mis pagos']
+ ]:[
+  ['🏡 ¿De qué casa soy?','¿De qué casa soy?'],
+  ['📋 Pendientes de la privada','Pendientes de toda la privada'],
+  ['💰 Casas con más adeudos','Casas con más adeudos'],
+  ['✦ ¿Qué puedes consultar?','¿Qué puedes consultar?']
+ ];
+ for(const [label,query] of questions){
+  const button=node('button',{type:'button',text:label},wrap);
+  button.onclick=()=>{refs.text.value=query;send();};
+ }
 }
 function loading(){
  const el=node('div',{className:'ia-thinking'},refs.messages);
@@ -528,7 +548,7 @@ async function loadHistory(){
   const r=await call({kind:"history",conversationId});
   clear(refs.messages);
   if(r.messages?.length){for(const m of r.messages)addMessage(m.rol==="user"?"user":"assistant",m.contenido);}
-  else {addMessage("assistant","Hola. ¿Qué necesitas consultar? Puedo revisar los registros de Administración Residencial que tu cuenta tiene autorizados.");starters();}
+  else {starters();}
   clear(refs.history);
   node("option",{text:"Conversaciones recientes"},refs.history).value="";
   for(const c of r.conversations||[]){
@@ -653,7 +673,7 @@ function init(){
  refs.specialOpenStatus.setAttribute("role","status");refs.specialOpenStatus.setAttribute("aria-live","polite");
  refs.compose=node("div",{className:"ia-compose"},refs.panel);
  const compose=refs.compose;
- refs.text=node("textarea",{aria:"Escribe tu consulta"},compose);refs.text.placeholder="Escribe tu pregunta…";refs.text.rows=2;refs.text.maxLength=900;
+ refs.text=node("textarea",{aria:"Escribe tu consulta"},compose);refs.text.placeholder="Pregúntale algo a tu asistente…";refs.text.rows=2;refs.text.maxLength=900;
  const actionsRow=node("div",{className:"ia-actions"},compose);
  refs.mic=node("button",{type:"button",text:"🎤",aria:"Dictar mensaje"},actionsRow);
  const speak=node("button",{type:"button",text:"🔇",aria:"Activar lectura en voz alta"},actionsRow);
