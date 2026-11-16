@@ -14,7 +14,7 @@ for(const m of html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)){
 }
 assert.match(html,/show\('conocimientosIA'\)/);
 assert.match(html,/<section id="conocimientosIA" class="ownerOnly hidden">/);
-assert.match(html,/centro-conocimientos-ia\.css\?v=1/);
+assert.match(html,/centro-conocimientos-ia\.css\?v=2/);
 assert.match(html,/centro-conocimientos-ia\.js\?v=2/);
 assert.match(html,/actualizar-cuadros\.js\?v=4/);
 for(const id of ['iaConocimientoForm','iaConocimientoTitulo','iaConocimientoTipo',
