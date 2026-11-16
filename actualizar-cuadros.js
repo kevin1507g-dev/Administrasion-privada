@@ -255,6 +255,9 @@
     if(profile?.rol==="owner"&&ownerPanelMode==="owner")
      await Promise.all([cargarAccionesOwner(),cargarMetricasOwnerAccesos(),cargarEmpresasReparto()]);
     break;
+   case "conocimientosIA":
+    if(profile?.rol==="owner")await window.cargarConocimientosIA?.(true);
+    break;
    case "disciplina":
     if(typeof disciplinaCargar==="function")await disciplinaCargar();
     break;
