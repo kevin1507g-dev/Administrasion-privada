@@ -1,0 +1,187 @@
+/* Panel de voces IA · diseñado para iPhone y computadora.
+   Se carga después del tema del asistente. */
+.ia-root .ia-top-controls{
+ grid-template-columns:minmax(0,1fr) repeat(3,42px)!important;
+}
+.ia-root .ia-top-controls:has(>button[aria-label="Configurar nombre e icono"]:not([hidden])){
+ grid-template-columns:minmax(0,1fr) repeat(4,42px)!important;
+}
+.ia-root .ia-top-controls .ia-voice-settings-trigger{
+ width:42px!important;min-width:42px!important;height:42px!important;
+ padding:0!important;border-radius:13px!important;
+ background:linear-gradient(135deg,#146858,#15554b)!important;
+ border:1px solid #45bb9a!important;
+ color:#f3fffb!important;
+ font-size:12px!important;font-weight:750!important;
+ letter-spacing:-.2px!important;
+}
+.ia-root .ia-top-controls .ia-voice-settings-trigger:hover{
+ background:#178668!important;
+}
+.ia-root .ia-voice-overlay{
+ position:absolute!important;inset:0!important;z-index:50!important;
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ padding:14px!important;background:rgba(2,13,18,.74)!important;
+ backdrop-filter:blur(8px);
+ -webkit-backdrop-filter:blur(8px);
+ min-height:0!important;overflow:hidden!important;
+}
+.ia-root .ia-voice-overlay[hidden]{display:none!important;}
+.ia-root .ia-voice-sheet{
+ display:flex!important;flex-direction:column!important;
+ gap:13px!important;min-width:0!important;
+ width:min(100%,430px)!important;
+ max-height:min(100%,690px)!important;overflow-y:auto!important;
+ padding:18px!important;
+ border:1px solid #478c82!important;border-radius:22px!important;
+ background:linear-gradient(162deg,#153640,#10272f)!important;
+ box-shadow:0 25px 50px rgba(0,0,0,.34)!important;
+ color:#f1fff9!important;
+ scrollbar-width:thin;overscroll-behavior:contain;
+}
+.ia-root .ia-voice-head{
+ display:flex!important;align-items:flex-start!important;
+ justify-content:space-between!important;gap:12px!important;
+ padding-bottom:13px!important;border-bottom:1px solid rgba(97,175,159,.28)!important;
+}
+.ia-root .ia-voice-head h2{
+ color:#f8fffc!important;font-size:20px!important;
+ font-weight:800!important;line-height:1.35!important;margin:0 0 3px!important;
+}
+.ia-root .ia-voice-head p{
+ color:#b8d7d0!important;font-size:12px!important;
+ line-height:1.45!important;margin:0!important;
+}
+.ia-root .ia-voice-close{
+ display:grid!important;place-items:center!important;
+ width:42px!important;min-width:42px!important;height:42px!important;
+ padding:0!important;flex:none!important;
+ border:1px solid #456e6a!important;border-radius:13px!important;
+ background:#1c4147!important;color:#fff!important;
+ font-size:25px!important;
+}
+.ia-root .ia-voice-label{
+ display:block!important;
+ color:#e5fbf2!important;font-size:13px!important;font-weight:700!important;
+ margin:0!important;
+}
+.ia-root .ia-voice-section-caption{
+ margin:0!important;color:#99d5c4!important;
+ font-weight:800!important;letter-spacing:1px!important;font-size:11px!important;
+}
+.ia-root .ia-voice-filters{
+ display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ gap:8px!important;min-width:0!important;
+}
+.ia-root .ia-voice-filter{
+ min-height:43px!important;min-width:0!important;
+ border:1px solid #386a66!important;border-radius:13px!important;
+ color:#d7efe5!important;background:#1b4145!important;
+ font-size:12px!important;line-height:1.35!important;
+ white-space:normal!important;font-weight:650!important;
+ padding:8px 11px!important;
+}
+.ia-root .ia-voice-filter[aria-pressed="true"]{
+ border-color:#5dddb8!important;
+ background:linear-gradient(140deg,#13715d,#148a6f)!important;
+ color:#fff!important;box-shadow:0 0 0 1px #0ac59528!important;
+}
+.ia-root .ia-voice-select{
+ display:block!important;
+ height:auto!important;min-height:48px!important;
+ width:100%!important;max-width:100%!important;
+ padding:11px 14px!important;
+ border:1px solid #55867e!important;border-radius:13px!important;
+ background:#1e3c43!important;color:#fff!important;
+ font-size:14px!important;
+}
+.ia-root .ia-voice-select:disabled{opacity:.6!important;}
+.ia-root .ia-voice-note{
+ margin:-4px 0 0!important;
+ font-size:11px!important;line-height:1.45!important;
+ color:#b8d5cf!important;overflow-wrap:anywhere;
+}
+.ia-root .ia-voice-sliders{
+ display:grid!important;grid-template-columns:minmax(0,1fr)!important;
+ gap:12px!important;
+ padding:13px 14px!important;border:1px solid #3d6967!important;
+ border-radius:15px!important;background:#15343b!important;
+}
+.ia-root .ia-voice-range{min-width:0!important;display:flex!important;flex-direction:column!important;gap:8px!important;}
+.ia-root .ia-voice-range-title{
+ display:flex!important;align-items:center!important;
+ justify-content:space-between!important;gap:12px!important;
+}
+.ia-root .ia-voice-output{
+ color:#c4fbe7!important;font-weight:750!important;font-size:12px!important;
+ font-variant-numeric:tabular-nums;
+}
+.ia-root .ia-voice-range input[type="range"]{
+ display:block!important;min-width:0!important;width:100%!important;
+ height:22px!important;margin:0!important;padding:0!important;
+ accent-color:#2bdbad!important;cursor:pointer!important;
+}
+.ia-root .ia-voice-feedback{
+ margin:0!important;min-height:16px!important;
+ color:#bdf1dd!important;font-size:12px!important;
+ line-height:1.5!important;overflow-wrap:anywhere;
+}
+.ia-root .ia-voice-feedback[data-error="true"]{color:#ff9c9c!important;}
+.ia-root .ia-voice-actions{
+ display:grid!important;grid-template-columns:1fr 1fr!important;gap:9px!important;
+ padding-top:5px!important;
+}
+.ia-root .ia-voice-actions button{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ min-height:47px!important;min-width:0!important;
+ padding:10px 12px!important;border-radius:13px!important;
+ white-space:normal!important;line-height:1.35!important;font-size:12px!important;
+ font-weight:750!important;
+}
+.ia-root .ia-voice-preview{
+ border:1px solid #4e877a!important;background:#25504f!important;color:#f1fff7!important;
+}
+.ia-root .ia-voice-save{
+ border:1px solid #72e8c3!important;
+ background:linear-gradient(140deg,#0eb38e,#079b7e)!important;color:#fff!important;
+}
+.ia-root .ia-voice-actions button:disabled{opacity:.48!important;cursor:not-allowed!important;}
+@media(max-width:700px){
+ .ia-root .ia-voice-overlay{
+  align-items:flex-end!important;padding:10px 9px calc(11px + env(safe-area-inset-bottom,0px))!important;
+ }
+ .ia-root .ia-voice-sheet{
+  width:100%!important;max-width:100%!important;
+  max-height:calc(100% - env(safe-area-inset-top,0px) - 14px)!important;
+  border-radius:22px!important;
+  padding:16px!important;gap:12px!important;
+ }
+ .ia-root .ia-voice-head h2{font-size:19px!important;}
+ .ia-root .ia-top-controls{
+  grid-template-columns:minmax(0,1fr) repeat(3,41px)!important;
+ }
+ .ia-root .ia-top-controls:has(>button[aria-label="Configurar nombre e icono"]:not([hidden])){
+  grid-template-columns:minmax(0,1fr) repeat(4,41px)!important;
+ }
+ .ia-root .ia-top-controls .ia-voice-settings-trigger{
+  width:41px!important;min-width:41px!important;height:41px!important;
+ }
+}
+@media(max-width:375px){
+ .ia-root .ia-top-controls{
+  grid-template-columns:minmax(0,1fr) repeat(3,38px)!important;
+ }
+ .ia-root .ia-top-controls:has(>button[aria-label="Configurar nombre e icono"]:not([hidden])){
+  grid-template-columns:minmax(0,1fr) repeat(4,38px)!important;
+ }
+ .ia-root .ia-top-controls .ia-voice-settings-trigger{
+  width:38px!important;min-width:38px!important;height:40px!important;
+ }
+ .ia-root .ia-voice-sheet{padding:13px!important;}
+ .ia-root .ia-voice-filters{gap:6px!important;}
+ .ia-root .ia-voice-filter{font-size:11px!important;padding:8px 6px!important;}
+ .ia-root .ia-voice-actions{grid-template-columns:1fr!important;}
+}
+@media(prefers-reduced-motion:reduce){
+ .ia-root .ia-voice-overlay *{transition:none!important;}
+}
