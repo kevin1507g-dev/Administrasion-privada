@@ -12,7 +12,7 @@ const cors = {
 };
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: cors });
 const url = () => Deno.env.get("PROVEEDORES_AVISO_PRIVACIDAD_URL") || "";
-const enabled = () => /^https:\/\/[^\s/]+\/[^\s]+$/i.test(url());
+const enabled = () => Deno.env.get("PROVEEDORES_REGISTRO_ACTIVO") === "true" && /^https:\/\/[^\s/]+\/[^\s]+$/i.test(url());
 const codeOK = (v: unknown) => /^PR-[A-F0-9]{20}$/.test(String(v || "").trim().toUpperCase());
 const idOK = (v: unknown) => /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(String(v || ""));
 const houseOK = (v: unknown) => /^(4[0-9]|5[0-9]|6[0-6])$/.test(String(v || ""));
@@ -82,6 +82,15 @@ async function removeImages(db: any, p: any) {
 }
 // Limpieza de solicitudes pendientes sin resolver (se ejecuta al usar el servicio).
 async function cleanOld(db: any) {
+  // Imágenes de registros ya revisados: reintentar borrado si una llamada falló.
+  const {data:resolved} = await db.from("proveedores_registrados")
+    .select("id,ine_frente_ruta,ine_reverso_ruta,rostro_ruta")
+    .in("estado",["aprobado","rechazado","revocado"])
+    .or("ine_frente_ruta.not.is.null,ine_reverso_ruta.not.is.null,rostro_ruta.not.is.null")
+    .limit(20);
+  for (const p of resolved || []) {
+    try { await removeImages(db,p); } catch { /* próximo ciclo */ }
+  }
   const deadline = new Date(Date.now()-7*24*60*60*1000).toISOString();
   const {data} = await db.from("proveedores_registrados")
     .select("id,ine_frente_ruta,ine_reverso_ruta,rostro_ruta")
@@ -164,6 +173,14 @@ Deno.serve(async (req: Request) => {
     if (!contentType.includes("application/json")) return json({error:"Formato inválido."},415);
     const body = await req.json().catch(()=>({}));
     const action = String(body?.accion || "");
+    if (action === "mantenimiento") {
+      const token = req.headers.get("x-cron-token") || "";
+      if (!/^[a-f0-9]{64}$/.test(token)) return json({error:"No autorizado."},403);
+      const {data:valid,error:verificationError} = await database.rpc("proveedores_cron_validar",{p_token:token});
+      if (verificationError || valid !== true) return json({error:"No autorizado."},403);
+      await cleanOld(database);
+      return json({ok:true,limpieza:"ejecutada"});
+    }
     if (action === "capacidades") {
       return json({ok:true,registro_habilitado:enabled(),
         aviso_privacidad_url:enabled()?url():null,retencion_pendientes_dias:7,
