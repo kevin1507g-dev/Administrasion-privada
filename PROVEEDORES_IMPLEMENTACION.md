@@ -1,7 +1,8 @@
 # Registro de proveedores integrado al Portero Virtual
 
 ## Estado
-Preparado como cambio independiente para revisión antes de activación en producción.
+Backend y base de datos desplegados en Supabase (18/11/2026), con captura de fotografías deshabilitada.
+La interfaz permanece en la rama de revisión PR #46, todavía no fusionada a main/GitHub Pages.
 No modifica el firmware ESP32, los relés ni las RPC de apertura existentes.
 El código de proveedor **NO** es un código de visita ni emite comandos de apertura.
 
@@ -23,6 +24,9 @@ El código de proveedor **NO** es un código de visita ni emite comandos de aper
    relé energizado; la pantalla de salida usa un reloj de 3 minutos.
 
 ## Archivos
+- `aviso-privacidad-proveedores.html` (borrador con campos legales obligatorios por completar)
+- `database/proveedores_cron_seguro_20261118.sql`
+- `database/proveedores_cron_schedule_20261118.sql`
 - `database/proveedores_registro_seguro_20261118.sql`
 - `supabase/functions/proveedores-registro/index.ts`
 - `proveedores.html`
@@ -30,30 +34,23 @@ El código de proveedor **NO** es un código de visita ni emite comandos de aper
 - `proveedor-acceso.js`
 - Enlaces añadidos a `repartidor.html` y al menú de Sistema Admin en `index.html`.
 
-## Activación segura (requerida antes de datos personales reales)
-1. Revisar el tratamiento de INE y fotografías con responsable de datos y publicar
-   un **aviso de privacidad válido y completo**, con responsable, finalidades,
-   base/consentimiento, derechos ARCO, contacto y plazo de conservación.
-   Configurar `PROVEEDORES_AVISO_PRIVACIDAD_URL` en los secretos de la función
-   con el enlace HTTPS. Mientras falte, **no se reciben fotografías**.
-2. Aplicar la migración de esquema en el proyecto Supabase correcto.
-3. Desplegar `proveedores-registro` con `verify_jwt=false` por necesitar registro
-   público; la función exige JWT comprobado y rol **owner** para revisión/decisión.
-4. Configurar un borrado programado diario de registros pendientes vencidos y
-   sus objetos privados. La función intenta eliminarlos cuando se utiliza el
-   servicio, pero **eso no garantiza borrado puntual sin visitas**. No activar el
-   registro real hasta asegurar la tarea programada.
-5. Publicar archivos de la rama en GitHub Pages.
-6. Probar con imágenes ficticias y una casa de prueba; verificar los casos:
-   - Registro sin aviso: falla cerrado.
-   - Código inexistente, pendiente, rechazado, revocado: no obtiene datos ni acceso.
-   - Código aprobado: autocompleta nombre/casa, pero NO abre el portón.
-   - Solicitud: crea una entrega que expira a los 3 minutos.
-   - Residente no autoriza: no se generan comandos en `access_private.commands`.
-   - Residente autoriza dentro de plazo: aplica exactamente la lógica ya vigente.
-   - Documento: bucket privado, sin acceso directo por anon/authenticated;
-     el propietario ve enlaces temporales; se borra al aprobar/rechazar.
-   - Rate limits: 3 registros por 24 h por origen y 12 consultas cada 10 minutos.
+## Estado verificable al 18/11/2026
 
+- Tablas `proveedores_registrados`, `proveedores_solicitudes_acceso`, `proveedores_consultas_rate`: creadas con RLS y acceso directo revocado.
+- Bucket `proveedores-identidad`: privado.
+- Edge Function `proveedores-registro`: desplegada; acción `capacidades` comprobada por HTTP 200, `registro_habilitado=false`, `apertura_automatica=false`.
+- Limpieza `mantenimiento`: probada con secreto privado de Vault, HTTP 200; tareas cron `proveedores-documentos-diaria` (08:00 UTC) y `proveedores-ratelimit-diaria` (08:15 UTC) activas.
+- Función de validación del cron: `anon` sin permiso; `service_role` con permiso. Ninguna foto real subida.
+- JavaScript de interfaz revisado sintácticamente; pendiente prueba de extremo a extremo y publicación en GitHub Pages.
+
+## Pendientes antes de permitir archivos reales
+
+1. **Completar aviso**: falta nombre legal del responsable, domicilio completo y correo para derechos ARCO. Se encuentran marcados como campos pendientes en el borrador `aviso-privacidad-proveedores.html`. La persona responsable debe revisar el texto antes de publicarlo como definitivo.
+2. Colocar el aviso definitivo en una URL HTTPS y configurar `PROVEEDORES_AVISO_PRIVACIDAD_URL`. La función también exige explícitamente `PROVEEDORES_REGISTRO_ACTIVO=true`; **no debe activarse antes de validar el aviso**.
+3. Probar toda la interfaz y los permisos con documentos ficticios, incluida aprobación de Sistema Admin, denegación, acceso vencido, revocación y borrado de fotografías. Garantizar que los códigos solo completan datos y solicitan aprobación, sin apertura autónoma.
+4. Fusionar PR #46 después de las pruebas para publicar botones y formularios en GitHub Pages.
+
+**Nota de diseño:** los 3 minutos son la caducidad de la solicitud de acceso y el tiempo de confirmación de salida visible para el proveedor. El relé recibe el pulso normal cuando una autorización válida es emitida.
+ 
 **Importante:** las imágenes son evidencia para revisión humana, NO una comprobación
 biométrica ni una validación automática de la autenticidad de la INE.
