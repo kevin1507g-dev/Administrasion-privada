@@ -224,6 +224,7 @@ function seleccionarEntrada(tipo){
  else document.getElementById('casa').focus();
 }
 function volverASeleccion(){
+ window.proveedorSolicitudActiva=false;
  detenerConsulta();
  detenerChatPortero();
  detenerVentanaSalida();
@@ -657,7 +658,7 @@ function mostrarVentanaSalida(origen,tokenAcceso,inicio){
  const inicioMs=new Date(inicio).getTime();
  if(!['entrega','codigo'].includes(origen)||!/^[a-f0-9-]{36}$/i.test(String(tokenAcceso))||!Number.isFinite(inicioMs))return;
  detenerVentanaSalida();
- salidaRepartidorActual={origen,token:String(tokenAcceso),fin:inicioMs+SALIDA_VENTANA_MS,confirmada:false};
+ salidaRepartidorActual={origen,token:String(tokenAcceso),fin:inicioMs+(window.proveedorSolicitudActiva?3*60*1000:SALIDA_VENTANA_MS),confirmada:false};
  for(const id of ['porteroCard','visitorPassCard','formCard','waitCard','ownerDeliveryChatCard']){
   document.getElementById(id).classList.add('hidden');
  }
@@ -1045,6 +1046,7 @@ function detenerConsulta(){
 }
 
 function nuevaSolicitud(){
+ window.proveedorSolicitudActiva=false;
   detenerConsulta();
   detenerVentanaSalida();
   ocultarFotoEvidencia();
@@ -1060,5 +1062,6 @@ function nuevaSolicitud(){
 
 window.addEventListener('beforeunload',detenerConsulta);
 </script>
+<script src="./proveedor-acceso.js?v=1"></script>
 </body>
 </html>
