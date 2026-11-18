@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<title>Administración de proveedores · Privada Beteles</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#0b1220;color:#edf4fc;font:16px system-ui,-apple-system,sans-serif;padding:20px}
+main{max-width:970px;margin:auto}.card{padding:22px;background:#142033;border:1px solid #364861;border-radius:18px;margin:16px 0}
+h1{font-size:26px}h2{font-size:20px}.muted{color:#b1c0d3}p{line-height:1.5}
+button,a.btn{cursor:pointer;color:#eaf6ff;border:1px solid #546477;border-radius:10px;background:#25394f;padding:11px 14px;margin:5px;font:inherit;display:inline-block;text-decoration:none}
+button.primary{background:#126a52;border-color:#31b991}button.danger{background:#81363b;border-color:#b15b63}
+button:disabled{opacity:.5}.provider{padding:14px 0;border-bottom:1px solid #324457}.provider:last-child{border:0}
+.tag{font-size:.8rem;padding:4px 8px;border-radius:9px;background:#25394f;margin-left:5px}
+.docs{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.doc{border:1px solid #52617a;border-radius:11px;padding:8px}
+.doc img{max-width:100%;height:230px;width:100%;object-fit:contain;background:#07131f;border-radius:8px}
+[hidden]{display:none!important}a{color:#85d5ff}
+</style>
+</head>
+<body>
+<main>
+<header class="card">
+ <h1>🛠️ Proveedores registrados</h1>
+ <p class="muted">Panel privado de Sistema Admin. Revisa los documentos antes de aprobar un código. Aprobar un proveedor no autoriza una apertura: cada ingreso necesita permiso de la casa.</p>
+ <a href="./index.html" class="btn">← Administración Residencial</a>
+ <button type="button" id="recargar">Actualizar registros</button>
+</header>
+<p id="estado" class="muted" role="status" aria-live="polite">Verificando sesión…</p>
+<section class="card" id="registros"></section>
+<section class="card" id="revision" hidden>
+ <h2 id="tituloRevision">Revisión privada</h2>
+ <p class="muted">Los enlaces de fotografías vencen a los 60 segundos. No descargues ni compartas documentos. Los archivos se eliminan al aprobar o rechazar.</p>
+ <div id="documentos" class="docs"></div>
+ <div id="acciones"></div>
+</section>
+</main>
+<script>
+const sb=supabase.createClient(
+ "https://nndlfkuelwpwklldvtfo.supabase.co",
+ "sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_");
+const st=document.getElementById("estado"),list=document.getElementById("registros");
+const review=document.getElementById("revision"),docs=document.getElementById("documentos");
+let selected=null;
+async function api(body){
+ const {data,error}=await sb.functions.invoke("proveedores-registro",{body});
+ if(error){let msg=error.message||"Error de conexión.";try{const x=await error.context?.json?.();if(x?.error)msg=x.error;}catch(_){}throw Error(msg);}
+ if(data?.error)throw Error(data.error);return data;
+}
+function node(tag,txt,cls){
+ const e=document.createElement(tag);if(txt!==undefined)e.textContent=txt;
+ if(cls)e.className=cls;return e;
+}
+function button(text,handler,cls){
+ const b=node("button",text,cls);b.type="button";b.addEventListener("click",handler);return b;
+}
+async function load(){
+ st.textContent="Cargando registros…";
+ list.replaceChildren();review.hidden=true;selected=null;
+ try{
+  const {registros}=await api({accion:"admin_listar"});
+  st.textContent=registros.length+" registro(s).";
+  if(!registros.length){list.append(node("p","Todavía no hay registros.", "muted"));return;}
+  for(const r of registros){
+   const item=node("article",undefined,"provider");
+   const number=typeof r.casa==="object"&&r.casa? r.casa.numero:"—";
+   item.append(node("h2",[r.nombre,r.apellido_paterno,r.apellido_materno].filter(Boolean).join(" ")));
+   item.append(node("p","Casa "+number+" · "+r.estado+" · "+new Date(r.creado_at).toLocaleString("es-MX"),"muted"));
+   if(r.estado==="pendiente")item.append(button("🔎 Revisar INE y rostro",()=>show(r)));
+   if(r.estado==="aprobado")item.append(button("Revocar código",()=>change(r,"revocado"),"danger"));
+   list.append(item);
+  }
+ }catch(e){st.textContent=e.message||"Sin acceso a los registros.";list.append(node("p","Inicia sesión en Administración Residencial como Sistema Admin.", "muted"));}
+}
+async function show(r){
+ selected=r;review.hidden=false;docs.replaceChildren();
+ document.getElementById("acciones").replaceChildren();
+ document.getElementById("tituloRevision").textContent="Revisión de "+[r.nombre,r.apellido_paterno,r.apellido_materno].join(" ");
+ st.textContent="Cargando fotografías privadas…";
+ try{
+  const data=await api({accion:"admin_ver",id:r.id});
+  for(const [key,caption] of [["frente","INE frontal"],["reverso","INE trasera"],["rostro","Fotografía de rostro"]]){
+   const holder=node("div",undefined,"doc");
+   holder.append(node("strong",caption));
+   const img=document.createElement("img");img.alt=caption;img.referrerPolicy="no-referrer";
+   img.src=data.documentos[key]||"";holder.append(img);docs.append(holder);
+  }
+  const actions=document.getElementById("acciones");
+  actions.append(button("✅ Aprobar proveedor",()=>change(r,"aprobado"),"primary"));
+  actions.append(button("✕ Rechazar registro",()=>change(r,"rechazado"),"danger"));
+  st.textContent="Revisa manualmente los documentos antes de decidir.";
+  review.scrollIntoView({behavior:"smooth"});
+ }catch(e){st.textContent=e.message;review.hidden=true;}
+}
+async function change(r,status){
+ if(!window.confirm("¿Confirmas cambiar el estado de este proveedor a "+status+"?"))return;
+ st.textContent="Guardando decisión…";
+ try{
+  const result=await api({accion:"admin_estado",id:r.id,estado:status});
+  await load();
+  st.textContent=result.advertencia||"Estado actualizado. La autorización de cada entrada sigue dependiendo del residente.";
+ }catch(e){st.textContent=e.message||"No fue posible actualizar el estado.";}
+}
+document.getElementById("recargar").addEventListener("click",load);
+load();
+</script>
+</body>
+</html>
