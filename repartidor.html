@@ -158,7 +158,7 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
 
   <div id="salidaRepartidorCard" class="card hidden">
     <h2>🚚 Acceso autorizado</h2>
-    <p class="muted">Tienes 7 minutos desde la autorización para confirmar que ya saliste. Este contador no significa que el portón permanezca físicamente abierto.</p>
+    <p class="muted">El contador muestra cuánto tiempo tienes para confirmar tu salida según el tipo de acceso. El portón NO permanece abierto durante ese tiempo.</p>
     <div id="salidaRepartidorReloj" class="status" role="timer" aria-live="off">07:00</div>
     <p id="salidaRepartidorNota" class="muted">Confirma únicamente cuando ya estés completamente fuera de la privada.</p>
     <button type="button" class="primary" id="salidaRepartidorBoton" onclick="confirmarSalidaRepartidor()">✅ Ya estoy fuera de la privada</button>
@@ -664,6 +664,7 @@ function mostrarVentanaSalida(origen,tokenAcceso,inicio){
  }
  document.getElementById('accessChoice').classList.add('hidden');
  document.getElementById('salidaRepartidorCard').classList.remove('hidden');
+ document.getElementById('salidaRepartidorReloj').textContent=window.proveedorSolicitudActiva?'03:00':'07:00';
  document.getElementById('salidaRepartidorEstado').textContent='';
  document.getElementById('salidaRepartidorNota').textContent='Confirma únicamente cuando ya estés completamente fuera de la privada.';
  const btn=document.getElementById('salidaRepartidorBoton');
