@@ -26,7 +26,34 @@ a{color:#84d4ff}#estado{min-height:28px;padding:10px 0}#codigo{display:block;fon
  <h1>🛠️ Registro de proveedores</h1>
  <p class="muted">Registra tus datos una sola vez. Recibirás un código personal para recuperar tu información al usar el Portero Virtual.</p>
 </header>
-<section class="card" id="formCard">
+<section class="card" id="demoCard">
+ <h2>🧪 Registro de prueba · Sin INE</h2>
+ <p class="muted">Prueba por 30 días cómo se guardan y recuperan los datos del proveedor, incluida la empresa que representa. <strong>Usa únicamente datos ficticios.</strong> El código de demostración funciona solo en este navegador y no solicita ni autoriza una apertura del portón.</p>
+ <form id="formDemo">
+  <label for="demoNombre">Nombre(s) de prueba *</label><input id="demoNombre" required maxlength="70" placeholder="Ej. Prueba">
+  <label for="demoPaterno">Apellido paterno de prueba *</label><input id="demoPaterno" required maxlength="70" placeholder="Ej. Proveedor">
+  <label for="demoMaterno">Apellido materno de prueba *</label><input id="demoMaterno" required maxlength="70" placeholder="Ej. Ejemplo">
+  <label for="demoEmpresa">¿Para qué empresa trabaja o a cuál representa? *</label><input id="demoEmpresa" required maxlength="80" autocomplete="off" placeholder="Ej. Empresa de prueba o Independiente">
+  <label for="demoCasa">Casa de destino para la simulación (40 a 66) *</label><input id="demoCasa" required maxlength="2" inputmode="numeric" pattern="(4[0-9]|5[0-9]|6[0-6])" placeholder="Ej. 63">
+  <label class="consent"><input id="demoConsent" type="checkbox" required><span>Confirmo que usaré información ficticia y entiendo que este código NO permite entrar a la privada ni solicitar una apertura real.</span></label>
+  <button type="submit">🧪 Generar código de demostración</button>
+ </form>
+ <p id="estadoDemo" role="status" aria-live="polite"></p>
+</section>
+<section class="card" id="demoResult" hidden>
+ <h2>🧪 Código de prueba generado</h2>
+ <p class="muted">Se guarda por hasta 30 días solamente en este navegador. No funciona desde otro teléfono ni equivale a un permiso de acceso.</p>
+ <output id="codigoDemo" style="display:block;text-align:center;font-size:22px;padding:14px;border:1px dashed #49c69d;border-radius:11px;overflow-wrap:anywhere"></output>
+ <button type="button" id="demoCopiar">Copiar código</button>
+ <a class="btn secondary" id="demoPortero" href="./repartidor.html">Comprobar autocompletado en Portero Virtual</a>
+ <button type="button" class="secondary" id="demoEliminar">Eliminar esta prueba</button>
+</section>
+<section class="card">
+ <h2>🔒 Registro con documentos</h2>
+ <p class="muted">La recepción de INE y fotografías sigue desactivada hasta que el aviso de privacidad esté completo y validado. El registro de prueba no sustituye las verificaciones de identidad ni las autorizaciones de ingreso.</p>
+ <p>Consulta el <a href="./aviso-privacidad-proveedores.html" target="_blank" rel="noopener noreferrer">aviso de privacidad (borrador)</a>.</p>
+</section>
+<section class="card" id="formCard" hidden>
  <h2>Información del proveedor</h2>
  <form id="form">
   <label for="nombre">Nombre(s) *</label><input id="nombre" name="nombre" maxlength="70" autocomplete="given-name" required>
@@ -111,5 +138,6 @@ document.getElementById("alPortero").addEventListener("click",()=>{
  try{sessionStorage.setItem("proveedor_codigo_reciente",codigo);}catch(_){}
 });
 </script>
+<script src="./proveedor-demo.js?v=1"></script>
 </body>
 </html>
