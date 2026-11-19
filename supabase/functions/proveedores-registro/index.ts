@@ -13,6 +13,8 @@ const cors = {
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: cors });
 const url = () => Deno.env.get("PROVEEDORES_AVISO_PRIVACIDAD_URL") || "";
 const enabled = () => Deno.env.get("PROVEEDORES_REGISTRO_ACTIVO") === "true" && /^https:\/\/[^\s/]+\/[^\s]+$/i.test(url());
+const basicEnabled = () => Deno.env.get("PROVEEDORES_REGISTRO_BASICO_ACTIVO") === "true" &&
+  Deno.env.get("PROVEEDORES_AVISO_VALIDADO") === "true" && /^https:\/\/[^\s/]+\/[^\s]+$/i.test(url());
 const codeOK = (v: unknown) => /^PR-[A-F0-9]{20}$/.test(String(v || "").trim().toUpperCase());
 const idOK = (v: unknown) => /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(String(v || ""));
 const houseOK = (v: unknown) => /^(4[0-9]|5[0-9]|6[0-6])$/.test(String(v || ""));
@@ -66,7 +68,7 @@ async function throttle(db: any, req: Request) {
 async function findProvider(db: any, raw: unknown) {
   if (!codeOK(raw)) return null;
   const {data,error} = await db.from("proveedores_registrados")
-    .select("id,casa_id,nombre,apellido_paterno,apellido_materno,empresa,estado,creado_at")
+    .select("id,casa_id,nombre,apellido_paterno,apellido_materno,empresa,estado,modalidad,caduca_at,creado_at")
     .eq("codigo_hash",await sha(String(raw).trim().toUpperCase())).maybeSingle();
   if (error) throw Error("No se pudo consultar el proveedor.");
   return data;
@@ -83,6 +85,14 @@ async function removeImages(db: any, p: any) {
 }
 // Limpieza de solicitudes pendientes sin resolver (se ejecuta al usar el servicio).
 async function cleanOld(db: any) {
+  // Destruir datos personales básicos al vencer el piloto (30 días).
+  const {data:expired} = await db.from("proveedores_registrados")
+    .select("id").eq("modalidad","basico").lt("caduca_at",new Date().toISOString()).limit(50);
+  const expiredIds = (expired || []).map((p:any)=>p.id);
+  if (expiredIds.length) {
+    const {error:linkError} = await db.from("proveedores_solicitudes_acceso").delete().in("proveedor_id",expiredIds);
+    if (!linkError) await db.from("proveedores_registrados").delete().in("id",expiredIds);
+  }
   // Imágenes de registros ya revisados: reintentar borrado si una llamada falló.
   const {data:resolved} = await db.from("proveedores_registrados")
     .select("id,ine_frente_ruta,ine_reverso_ruta,rostro_ruta")
@@ -175,6 +185,34 @@ Deno.serve(async (req: Request) => {
     if (!contentType.includes("application/json")) return json({error:"Formato inválido."},415);
     const body = await req.json().catch(()=>({}));
     const action = String(body?.accion || "");
+    if (action === "registro_basico") {
+      if (!basicEnabled()) return json({error:"El registro real requiere completar y validar el aviso de privacidad, incluido el domicilio del responsable."},503);
+      if (body?.consentimiento !== true) return json({error:"Debes leer y aceptar el aviso de privacidad."},400);
+      const casa=norm(body.casa),nombre=norm(body.nombre),paterno=norm(body.apellido_paterno),
+        materno=norm(body.apellido_materno),empresa=norm(body.empresa);
+      if (!houseOK(casa)|| !validName(nombre)|| !validName(paterno)|| !validName(materno)|| !validCompany(empresa))
+        return json({error:"Verifica nombre, apellidos, empresa y casa (40 a 66)."},400);
+      const key=await rateKey(req);
+      const since=new Date(Date.now()-24*60*60*1000).toISOString();
+      const {count,error:limitError}=await database.from("proveedores_registrados")
+        .select("id",{count:"exact",head:true}).eq("rate_key",key).gte("creado_at",since);
+      if (limitError || (count||0)>=3)
+        return json({error:"Límite de registros alcanzado. Contacta a Administración."},429);
+      const {data:house,error:houseError}=await database.from("casas")
+        .select("id").eq("numero",casa).eq("activo",true).maybeSingle();
+      if (houseError || !house) return json({error:"Esa casa no está disponible."},400);
+      const codigo=createCode();
+      const {error}=await database.from("proveedores_registrados").insert({
+        casa_id:house.id,nombre,apellido_paterno:paterno,apellido_materno:materno,empresa,
+        codigo_hash:await sha(codigo),estado:"pendiente",modalidad:"basico",
+        caduca_at:new Date(Date.now()+30*24*60*60*1000).toISOString(),
+        rate_key:key,consentimiento_at:new Date().toISOString()
+      });
+      if (error) return json({error:"No se pudo completar el registro. Vuelve a intentar."},503);
+      return json({ok:true,codigo,estado:"pendiente",caduca_at:new Date(Date.now()+30*24*60*60*1000).toISOString(),
+        mensaje:"Registro recibido. Sistema Admin deberá aprobarlo antes de poder solicitar acceso al residente."});
+    }
+
     if (action === "mantenimiento") {
       const token = req.headers.get("x-cron-token") || "";
       if (!/^[a-f0-9]{64}$/.test(token)) return json({error:"No autorizado."},403);
@@ -184,7 +222,7 @@ Deno.serve(async (req: Request) => {
       return json({ok:true,limpieza:"ejecutada"});
     }
     if (action === "capacidades") {
-      return json({ok:true,registro_habilitado:enabled(),
+      return json({ok:true,registro_basico_habilitado:basicEnabled(),registro_habilitado:enabled(),
         aviso_privacidad_url:enabled()?url():null,retencion_pendientes_dias:7,
         acceso_solicitud_minutos:3,apertura_automatica:false});
     }
@@ -193,6 +231,7 @@ Deno.serve(async (req: Request) => {
       const p = await findProvider(database,body.codigo);
       if (!p) return json({error:"Código no reconocido."},404);
       if (p.estado !== "aprobado") return json({error:"El registro aún no está autorizado o ya no está vigente.",estado:p.estado},403);
+      if (p.modalidad==="basico" && (!basicEnabled() || !p.caduca_at || Date.parse(p.caduca_at)<=Date.now())) return json({error:"Este registro básico ya no está vigente o fue deshabilitado."},403);
       const {data:house} = await database.from("casas").select("numero,activo")
         .eq("id",p.casa_id).maybeSingle();
       if (!house || !house.activo || !houseOK(house.numero))
@@ -249,7 +288,7 @@ Deno.serve(async (req: Request) => {
       await cleanOld(database);
       if (action === "admin_listar") {
         const {data,error} = await database.from("proveedores_registrados")
-          .select("id,nombre,apellido_paterno,apellido_materno,empresa,estado,creado_at,revisado_at,casa:casas!proveedores_registrados_casa_id_fkey(numero)")
+          .select("id,nombre,apellido_paterno,apellido_materno,empresa,modalidad,caduca_at,estado,creado_at,revisado_at,casa:casas!proveedores_registrados_casa_id_fkey(numero)")
           .order("creado_at",{ascending:false}).limit(100);
         if (error) return json({error:"No se pudieron consultar los registros."},503);
         return json({ok:true,registros:data || []});
@@ -260,6 +299,7 @@ Deno.serve(async (req: Request) => {
       if (error || !p) return json({error:"Registro no encontrado."},404);
       if (action === "admin_ver") {
         if (p.estado !== "pendiente") return json({error:"Las fotos ya no están disponibles tras la revisión."},410);
+        if (p.modalidad === "basico") return json({ok:true,modalidad:"basico",documentos:{},mensaje:"Registro básico sin documentos. Empresa declarada, no verificada."});
         const docs: Record<string,string> = {};
         for (const [k,path] of Object.entries({
           frente:p.ine_frente_ruta,reverso:p.ine_reverso_ruta,rostro:p.rostro_ruta
@@ -274,6 +314,7 @@ Deno.serve(async (req: Request) => {
       }
       if (action === "admin_estado") {
         const estado = String(body.estado||"");
+        if (p.modalidad==="basico" && (!p.caduca_at || Date.parse(p.caduca_at)<=Date.now())) return json({error:"Registro básico vencido."},410);
         if (!(p.estado==="pendiente" && ["aprobado","rechazado"].includes(estado)) &&
             !(p.estado==="aprobado" && estado==="revocado"))
           return json({error:"Cambio de estado no permitido."},400);
