@@ -31,6 +31,7 @@ function createCode() {
 }
 function norm(v: unknown) { return String(v || "").trim().normalize("NFC").replace(/\s+/g, " "); }
 function validName(v: string) { return v.length >= 2 && v.length <= 70 && /^[\p{L}\p{M} .'-]+$/u.test(v); }
+function validCompany(v: string) { return v.length >= 2 && v.length <= 80 && !/[<>\x00-\x1F]/.test(v); }
 const fullName = (p: any) => [p.nombre, p.apellido_paterno, p.apellido_materno].join(" ");
 function mimeFromBytes(b: Uint8Array) {
   if (b.length >= 3 && b[0] === 255 && b[1] === 216 && b[2] === 255) return "image/jpeg";
@@ -65,7 +66,7 @@ async function throttle(db: any, req: Request) {
 async function findProvider(db: any, raw: unknown) {
   if (!codeOK(raw)) return null;
   const {data,error} = await db.from("proveedores_registrados")
-    .select("id,casa_id,nombre,apellido_paterno,apellido_materno,estado,creado_at")
+    .select("id,casa_id,nombre,apellido_paterno,apellido_materno,empresa,estado,creado_at")
     .eq("codigo_hash",await sha(String(raw).trim().toUpperCase())).maybeSingle();
   if (error) throw Error("No se pudo consultar el proveedor.");
   return data;
@@ -118,7 +119,8 @@ Deno.serve(async (req: Request) => {
       const nombre = norm(form.get("nombre"));
       const paterno = norm(form.get("apellido_paterno"));
       const materno = norm(form.get("apellido_materno"));
-      if (!houseOK(casa) || !validName(nombre) || !validName(paterno) || !validName(materno))
+      const empresa = norm(form.get("empresa"));
+      if (!houseOK(casa) || !validName(nombre) || !validName(paterno) || !validName(materno) || !validCompany(empresa))
         return json({error:"Verifica los nombres y el número de casa (40 a 66)."},400);
       const files: [string, string][] = [
         ["ine_frente","frente"],["ine_reverso","reverso"],["rostro","rostro"]
@@ -155,7 +157,7 @@ Deno.serve(async (req: Request) => {
           paths.push(path); uploadPaths[p.field] = path;
         }
         const {error} = await database.from("proveedores_registrados").insert({
-          id,casa_id:house.id,nombre,apellido_paterno:paterno,apellido_materno:materno,
+          id,casa_id:house.id,nombre,apellido_paterno:paterno,apellido_materno:materno,empresa,
           codigo_hash:await sha(code),estado:"pendiente",rate_key:key,
           ine_frente_ruta:uploadPaths.ine_frente,
           ine_reverso_ruta:uploadPaths.ine_reverso,
@@ -198,7 +200,7 @@ Deno.serve(async (req: Request) => {
       if (action === "consultar") {
         return json({ok:true,nombre:p.nombre,apellido_paterno:p.apellido_paterno,
           apellido_materno:p.apellido_materno,nombre_completo:fullName(p),casa:house.numero,
-          tipo:"otro",empresa:"Proveedor registrado",estado:"aprobado"});
+          tipo:"otro",empresa:p.empresa || "Proveedor registrado",estado:"aprobado"});
       }
       const since = new Date(Date.now()-10*60*1000).toISOString();
       const {count} = await database.from("proveedores_solicitudes_acceso")
@@ -210,8 +212,8 @@ Deno.serve(async (req: Request) => {
       if ((existing||[]).some((x:any)=>x.entrega?.estado==="esperando"&&Date.parse(x.entrega.expires_at)>Date.now()))
         return json({error:"Ya tienes una solicitud en curso. Espera su respuesta."},429);
       const {data:delivery,error:insertError} = await database.from("entregas_contacto")
-        .insert({casa_id:p.casa_id,tipo:"otro",empresa:"Proveedor registrado",
-          repartidor:fullName(p),mensaje:"Solicitud de acceso de proveedor registrado (3 minutos).",
+        .insert({casa_id:p.casa_id,tipo:"otro",empresa:p.empresa || "Proveedor registrado",
+          repartidor:fullName(p),mensaje:"Proveedor de "+(p.empresa || "empresa no declarada")+". Solicitud de acceso (3 minutos), con autorización del residente.",
           estado:"esperando",expires_at:new Date(Date.now()+3*60*1000).toISOString()})
         .select("id,public_token,expires_at").single();
       if (insertError || !delivery) return json({error:"No se pudo crear la solicitud."},503);
@@ -228,7 +230,7 @@ Deno.serve(async (req: Request) => {
         const {error:notificationError} = await database.from("notificaciones_push").insert(
           residents.map((r:any)=>({
             user_id:r.id,titulo:"🛠️ Proveedor solicita acceso",
-            mensaje:"Proveedor registrado solicita autorización para Casa "+house.numero+". Vigencia: 3 minutos.",
+            mensaje:"Proveedor de "+(p.empresa || "empresa no declarada")+" solicita autorización para Casa "+house.numero+". Vigencia: 3 minutos.",
             tipo:"entrega_entrada",referencia:"entrega:"+delivery.id+":"+r.id,destino:"entregas"
           }))
         );
@@ -247,7 +249,7 @@ Deno.serve(async (req: Request) => {
       await cleanOld(database);
       if (action === "admin_listar") {
         const {data,error} = await database.from("proveedores_registrados")
-          .select("id,nombre,apellido_paterno,apellido_materno,estado,creado_at,revisado_at,casa:casas!proveedores_registrados_casa_id_fkey(numero)")
+          .select("id,nombre,apellido_paterno,apellido_materno,empresa,estado,creado_at,revisado_at,casa:casas!proveedores_registrados_casa_id_fkey(numero)")
           .order("creado_at",{ascending:false}).limit(100);
         if (error) return json({error:"No se pudieron consultar los registros."},503);
         return json({ok:true,registros:data || []});
