@@ -51,6 +51,11 @@ Deno.serve(async (req:Request)=>{
   const admin=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
   const body=await req.json().catch(()=>({}));
   const action=String(body?.action||"");
+  if(action==="start"){
+   const {data:serviceState,error:serviceError}=await admin.rpc("portero_servicio_estado");
+   if(serviceError||serviceState?.activo!==true)
+    return reply({error:"QR de repartidores y visitas fuera de servicio por mantenimiento."},503);
+  }
 
   if(action==="start"){
    const casa=clean(body?.casa,20),tipo=clean(body?.tipo,30);
