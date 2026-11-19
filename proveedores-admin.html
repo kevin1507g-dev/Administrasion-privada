@@ -22,7 +22,7 @@ button:disabled{opacity:.5}.provider{padding:14px 0;border-bottom:1px solid #324
 <main>
 <header class="card">
  <h1>🛠️ Proveedores registrados</h1>
- <p class="muted">Panel privado de Sistema Admin. Revisa los documentos antes de aprobar un código. Aprobar un proveedor no autoriza una apertura: cada ingreso necesita permiso de la casa.</p>
+ <p class="muted">Panel privado de Sistema Admin. Los registros básicos no incluyen INE ni fotografías y sus datos son autodeclarados. Si los apruebas, el proveedor todavía necesitará autorización de la casa para cada ingreso. En los registros documentales revisa las evidencias antes de aprobar.</p>
  <a href="./index.html" class="btn">← Administración Residencial</a>
  <button type="button" id="recargar">Actualizar registros</button>
 </header>
@@ -66,7 +66,12 @@ async function load(){
    const number=typeof r.casa==="object"&&r.casa? r.casa.numero:"—";
    item.append(node("h2",[r.nombre,r.apellido_paterno,r.apellido_materno].filter(Boolean).join(" ")));
    item.append(node("p","Empresa declarada: "+(r.empresa||"No registrada")+" · Casa "+number+" · "+r.estado+" · "+new Date(r.creado_at).toLocaleString("es-MX"),"muted"));
-   if(r.estado==="pendiente")item.append(button("🔎 Revisar INE y rostro",()=>show(r)));
+   if(r.estado==="pendiente"&&r.modalidad==="basico"){
+    item.append(node("p","Registro básico sin documentos. Empresa declarada por el proveedor, no verificada. Aprobar el código no abre el portón; cada entrada requiere permiso del residente.","muted"));
+    item.append(button("✅ Aprobar registro básico",()=>change(r,"aprobado"),"primary"));
+    item.append(button("✕ Rechazar registro",()=>change(r,"rechazado"),"danger"));
+   }
+   if(r.estado==="pendiente"&&r.modalidad!=="basico")item.append(button("🔎 Revisar INE y rostro",()=>show(r)));
    if(r.estado==="aprobado")item.append(button("Revocar código",()=>change(r,"revocado"),"danger"));
    list.append(item);
   }
