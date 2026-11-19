@@ -1548,6 +1548,27 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
 </section>
 
 <section id="mantenimiento" class="residentAdminOnly"><h2>🛠️ Reportes de mantenimiento</h2>
+
+<div class="card adminOnly" style="margin-bottom:14px">
+  <h3>📱 QR de repartidores y visitas</h3>
+  <p class="muted">Muestra o descarga el QR para colocarlo en la entrada de la privada. Abre el mismo Portero Virtual de Repartidores y visitas; el acceso al portón sigue sujeto a sus autorizaciones.</p>
+  <button id="qrMantenimientoToggle" type="button" class="primary" aria-controls="qrMantenimientoContenido" aria-expanded="false">📱 Mostrar QR de repartidores y visitas</button>
+  <div id="qrMantenimientoContenido" class="hidden" style="margin-top:16px">
+    <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+      <div id="qrMantenimientoImagen" aria-label="QR del Portero Virtual para repartidores y visitas" style="background:white;padding:12px;border-radius:12px;min-height:264px;min-width:264px"></div>
+      <div style="flex:1;min-width:210px">
+        <label for="qrMantenimientoUrl">Enlace del Portero Virtual</label>
+        <input id="qrMantenimientoUrl" type="text" readonly aria-label="Enlace del portal de repartidores y visitas">
+        <div class="actions" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">
+          <button type="button" id="qrMantenimientoDescargar">⬇️ Descargar QR</button>
+          <button type="button" id="qrMantenimientoCopiar">📋 Copiar enlace</button>
+          <a href="./repartidor.html" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:11px 14px;background:#334155;color:white;border-radius:10px;text-decoration:none;font-weight:700">Abrir portal</a>
+        </div>
+      </div>
+    </div>
+    <p class="muted" id="qrMantenimientoEstado" role="status" aria-live="polite" style="margin-top:12px"></p>
+  </div>
+</div>
 <div class="card">
   <h3>Nuevo reporte</h3>
   <div class="form">
@@ -8246,6 +8267,7 @@ async function actualizarVistaActiva(){
 <script src="./pendientes-residente.js?v=3"></script>
 <script src="./aviso-cuotas-residente.js?v=1"></script>
 <script src="./acciones-menu.js?v=1"></script>
+<script src="./qr-mantenimiento.js?v=1"></script>
 
 <dialog id="ownerChatEspecialDialog" aria-labelledby="ownerChatEspecialTitulo">
   <h3 id="ownerChatEspecialTitulo">💬 Chat especial · Sistema Admin</h3>
