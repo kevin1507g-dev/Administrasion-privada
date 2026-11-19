@@ -77,7 +77,7 @@ async function call(body){
  try{
   const data=await call({accion:"capacidades"});
   if(!data.registro_habilitado || !data.aviso_privacidad_url){
-   st.textContent="Registro temporalmente deshabilitado hasta publicar el aviso de privacidad y habilitar la captura segura de documentos.";
+   st.textContent="El aviso de privacidad ya se puede consultar, pero el registro aún no puede recibir INE ni fotografías: faltan completar y validar los datos legales del responsable antes de activar la captura segura.";
    return;
   }
   document.getElementById("aviso").href=data.aviso_privacidad_url;
