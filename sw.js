@@ -1,4 +1,4 @@
-const APP_CACHE = "privada-beteles-v23-mp-laboratorio";
+const APP_CACHE = "privada-beteles-v24-registro-proveedores";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -39,7 +39,7 @@ self.addEventListener("fetch", event => {
   if (url.origin !== self.location.origin) return;
 
   // Siempre consultar la red para HTML: evita que la PWA de iPhone conserve menús antiguos.
-  const isDocument = request.mode === "navigate" || url.pathname.endsWith("/index.html") || url.pathname.endsWith("/repartidor.html");
+  const isDocument = request.mode === "navigate" || url.pathname.endsWith("/index.html") || url.pathname.endsWith("/repartidor.html") || url.pathname.endsWith("/proveedores.html") || url.pathname.endsWith("/proveedores-admin.html");
   const isAppStylesheet = url.pathname.endsWith("/ui-modern.css");
   // Treat HTML and UI CSS as network-first, bypassing iOS HTTP caches.
   const networkRequest = (isDocument || isAppStylesheet) ? new Request(request, {cache:"no-store"}) : request;
