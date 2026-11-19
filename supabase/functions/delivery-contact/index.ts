@@ -81,6 +81,10 @@ Deno.serve(async (req: Request) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
+    const {data:serviceState,error:serviceError}=await admin.rpc("portero_servicio_estado");
+    if(serviceError || serviceState?.activo!==true)
+      return json({error:"QR de repartidores y visitas fuera de servicio por mantenimiento."},503);
+
     const body = await req.json().catch(() => ({}));
     // La casa es obligatoria. No aceptar cadenas mixtas como "45abc",
     // ni asignar NULL si el número no existe en la privada.
