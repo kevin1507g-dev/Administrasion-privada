@@ -3,12 +3,21 @@
  const menu=document.getElementById("accessChoice");
  const card=document.getElementById("porteroCard");
  if(!menu||!card||typeof sb==="undefined")return;
+ // Un perfil DEMO no debe enviar órdenes ni generar solicitudes reales.
+ window.proveedorDemoActivo=false;
+ const porteroForm=document.getElementById("porteroForm");
+ porteroForm?.addEventListener("submit",event=>{
+   if(!window.proveedorDemoActivo)return;
+   event.preventDefault();event.stopImmediatePropagation();
+   const status=document.getElementById("porteroEstado");
+   if(status){status.hidden=false;status.textContent="Este es un código DEMO; el registro de prueba no permite solicitar ingresos reales."}
+ },true);
  const box=document.createElement("section");
  box.style.cssText="background:#0b2230;border:1px solid #357f78;border-radius:14px;padding:14px;margin:12px 0 20px";
  const heading=document.createElement("h3");heading.textContent="🪪 Código de proveedor";heading.style.marginTop="0";
  const description=document.createElement("p");
  description.className="muted portero-small";
- description.textContent="Escribe el código recibido al registrarte. Si Sistema Admin ya aprobó tu registro, se rellenarán automáticamente tus datos y podrás solicitar autorización al residente por 3 minutos.";
+ description.textContent="Introduce un código PR aprobado para solicitar autorización del residente. Los códigos DEMO permiten únicamente probar el autocompletado sin enviar solicitudes ni abrir el portón.";
  const label=document.createElement("label");label.htmlFor="proveedorCodigo";label.textContent="Tu código personal";
  const input=document.createElement("input");input.id="proveedorCodigo";input.type="text";
  input.maxLength=23;input.autocomplete="off";input.autocapitalize="characters";input.placeholder="PR-XXXXXXXXXXXXXXXXXXXX";
@@ -20,7 +29,7 @@
  box.append(heading,description,label,input,retrieve,request,status);
  card.insertBefore(box,card.querySelector("form"));
  let registeredCode=null,busy=false;
- function invalidate(){registeredCode=null;request.classList.add("hidden");window.proveedorSolicitudActiva=false;}
+ function invalidate(){registeredCode=null;request.classList.add("hidden");window.proveedorSolicitudActiva=false;window.proveedorDemoActivo=false;const b=document.getElementById("porteroEnviar");if(b)b.disabled=false;}
  input.addEventListener("input",invalidate);
  async function call(body){
   const {data,error}=await sb.functions.invoke("proveedores-registro",{body});
@@ -31,6 +40,23 @@
  async function lookup(){
   if(busy)return;
   const codigo=input.value.trim().toUpperCase();
+  if(/^DEMO-[A-F0-9]{16}$/.test(codigo)){
+   invalidate();
+   const demo=window.proveedorDemoBuscar?.(codigo);
+   if(!demo){status.textContent="Código de prueba no encontrado o vencido. Solo funciona en el mismo navegador donde se generó.";return;}
+   document.getElementById("porteroCasa").value=demo.casa;
+   document.getElementById("porteroTipo").value="otro";
+   document.getElementById("porteroEmpresa").value=demo.empresa;
+   document.getElementById("porteroNombre").value=[demo.nombre,demo.apellido_paterno,demo.apellido_materno].join(" ");
+   document.getElementById("porteroMensaje").value="Simulación de proveedor de "+demo.empresa+". No solicitar acceso real.";
+   document.getElementById("porteroAutorizacion").value="sin_codigo";
+   if(typeof porteroAlternarCodigo==="function")porteroAlternarCodigo();
+   window.proveedorDemoActivo=true;
+   document.getElementById("porteroEnviar").disabled=true;
+   document.getElementById("porteroPedirConfirmacion").classList.add("hidden");
+   status.textContent="🧪 Prueba correcta: datos y empresa rellenados para Casa "+demo.casa+". Este código no permite solicitudes ni aperturas reales. Para volver a un acceso normal, recarga la página.";
+   return;
+  }
   if(!/^PR-[A-F0-9]{20}$/.test(codigo)){status.textContent="Revisa tu código de registro de proveedor.";return;}
   busy=true;retrieve.disabled=true;request.classList.add("hidden");status.textContent="Buscando registro autorizado…";
   try{

@@ -65,7 +65,7 @@ async function load(){
    const item=node("article",undefined,"provider");
    const number=typeof r.casa==="object"&&r.casa? r.casa.numero:"—";
    item.append(node("h2",[r.nombre,r.apellido_paterno,r.apellido_materno].filter(Boolean).join(" ")));
-   item.append(node("p","Casa "+number+" · "+r.estado+" · "+new Date(r.creado_at).toLocaleString("es-MX"),"muted"));
+   item.append(node("p","Empresa declarada: "+(r.empresa||"No registrada")+" · Casa "+number+" · "+r.estado+" · "+new Date(r.creado_at).toLocaleString("es-MX"),"muted"));
    if(r.estado==="pendiente")item.append(button("🔎 Revisar INE y rostro",()=>show(r)));
    if(r.estado==="aprobado")item.append(button("Revocar código",()=>change(r,"revocado"),"danger"));
    list.append(item);
