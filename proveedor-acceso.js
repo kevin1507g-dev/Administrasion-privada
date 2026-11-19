@@ -3,12 +3,6 @@
  const menu=document.getElementById("accessChoice");
  const card=document.getElementById("porteroCard");
  if(!menu||!card||typeof sb==="undefined")return;
- const entry=document.createElement("a");
- entry.href="./proveedores.html";
- entry.className="choice";
- entry.style.cssText="display:block;text-decoration:none;border-radius:12px;margin-top:12px";
- entry.innerHTML="<strong>🛠️ Soy proveedor · Registrarme</strong><span>Registro con nombre, apellidos, casa, INE frontal/trasera y fotografía de rostro.</span>";
- menu.append(entry);
  const box=document.createElement("section");
  box.style.cssText="background:#0b2230;border:1px solid #357f78;border-radius:14px;padding:14px;margin:12px 0 20px";
  const heading=document.createElement("h3");heading.textContent="🪪 Código de proveedor";heading.style.marginTop="0";
