@@ -1,8 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-// Registro y solicitudes de proveedores. No emite órdenes al ESP32.
-// Las aperturas siguen estando sujetas a la autorización del residente.
+// La llave PR permite una sola solicitud de acceso, reservada atómicamente.
+// Una apertura física sigue requiriendo autorización del residente y confirmación ESP32.
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, apikey, x-client-info, content-type",
@@ -68,7 +68,7 @@ async function throttle(db: any, req: Request) {
 async function findProvider(db: any, raw: unknown) {
   if (!codeOK(raw)) return null;
   const {data,error} = await db.from("proveedores_registrados")
-    .select("id,casa_id,nombre,apellido_paterno,apellido_materno,empresa,estado,modalidad,caduca_at,creado_at")
+    .select("id,casa_id,nombre,apellido_paterno,apellido_materno,empresa,estado,modalidad,caduca_at,codigo_reservado_at,codigo_usado_at,creado_at")
     .eq("codigo_hash",await sha(String(raw).trim().toUpperCase())).maybeSingle();
   if (error) throw Error("No se pudo consultar el proveedor.");
   return data;
@@ -231,6 +231,7 @@ Deno.serve(async (req: Request) => {
       const p = await findProvider(database,body.codigo);
       if (!p) return json({error:"Código no reconocido."},404);
       if (p.estado !== "aprobado") return json({error:"El registro aún no está autorizado o ya no está vigente.",estado:p.estado},403);
+      if (p.codigo_reservado_at || p.codigo_usado_at) return json({error:"Esta llave PR ya solicitó su único acceso y no puede volver a utilizarse.",estado:"llave_utilizada"},410);
       if (p.modalidad==="basico" && (!basicEnabled() || !p.caduca_at || Date.parse(p.caduca_at)<=Date.now())) return json({error:"Este registro básico ya no está vigente o fue deshabilitado."},403);
       const {data:house} = await database.from("casas").select("numero,activo")
         .eq("id",p.casa_id).maybeSingle();
@@ -256,11 +257,11 @@ Deno.serve(async (req: Request) => {
           estado:"esperando",expires_at:new Date(Date.now()+3*60*1000).toISOString()})
         .select("id,public_token,expires_at").single();
       if (insertError || !delivery) return json({error:"No se pudo crear la solicitud."},503);
-      const {error:linkError} = await database.from("proveedores_solicitudes_acceso")
-        .insert({proveedor_id:p.id,entrega_id:delivery.id});
-      if (linkError) {
+      const {data:linked,error:linkError} = await database.rpc("proveedores_vincular_solicitud_unica",
+        {p_proveedor:p.id,p_entrega:delivery.id});
+      if (linkError || linked !== true) {
         await database.from("entregas_contacto").delete().eq("id",delivery.id);
-        return json({error:"No se pudo vincular el registro."},503);
+        return json({error:"Esta llave PR ya fue reservada o utilizada; no puede repetirse."},409);
       }
       const {data:residents} = await database.from("profiles")
         .select("id").eq("casa_id",p.casa_id).eq("rol","residente")
@@ -280,7 +281,7 @@ Deno.serve(async (req: Request) => {
         }
       }
       return json({ok:true,token:delivery.public_token,expires_at:delivery.expires_at,
-        mensaje:"Solicitud enviada. Necesitas autorización del residente; el código no abre el portón."});
+        mensaje:"Solicitud única enviada. El código PR queda reservado y no admite otro intento. Necesitas autorización del residente para abrir el portón."});
     }
     if (action.startsWith("admin_")) {
       const uid = await owner(database,req);
