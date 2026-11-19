@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>Registro de proveedores · Privada Beteles</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--card:#111c2d;--line:#344358;--text:#f2f7fc;--muted:#b1c0cf;--green:#23c77e}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--text);font:16px system-ui,-apple-system,sans-serif;margin:0;padding:22px}
+main{max-width:600px;margin:auto}header,.card{background:var(--card);padding:24px;border:1px solid var(--line);border-radius:20px;margin-bottom:18px}
+h1,h2{margin:0 0 12px}p{line-height:1.5}.muted{color:var(--muted)}.tag{display:inline-block;border:1px solid #346d60;padding:6px 12px;border-radius:30px;color:#93efc5;margin-bottom:14px}
+label{display:block;font-weight:650;margin:16px 0 6px}input{font:inherit;color:var(--text);background:#08111c;border:1px solid #546477;border-radius:10px;padding:13px;width:100%}
+input[type=file]{padding:9px}input[type=checkbox]{width:23px;height:23px;margin:0 10px 0 0;flex-shrink:0}
+button,.btn{font:inherit;cursor:pointer;text-align:center;font-weight:800;width:100%;padding:14px 16px;background:var(--green);color:#032318;border:0;border-radius:12px;margin-top:16px;display:block;text-decoration:none}
+button:disabled{opacity:.5;cursor:default}.secondary{background:#26374c;color:#eef5fc}.consent{display:flex;gap:6px;align-items:flex-start;line-height:1.5;margin-top:18px}
+a{color:#84d4ff}#estado{min-height:28px;padding:10px 0}#codigo{display:block;font-size:23px;font-weight:850;letter-spacing:.06em;overflow-wrap:anywhere;padding:16px;border-radius:12px;background:#071b1c;border:1px dashed #49c69d;text-align:center}
+[hidden]{display:none!important}small{color:var(--muted)} 
+</style>
+</head>
+<body>
+<main>
+<header>
+ <span class="tag">🏢 Privada Valle de los Beteles</span>
+ <h1>🛠️ Registro de proveedores</h1>
+ <p class="muted">Registra tus datos una sola vez. Recibirás un código personal para recuperar tu información al usar el Portero Virtual.</p>
+</header>
+<section class="card" id="formCard">
+ <h2>Información del proveedor</h2>
+ <form id="form">
+  <label for="nombre">Nombre(s) *</label><input id="nombre" name="nombre" maxlength="70" autocomplete="given-name" required>
+  <label for="paterno">Apellido paterno *</label><input id="paterno" name="apellido_paterno" maxlength="70" autocomplete="family-name" required>
+  <label for="materno">Apellido materno *</label><input id="materno" name="apellido_materno" maxlength="70" required>
+  <label for="casa">Número de casa (40 a 66) *</label>
+  <input id="casa" name="casa" required inputmode="numeric" pattern="(4[0-9]|5[0-9]|6[0-6])" maxlength="2">
+  <h2 style="margin-top:24px">Documentos para revisión privada</h2>
+  <p class="muted">Adjunta las tres imágenes. Cubre domicilio, CURP, clave de elector, OCR y otros datos innecesarios de la INE antes de fotografiarla. Solo para mayores de edad, con sus propios documentos.</p>
+  <label for="frente">INE frontal *</label><input id="frente" name="ine_frente" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required>
+  <label for="reverso">INE trasera *</label><input id="reverso" name="ine_reverso" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required>
+  <label for="rostro">Fotografía de tu rostro *</label><input id="rostro" name="rostro" type="file" accept="image/jpeg,image/png,image/webp" capture="user" required>
+  <small>Máximo 3 MB por fotografía. Solo Sistema Admin puede consultarlas durante la revisión; se eliminan al resolver el registro. No se realizan comparaciones faciales automáticas.</small>
+  <label class="consent"><input id="consent" type="checkbox" required><span>He leído el <a id="aviso" href="./aviso-privacidad-proveedores.html" target="_blank" rel="noopener noreferrer">aviso de privacidad</a> y autorizo este tratamiento de mis fotografías y datos.</span></label>
+  <button type="submit" id="enviar" disabled>🔐 Registrarme y generar código</button>
+ </form>
+ <p id="estado" role="status" aria-live="polite">Comprobando disponibilidad del registro…</p>
+</section>
+<section class="card" id="resultado" hidden>
+ <h2>✅ Registro recibido</h2>
+ <p>Guarda este código. Solo se muestra al completar el registro:</p>
+ <output id="codigo"></output>
+ <button type="button" id="copiar">Copiar código</button>
+ <p class="muted">Tu solicitud está pendiente de aprobación de Sistema Admin. Una vez aprobada, podrás recuperar tus datos y pedir autorización de entrada de 3 minutos. Este código NO abre el portón por sí solo.</p>
+ <a href="./repartidor.html" class="btn secondary" id="alPortero">Ir al Portero Virtual</a>
+</section>
+<a href="./repartidor.html" class="btn secondary">← Regresar a Portero Virtual</a>
+</main>
+<script>
+const SB_URL="https://nndlfkuelwpwklldvtfo.supabase.co";
+const SB_KEY="sb_publishable_f5ZypC_Rs-07K5mKwV-j5A_JrUqHzW_";
+const sb=supabase.createClient(SB_URL,SB_KEY);
+const form=document.getElementById("form");
+const st=document.getElementById("estado");
+const send=document.getElementById("enviar");
+let codigo="";
+async function call(body){
+ const {data,error}=await sb.functions.invoke("proveedores-registro",{body});
+ if(error){
+  let message=error.message||"No fue posible conectar con el servidor.";
+  try{const x=await error.context?.json?.();if(x?.error)message=x.error;}catch(_){}
+  throw Error(message);
+ }
+ if(data?.error)throw Error(data.error);
+ return data;
+}
+(async()=>{
+ try{
+  const data=await call({accion:"capacidades"});
+  if(!data.registro_habilitado || !data.aviso_privacidad_url){
+   st.textContent="Registro temporalmente deshabilitado hasta publicar el aviso de privacidad y habilitar la captura segura de documentos.";
+   return;
+  }
+  document.getElementById("aviso").href=data.aviso_privacidad_url;
+  send.disabled=false;st.textContent="Formulario disponible. Tus fotografías se enviarán a almacenamiento privado.";
+ }catch(e){st.textContent=e.message||"Registro no disponible.";}
+})();
+form.addEventListener("submit",async(e)=>{
+ e.preventDefault();
+ if(send.disabled||!form.reportValidity())return;
+ const files=["frente","reverso","rostro"].map(id=>document.getElementById(id).files?.[0]);
+ if(files.some(f=>!f||f.size>3145728||f.size<1024)){
+  st.textContent="Adjunta las tres fotografías. Cada una debe pesar entre 1 KB y 3 MB.";return;
+ }
+ const payload=new FormData(form);payload.set("accion","registro");payload.set("consentimiento","si");
+ send.disabled=true;st.textContent="Guardando registro privado…";
+ try{
+  const r=await call(payload);
+  codigo=r.codigo;
+  document.getElementById("codigo").textContent=codigo;
+  document.getElementById("formCard").hidden=true;
+  document.getElementById("resultado").hidden=false;
+  window.scrollTo({top:0,behavior:"smooth"});
+ }catch(err){st.textContent=err.message||"No se pudo completar el registro.";}
+ finally{send.disabled=false;}
+});
+document.getElementById("copiar").addEventListener("click",async()=>{
+ try{await navigator.clipboard.writeText(codigo);document.getElementById("copiar").textContent="✓ Código copiado";}
+ catch{document.getElementById("copiar").textContent="Copia el código mostrado arriba";}
+});
+document.getElementById("alPortero").addEventListener("click",()=>{
+ try{sessionStorage.setItem("proveedor_codigo_reciente",codigo);}catch(_){}
+});
+</script>
+</body>
+</html>
