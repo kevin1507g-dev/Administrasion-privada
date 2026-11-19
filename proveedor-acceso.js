@@ -17,13 +17,13 @@
  const heading=document.createElement("h3");heading.textContent="🪪 Código de proveedor";heading.style.marginTop="0";
  const description=document.createElement("p");
  description.className="muted portero-small";
- description.textContent="Introduce un código PR aprobado para solicitar autorización del residente. Los códigos DEMO permiten únicamente probar el autocompletado sin enviar solicitudes ni abrir el portón.";
+ description.textContent="Tu código PR aprobado es tu llave para UNA sola solicitud de acceso. Una vez utilizada, queda invalidada. La apertura requiere autorización del residente; los códigos DEMO no abren puertas.";
  const label=document.createElement("label");label.htmlFor="proveedorCodigo";label.textContent="Tu código personal";
  const input=document.createElement("input");input.id="proveedorCodigo";input.type="text";
  input.maxLength=23;input.autocomplete="off";input.autocapitalize="characters";input.placeholder="PR-XXXXXXXXXXXXXXXXXXXX";
  const retrieve=document.createElement("button");retrieve.type="button";retrieve.textContent="🔎 Recuperar mis datos";
  retrieve.style.marginTop="10px";
- const request=document.createElement("button");request.type="button";request.textContent="🔔 Solicitar acceso (3 minutos)";
+ const request=document.createElement("button");request.type="button";request.textContent="🔑 Usar mi llave PR (una sola vez)";
  request.className="primary hidden";request.style.marginTop="10px";
  const status=document.createElement("p");status.className="muted portero-small";status.setAttribute("role","status");status.setAttribute("aria-live","polite");
  box.append(heading,description,label,input,retrieve,request,status);
@@ -69,7 +69,7 @@
    document.getElementById("porteroAutorizacion").value="sin_codigo";
    if(typeof porteroAlternarCodigo==="function")porteroAlternarCodigo();
    registeredCode=codigo;request.classList.remove("hidden");
-   status.textContent="✅ Datos recuperados para Casa "+data.casa+". Para ingresar es indispensable que el residente autorice la solicitud.";
+   status.textContent="✅ Llave PR lista para Casa "+data.casa+". Solo podrás usarla una vez y necesitas autorización del residente.";
   }catch(e){invalidate();status.textContent=e.message||"No se pudo recuperar el registro.";}
   finally{busy=false;retrieve.disabled=false;}
  }
@@ -90,7 +90,7 @@
    document.getElementById("accessChoice").classList.add("hidden");
    document.getElementById("waitCard").classList.remove("hidden");
    document.getElementById("waitTitle").textContent="⏳ Proveedor: esperando autorización (3 minutos)";
-   document.getElementById("waitText").textContent="El residente debe autorizar dentro de 3 minutos. El portón permanece cerrado hasta recibir la orden.";
+   document.getElementById("waitText").textContent="Llave PR reservada: no se puede usar de nuevo. El residente debe autorizar dentro de 3 minutos. El portón permanece cerrado hasta recibir la orden.";
    document.getElementById("answer").textContent="";
    document.getElementById("newBtn").classList.add("hidden");
    if(pollTimer)clearInterval(pollTimer);
