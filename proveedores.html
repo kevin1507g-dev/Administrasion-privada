@@ -24,7 +24,7 @@ a{color:#84d4ff}#estado{min-height:28px;padding:10px 0}#codigo{display:block;fon
 <header>
  <span class="tag">🏢 Privada Valle de los Beteles</span>
  <h1>🛠️ Registro de proveedores</h1>
- <p class="muted">Registra tus datos una sola vez. Recibirás un código personal para recuperar tu información al usar el Portero Virtual.</p>
+ <p class="muted">Registra tus datos. Recibirás una llave PR válida para una sola solicitud de ingreso, que requerirá aprobación de Sistema Admin y autorización de la casa.</p>
 </header>
 <section class="card" id="basicoCard">
  <h2>🛠️ Registro real de proveedores</h2>
@@ -43,7 +43,7 @@ a{color:#84d4ff}#estado{min-height:28px;padding:10px 0}#codigo{display:block;fon
 </section>
 <section class="card" id="basicoResultado" hidden>
  <h2>✅ Registro recibido</h2>
- <p>Guarda este código para usarlo en el Portero Virtual. Sistema Admin debe aprobar tu registro antes de que puedas solicitar un acceso.</p>
+ <p>Guarda tu llave PR: solo podrás utilizarla una vez. Sistema Admin debe aprobar el registro y el residente autorizar tu entrada.</p>
  <output id="basicoCodigo" style="display:block;font-size:23px;overflow-wrap:anywhere;text-align:center;padding:16px;border:1px dashed #49c69d;border-radius:12px"></output>
  <button type="button" id="basicoCopiar">Copiar código</button>
  <a id="basicoAlPortero" class="btn secondary" href="./repartidor.html">Ir al Portero Virtual</a>
@@ -75,10 +75,10 @@ a{color:#84d4ff}#estado{min-height:28px;padding:10px 0}#codigo{display:block;fon
 </section>
 <section class="card" id="resultado" hidden>
  <h2>✅ Registro recibido</h2>
- <p>Guarda este código. Solo se muestra al completar el registro:</p>
+ <p>Guarda tu llave PR de un solo uso. Solo se muestra al completar el registro:</p>
  <output id="codigo"></output>
  <button type="button" id="copiar">Copiar código</button>
- <p class="muted">Tu solicitud está pendiente de aprobación de Sistema Admin. Una vez aprobada, podrás recuperar tus datos y pedir autorización de entrada de 3 minutos. Este código NO abre el portón por sí solo.</p>
+ <p class="muted">Pendiente de aprobación de Sistema Admin. La llave PR permite una sola solicitud; no se puede reutilizar después del primer intento. El residente debe autorizar el acceso y confirmar la operación del portón.</p>
  <a href="./repartidor.html" class="btn secondary" id="alPortero">Ir al Portero Virtual</a>
 </section>
 <a href="./repartidor.html" class="btn secondary">← Regresar a Portero Virtual</a>
