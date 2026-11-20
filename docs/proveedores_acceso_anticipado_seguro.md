@@ -1,5 +1,7 @@
 # Acceso anticipadamente autorizado para proveedores
 
+> **ARCHIVO HISTÓRICO — NO ACTIVO (20/11/2026).** Administración solicitó retirar el registro de proveedores. Ya no existen el formulario, el panel de aprobación ni la llave PR. Este diseño de permisos anticipados no se utiliza y no debe activarse sin una nueva autorización, revisión de seguridad y aviso de privacidad. Los proveedores siguen solicitando acceso en el Portero Virtual ordinario, sin registro previo.
+
 ## Objetivo
 Permitir a un proveedor identificado y aprobado solicitar el acceso al portón sin esperar una autorización **en ese momento**, porque la persona residente ya autorizó previamente el ingreso para su propia casa, dentro de un horario y una vigencia limitados.
 

@@ -1,5 +1,7 @@
 # Registro de proveedores integrado al Portero Virtual
 
+> **MÓDULO RETIRADO (20/11/2026).** El registro de proveedores, sus formularios, códigos PR y panel de revisión se retiraron de la plataforma. El endpoint público de registro ahora rechaza altas, y se desactivaron sus tareas programadas. Este documento se conserva solo como referencia histórica; los proveedores deben usar el Portero Virtual sin registrarse.
+
 ## Estado
 Backend y base de datos desplegados en Supabase (18/11/2026), con captura de fotografías deshabilitada.
 La interfaz permanece en la rama de revisión PR #46, todavía no fusionada a main/GitHub Pages.
