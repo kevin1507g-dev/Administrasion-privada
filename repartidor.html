@@ -41,13 +41,8 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
     <button type="button" class="choice portero-choice" onclick="seleccionarEntrada('portero')">
       <span class="portero-tag">MODO MIXTO</span>
       <strong>🤖 Portero Inteligente</strong>
-      <span>Verifica mi autorización previa o solicita permiso al residente, según corresponda.</span>
+      <span>Para repartidores, proveedores, técnicos y visitas: completa tus datos y solicita acceso al residente. No necesitas registrarte previamente.</span>
     </button>
-    <a href="./proveedores.html" class="choice" style="display:block;text-decoration:none;border-radius:12px;margin-top:12px">
-      <strong>🛠️ Soy proveedor · Registrarme</strong>
-      <span>Registra tu nombre, apellidos, casa y documentos para que Sistema Admin revise tu solicitud.</span>
-    </a>
-    <p style="margin:14px 0 0;text-align:center"><a href="./aviso-privacidad-proveedores.html" target="_blank" rel="noopener noreferrer" style="color:#93d4ff;font-weight:650">📄 Ver aviso de privacidad de proveedores</a></p>
     <button type="button" class="choice" onclick="seleccionarEntrada('codigo')">
       <strong>🔑 Soy visita con código</strong>
       <span>Un residente me compartió un código temporal o permanente autorizado.</span>
@@ -66,13 +61,13 @@ textarea{min-height:90px;resize:vertical}button{width:100%;border:0;border-radiu
         <option value="paqueteria">📦 Paquetería</option>
         <option value="farmacia">💊 Farmacia</option>
         <option value="visita">🚶 Visita</option>
-        <option value="otro">🛵 Otra entrega</option>
+        <option value="otro">🛠️ Proveedor, técnico u otra entrega</option>
       </select>
       <label for="porteroEmpresa">Empresa / plataforma *</label>
       <input id="porteroEmpresa" required maxlength="80" autocomplete="organization">
       <label for="porteroNombre">Tu nombre completo * (obligatorio)</label>
       <input id="porteroNombre" required maxlength="80" autocomplete="name" placeholder="Nombre del repartidor o visitante">
-      <label for="porteroMensaje">¿Qué vienes a entregar? *</label>
+      <label for="porteroMensaje">¿Qué vienes a hacer o entregar? *</label>
       <textarea id="porteroMensaje" required maxlength="240"></textarea>
       <label for="porteroAutorizacion">¿Tienes un código de acceso autorizado para esta casa? *</label>
       <select id="porteroAutorizacion" required onchange="porteroAlternarCodigo()">
@@ -1068,8 +1063,6 @@ function nuevaSolicitud(){
 
 window.addEventListener('beforeunload',detenerConsulta);
 </script>
-<script src="./proveedor-demo.js?v=1"></script>
-<script src="./proveedor-acceso.js?v=2"></script>
 <script src="./qr-fuera-servicio.js?v=1"></script>
 </body>
 </html>
