@@ -17,7 +17,7 @@
  const consent=el("interfonTelConsentimiento");
  const save=el("interfonTelGuardar");
  const refresh=el("interfonTelActualizar");
- let last=null,working=false;
+ let last=null,working=false,verifyReady=false;
  const allowed=()=>typeof profile!=="undefined"&&profile&&["residente","owner"].includes(profile.rol);
  const prettySlot=s=>s==="principal"?"Teléfono principal":s==="respaldo"?"Teléfono de respaldo":"Sistema Admin";
  const esHabilitado=()=>Boolean(last?.captura_habilitada);
@@ -44,6 +44,73 @@
        : "Todavía no hay número registrado";
      detail.append(title,description);
      row.append(detail);
+     if(item && key==="sistema_admin" && !item.verificado && item.tipo==="movil"){
+       const panel=document.createElement("div");
+       panel.style.cssText="display:flex;flex-direction:column;gap:9px;width:100%;margin-top:10px";
+       const info=document.createElement("p");
+       info.className="muted";
+       info.textContent=verifyReady
+        ? "Verifica este celular por SMS. El código llegará únicamente al número registrado."
+        : "Para activar el envío de códigos, conecta primero Twilio Verify en Supabase; el SMS aún no está disponible.";
+       const send=document.createElement("button");
+       send.type="button";send.className="primary";send.textContent="📲 Enviar código";
+       send.disabled=!verifyReady||working;
+       send.style.width="fit-content";
+       const checkRow=document.createElement("div");
+       checkRow.style.cssText="display:flex;gap:8px;align-items:center;flex-wrap:wrap";
+       const input=document.createElement("input");
+       input.type="text";input.inputMode="numeric";input.autocomplete="one-time-code";
+       input.placeholder="Código de 6 dígitos";input.maxLength=6;
+       input.setAttribute("aria-label","Código de verificación SMS de seis dígitos");
+       input.disabled=!verifyReady;
+       input.style.cssText="max-width:220px;min-width:150px";
+       const confirm=document.createElement("button");
+       confirm.type="button";confirm.textContent="✅ Verificar código";
+       confirm.disabled=true;
+       confirm.style.width="fit-content";
+       const message=document.createElement("p");
+       message.className="muted";message.setAttribute("role","status");
+       input.addEventListener("input",()=>{
+         input.value=input.value.replace(/\D/g,"").slice(0,6);
+         confirm.disabled=!verifyReady||working||input.value.length!==6;
+       });
+       async function invokeVerify(accion){
+         if(working||!verifyReady)return;
+         working=true;send.disabled=true;confirm.disabled=true;
+         message.textContent=accion==="enviar"?"Solicitando SMS…":"Comprobando código…";
+         try{
+           const payload={accion};
+           if(accion==="comprobar")payload.codigo=input.value;
+           const {data,error}=await sb.functions.invoke("interfon-verify",{body:payload});
+           if(error||!data?.ok){
+             let detail=data?.error;
+             if(!detail && error?.context?.json){
+               try{const body=await error.context.json();detail=body?.error;}catch(_){}
+             }
+             throw Error(detail||"No se pudo verificar. Revisa la conexión de Twilio.");
+           }
+           if(accion==="comprobar"){
+             message.textContent="¡Número verificado correctamente! Las llamadas aún están desactivadas.";
+             await load();
+           }else{
+             message.textContent="Código enviado al celular terminado en "+(data.ultimos4||"••••")+".";
+             input.focus();
+           }
+         }catch(err){
+           message.textContent=err?.message||"Hubo un problema con la verificación.";
+         }finally{
+           working=false;
+           send.disabled=!verifyReady;
+           confirm.disabled=!verifyReady||input.value.length!==6;
+           habilitarFormulario();
+         }
+       }
+       send.addEventListener("click",()=>invokeVerify("enviar"));
+       confirm.addEventListener("click",()=>invokeVerify("comprobar"));
+       checkRow.append(input,confirm);
+       panel.append(info,send,checkRow,message);
+       row.append(panel);
+     }
      if(item){
        const erase=document.createElement("button");
        erase.type="button";erase.textContent="Eliminar";
@@ -86,6 +153,13 @@
        if(slot.options.length!==2||slot.options[0].value!=="principal"){
          slot.replaceChildren(new Option("Teléfono principal","principal"),new Option("Teléfono de respaldo","respaldo"));
        }
+     }
+     verifyReady=false;
+     if(data.destino==="sistema_admin" && (data.telefonos||[]).some(t=>t.slot==="sistema_admin" && t.tipo==="movil" && !t.verificado)){
+       try{
+         const {data:check,error:checkError}=await sb.functions.invoke("interfon-verify",{body:{accion:"estado"}});
+         verifyReady=!checkError && check?.ok===true && check?.configurado===true;
+       }catch(_){verifyReady=false;}
      }
      showList(data.telefonos);
      status.textContent=data.destino==="sistema_admin"
