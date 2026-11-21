@@ -1736,6 +1736,11 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
 
 <section id="interfonTelefonos" class="residentAdminOnly">
   <h2>📞 Teléfonos del interfón</h2>
+  <div class="card ownerOnly hidden" style="margin-bottom:14px">
+    <h3>🪪 Datos privados de la administración</h3>
+    <p class="muted">Como Sistema Admin puedes registrar tus propios datos y los del Administrador. Estos datos no se publican automáticamente en el aviso de privacidad.</p>
+    <button class="primary" type="button" onclick="show('datosAdministradores')">➕ Agregar o modificar datos del administrador</button>
+  </div>
   <div class="card">
     <h3 id="interfonTelTitulo">Configuración de llamadas</h3>
     <p class="muted">Los residentes registrarán hasta dos teléfonos por casa: <strong>principal</strong> y <strong>respaldo</strong>. Sistema Admin podrá registrar su propio teléfono para atender solicitudes sin respuesta.</p>
