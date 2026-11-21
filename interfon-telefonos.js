@@ -71,7 +71,7 @@
        const message=document.createElement("p");
        message.className="muted";message.setAttribute("role","status");
        input.addEventListener("input",()=>{
-         input.value=input.value.replace(/\\D/g,"").slice(0,6);
+         input.value=input.value.replace(/\D/g,"").slice(0,6);
          confirm.disabled=!verifyReady||working||input.value.length!==6;
        });
        async function invokeVerify(accion){
