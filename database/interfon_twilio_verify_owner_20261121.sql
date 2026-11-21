@@ -25,7 +25,7 @@ declare
  v_ultima timestamptz;
  v_total int;
 begin
- if current_user<>'service_role' and session_user<>'service_role' then
+ if pg_catalog.coalesce(pg_catalog.current_setting('request.jwt.claim.role',true),'')<>'service_role' then
     raise exception 'Solo servicio interno.';
  end if;
  if p_usuario is null or p_accion not in ('enviar','comprobar') then
@@ -78,7 +78,7 @@ returns boolean language plpgsql security definer set search_path=''
 as $fn$
 declare v_n int;
 begin
- if current_user<>'service_role' and session_user<>'service_role' then
+ if pg_catalog.coalesce(pg_catalog.current_setting('request.jwt.claim.role',true),'')<>'service_role' then
     raise exception 'Solo servicio interno.';
  end if;
  if not exists (select 1 from public.profiles
