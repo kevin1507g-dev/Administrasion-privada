@@ -1,6 +1,15 @@
 # Diseño: Interfón telefónico inteligente para repartidores, proveedores, técnicos y visitas
 
-Estado: **DISEÑO; no activado en producción**. Infraestructura existente: GitHub Pages (`repartidor.html`, `index.html`), Supabase y ESP32. Esta especificación no habilita llamadas ni abre el portón.
+Estado: **diseño de llamadas; registro privado preparado pero deshabilitado**. Infraestructura existente: GitHub Pages (`repartidor.html`, `index.html`), Supabase y ESP32. La sección de teléfonos ya aparece en la plataforma; **todavía no acepta números reales** hasta completar aviso de privacidad, cifrado/custodia y verificación. Ningún cambio activa llamadas ni abre el portón.
+
+## Dónde se darán de alta los teléfonos (módulo incorporado)
+
+- **Residentes:** iniciar sesión en Administración Residencial → menú **Comunidad → 📞 Mis teléfonos del interfón**. Se puede preparar hasta un contacto **principal** y un **respaldo** por casa, de tipo celular o teléfono fijo.
+- **Sistema Admin:** entrar con rol máximo → menú **Comunidad → 📞 Teléfono de Sistema Admin**. Se configura el número administrativo al que se intentará escalar si no contestan los residentes.
+- **Administradores ordinarios:** no pueden inscribir ni consultar el teléfono privado de otras casas por este módulo. Tampoco lo ven los visitantes ni repartidores.
+- **Estado actual:** la vista muestra espacios y números enmascarados, pero **Guardar número permanece deshabilitado**. No hay números guardados aún y la tabla privada no puede consultarse directamente desde el navegador.
+- El backend preparado usa `access_private.interfon_telefonos` y `access_private.interfon_captura_config` (captura deshabilitada por defecto), y RPC `interfon_mis_telefonos`, `interfon_guardar_telefono`, `interfon_eliminar_telefono` con validación del rol y de la casa. Respuestas de la web solo contienen cuatro dígitos finales, nunca el teléfono completo.
+- Antes de habilitar nuevas capturas: completar aviso de privacidad aplicable con responsable y finalidad; revisar cifrado y retención; conectar y probar verificación del titular por SMS o llamada; habilitar por decisión administrativa después de pruebas. El registro y verificación no autorizan una apertura física.
 
 ## Objetivo
 Desde el QR existente del Portero Virtual, una persona selecciona casa 40–66 y categoría (repartidor, proveedor, técnico/mantenimiento, visita particular u otro), declara nombre, empresa o Particular, motivo y pulsa **📞 Llamar al residente**. El sitio indica «Conectando con el residente…» y llama al número móvil o fijo privado verificado de la casa.
@@ -65,11 +74,11 @@ flowchart TD
 ### Frontend
 
 - `repartidor.html`: conservar QR y flujo vigente, ofrecer opción «Llamar al residente» y categorías; mostrar «Conectando…», «Llamando al segundo número…», «Conectando con Administración…», «En conversación», «Autorizado», «Rechazado», «Sin respuesta», «Fuera de servicio» según eventos del servidor; botón cancelar. Micrófono con consentimiento explícito y HTTPS para hablar; si no hay permiso de micrófono, no activar modo conversación.
-- `index.html`: «Teléfono del interfón» para el residente con opt-in, móvil o fijo, preferencia, horario, prueba de número, PIN y revocación. No mostrar números a visitantes ni terceros. Administración solo ve estado de contacto verificado, no el teléfono en claro salvo funciones estrictamente necesarias. Registrar resultados en historial de accesos.
+- `index.html`: sección «Teléfonos del interfón» ya incorporada para residentes y Sistema Admin. Captura bloqueada por privacidad mientras se construyen verificación, horarios, prueba de número y clave de seguridad. No mostrar números a visitantes ni terceros. Administración solo ve estado de contacto verificado, no el teléfono en claro salvo funciones estrictamente necesarias. Registrar resultados en historial de accesos.
 
-### Supabase (nuevas tablas privadas)
+### Supabase (directorio privado preparado y tablas adicionales futuras)
 
-- `interfon_contactos`: casa_id, residente_id, número E.164 cifrado, tipo móvil/fijo, principal/respaldo, verificado_at, consentimiento_at, horario, activo. Solo residente autorizado de su casa puede gestionar contactos; los lectores de datos no deben obtener números en claro.
+- `access_private.interfon_telefonos` (ya preparada, vacía, no expuesta a Data API): casa_id, número E.164, tipo móvil/fijo, principal/respaldo, fecha de consentimiento, verificado_at y responsable del registro. En adelante debe añadirse cifrado específico antes de habilitar capturas de datos personales, y completar horarios y controles de verificación. Solo residente autorizado de su casa puede gestionar contactos; los lectores de datos no deben obtener números en claro.
 - `interfon_llamadas`: solicitud_id, casa_id, tipo, empresa declarada, estado, proveedor_call_sid, teléfono_intento (principal/respaldo/admin), timestamps, intentos, expiración, outcome, `escalado_admin_at`, `portero_owner_chat_id` y comando_id opcional. Índice único/estado transaccional para impedir doble escalación. No guardar PIN ni audio de llamada. Identificadores de Twilio sensibles sujetos a lectura autorizada.
 - `interfon_intentos`: clave de limitación (IP/cliente/casa), inicio, últimos intentos, bloqueo temporal. Un llamado activo por casa y por solicitud.
 
