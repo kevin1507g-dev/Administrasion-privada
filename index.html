@@ -1781,6 +1781,16 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
     </form>
     <div id="interfonOwnerLista" style="display:grid;gap:8px;margin-top:14px"></div>
   </div>
+  <div id="interfonVoiceDemo" class="card ownerOnly hidden" style="margin-bottom:14px">
+    <h3>📞 Prueba de llamada del interfón · Sistema Admin</h3>
+    <p class="muted">La prueba llamará únicamente a tu celular de Sistema Admin que ya fue verificado. Escucharás un mensaje en español y podrás pulsar <strong>1 para probar comunicación, 2 para simular autorización o 3 para simular rechazo</strong>. Ninguna opción abre el portón ni las puertas.</p>
+    <p id="interfonVoiceEstado" class="muted" role="status" aria-live="polite">Comprobando la configuración de Twilio Voice…</p>
+    <div class="actions">
+      <button id="interfonVoiceLlamar" type="button" class="primary" disabled>📲 Probar llamada a mi celular</button>
+      <button id="interfonVoiceActualizar" type="button">↻ Revisar configuración de Voice</button>
+    </div>
+    <p class="muted" style="font-size:.85rem;margin-top:12px">Solo se inicia la llamada al pulsar el botón y confirmar. La cuenta de prueba de Twilio puede limitar los destinos y el número de origen. No hay grabaciones ni aperturas automáticas.</p>
+  </div>
   <div class="card">
     <h3 id="interfonTelTitulo">Configuración de llamadas</h3>
     <p class="muted">Cada casa puede tener dos teléfonos: <strong>principal</strong> y <strong>respaldo</strong>. Sistema Admin puede guardarlos por casa con autorización del titular y sin SMS; también puede administrar su teléfono de respaldo.</p>
@@ -3438,6 +3448,7 @@ function show(id){
 
   if(id==='interfonTelefonos' && typeof window.cargarInterfonTelefonos==='function')window.cargarInterfonTelefonos();
   if(id==='interfonTelefonos' && typeof window.cargarInterfonResidentesOwner==='function')window.cargarInterfonResidentesOwner();
+  if(id==='interfonTelefonos' && typeof window.cargarInterfonVoiceDemo==='function')window.cargarInterfonVoiceDemo();
   if(id==='controlDigital'){
     digitalButtonsDisabled(true);
     refreshDigitalAccess();
@@ -8426,6 +8437,7 @@ async function actualizarVistaActiva(){
 <script src="./qr-servicio-admin.js?v=1"></script>
 <script src="./interfon-telefonos.js?v=3"></script>
 <script src="./interfon-residentes-owner.js?v=1"></script>
+<script src="./interfon-voice-demo.js?v=1"></script>
 <script src="./datos-administradores.js?v=1"></script>
 
 <dialog id="ownerChatEspecialDialog" aria-labelledby="ownerChatEspecialTitulo">
