@@ -23,7 +23,7 @@ const publicVoiceUrl=()=>new URL(
  "/functions/v1/interfon-voice-prueba?modo=menu",
  Deno.env.get("SUPABASE_URL")||"https://invalid.example"
 ).href;
-const say=(message:string)=>'<Say language="es-MX">'+message+'</Say>';
+const say=(message:string)=>'<Say language="es-ES" voice="woman">'+message+'</Say>';
 
 async function validTwilioSignature(req:Request,params:URLSearchParams):Promise<boolean>{
  const incoming=req.headers.get("X-Twilio-Signature")||"";
