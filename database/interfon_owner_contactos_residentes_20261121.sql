@@ -63,7 +63,7 @@ begin
   'telefonos',v_telefonos
  );
 end
-$function$
+$function$;
 
 
 -- Listado de casas con teléfonos enmascarados; el número completo no sale de la base.
