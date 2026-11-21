@@ -56,7 +56,7 @@ begin
   'telefono_id',v.id,'numero',v_numero,
   'huella',pg_catalog.encode(extensions.digest(v.numero_cifrado,'sha256'),'hex')
  );
-end $function$
+end $function$;
 
 CREATE OR REPLACE FUNCTION public.interfon_verify_aprobar(p_usuario uuid, p_telefono_id uuid, p_huella text)
  RETURNS boolean
@@ -77,7 +77,7 @@ begin
    and pg_catalog.encode(extensions.digest(numero_cifrado,'sha256'),'hex')=p_huella;
  get diagnostics v_n=row_count;
  return v_n=1;
-end $function$
+end $function$;
 
 REVOKE ALL ON FUNCTION public.interfon_verify_preparar(uuid,text) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.interfon_verify_aprobar(uuid,uuid,text) FROM PUBLIC, anon, authenticated;
