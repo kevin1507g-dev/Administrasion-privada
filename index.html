@@ -328,6 +328,8 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
 <button class="residentAdminOnly" onclick="show('incidentes')">⚠️ Reportar incidente</button>
 <button class="residentAdminOnly" onclick="show('visitas')">🚗 Registrar visitas y códigos</button>
 <button class="residentAdminOnly" onclick="show('entregas')">🛵 Portal de repartidores y visitas</button>
+<button class="residentOnly" type="button" onclick="show('interfonTelefonos')">📞 Mis teléfonos del interfón</button>
+<button class="ownerOnly hidden" type="button" onclick="show('interfonTelefonos')">📞 Teléfono de Sistema Admin</button>
 <button class="adminOnly" onclick="show('reservaciones')">⚡ Modo Evento ESP32</button>
 <button class="residentOnly" onclick="solicitudesIr('reservaciones')">🏡 Solicitar reservación</button>
 <button onclick="show('documentos')">📄 Documentos</button>
@@ -1666,6 +1668,55 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       <textarea id="incNuevoMensaje" placeholder="Escribe un mensaje de seguimiento"></textarea>
       <button class="primary" style="margin-top:10px" onclick="enviarMensajeIncidente()">💬 Enviar mensaje</button>
     </div>
+  </div>
+</section>
+
+<section id="interfonTelefonos" class="residentAdminOnly">
+  <h2>📞 Teléfonos del interfón</h2>
+  <div class="card">
+    <h3 id="interfonTelTitulo">Configuración de llamadas</h3>
+    <p class="muted">Los residentes registrarán hasta dos teléfonos por casa: <strong>principal</strong> y <strong>respaldo</strong>. Sistema Admin podrá registrar su propio teléfono para atender solicitudes sin respuesta.</p>
+    <p id="interfonTelEstado" role="status" aria-live="polite">Consulta tus teléfonos y el estado de la configuración.</p>
+    <div id="interfonTelArea" class="hidden">
+      <p id="interfonTelDestino" class="muted"></p>
+      <div id="interfonTelLista" style="display:grid;gap:8px;margin:14px 0"></div>
+      <form id="interfonTelFormulario" autocomplete="off">
+        <div class="form">
+          <div>
+            <label for="interfonTelSlot">Teléfono para llamadas</label>
+            <select id="interfonTelSlot" required>
+              <option value="principal">Número principal</option>
+              <option value="respaldo">Número de respaldo</option>
+            </select>
+          </div>
+          <div>
+            <label for="interfonTelTipo">Tipo de teléfono</label>
+            <select id="interfonTelTipo" required>
+              <option value="movil">Celular</option>
+              <option value="fijo">Teléfono fijo</option>
+            </select>
+          </div>
+          <div class="full">
+            <label for="interfonTelNumero">Número de teléfono de México (10 dígitos)</label>
+            <input id="interfonTelNumero" type="tel" inputmode="numeric" autocomplete="off" maxlength="18" placeholder="Ej. 3312345678" required>
+            <p class="muted" style="font-size:.85rem;margin:5px 0 0">Se guardará de forma privada y no se mostrará al visitante. No se hacen llamadas todavía.</p>
+          </div>
+          <label class="full" style="display:flex;align-items:flex-start;gap:10px">
+            <input id="interfonTelConsentimiento" type="checkbox" style="width:auto;min-width:18px;margin:4px 0" required>
+            <span>Confirmo que este número puede recibir las llamadas del interfón, que tengo autorización de su titular y que acepto su tratamiento para esa finalidad cuando el aviso de privacidad esté disponible.</span>
+          </label>
+        </div>
+        <div class="actions" style="margin-top:12px">
+          <button class="primary" id="interfonTelGuardar" type="submit" disabled>Guardar número</button>
+          <button type="button" id="interfonTelActualizar">↻ Actualizar teléfonos</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3>Cómo se usarán estos números</h3>
+    <p>El interfón llamará primero al teléfono principal y, si no contestan, al de respaldo. Si ambos fallan, trasladará la solicitud a Sistema Admin. Esto se aplicará a repartidores, proveedores, técnicos y visitas.</p>
+    <p class="muted">El registro, la verificación del titular y las llamadas son etapas distintas. No se activarán llamadas ni aperturas hasta conectar un proveedor de telefonía, comprobar los números y revisar los requisitos de privacidad y seguridad.</p>
   </div>
 </section>
 
@@ -3269,6 +3320,7 @@ function show(id){
     else btn.removeAttribute('aria-current');
   });
 
+  if(id==='interfonTelefonos' && typeof window.cargarInterfonTelefonos==='function')window.cargarInterfonTelefonos();
   if(id==='controlDigital'){
     digitalButtonsDisabled(true);
     refreshDigitalAccess();
@@ -8255,6 +8307,7 @@ async function actualizarVistaActiva(){
 <script src="./aviso-cuotas-residente.js?v=1"></script>
 <script src="./acciones-menu.js?v=1"></script>
 <script src="./qr-servicio-admin.js?v=1"></script>
+<script src="./interfon-telefonos.js?v=1"></script>
 
 <dialog id="ownerChatEspecialDialog" aria-labelledby="ownerChatEspecialTitulo">
   <h3 id="ownerChatEspecialTitulo">💬 Chat especial · Sistema Admin</h3>
