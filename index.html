@@ -306,6 +306,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
 <div class="navSectionLabel">Gestión y accesos</div>
 <button class="adminOnly" onclick="show('residentes')">👥 Residentes</button>
 <button class="ownerOnly hidden" onclick="show('ownerPanel')">👑 Panel Sistema Admin</button>
+<button class="ownerOnly hidden" type="button" onclick="show('datosAdministradores')">🪪 Datos de administradores</button>
 <button type="button" class="ownerOnly hidden" onclick="show('conocimientosIA')">🧠 Conocimientos de IA</button>
 <button class="residentAdminOnly" onclick="show('solicitudes')">📝 Solicitudes y permisos <span id="solicitudesMenuCount" class="badge" hidden>0</span></button>
 <button class="adminOnly" onclick="show('casas')">🏠 Casas</button>
@@ -867,8 +868,70 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
 </div>
 </section>
 
+<section id="datosAdministradores" class="ownerOnly hidden">
+  <h2>🪪 Datos de administradores</h2>
+  <div class="card">
+    <h3>Agregar o modificar la ficha</h3>
+    <p class="muted">Solo Sistema Admin puede administrar esta información. Selecciona tu propia cuenta o la cuenta del Administrador. Puedes cambiar y volver a guardar los datos todas las veces que necesites, sin crear duplicados.</p>
+    <p><strong>Información privada:</strong> el domicilio y los datos de contacto no aparecerán en el QR, para residentes ni en el aviso de privacidad público de forma automática.</p>
+    <div class="form">
+      <div class="full">
+        <label for="datosAdminPerfil">Cuenta de administración</label>
+        <select id="datosAdminPerfil" required><option value="">Cargando cuentas...</option></select>
+      </div>
+    </div>
+    <form id="datosAdminForm" autocomplete="off">
+      <div class="form">
+        <div class="full">
+          <label for="datosAdminNombre">Nombre completo *</label>
+          <input id="datosAdminNombre" maxlength="160" autocomplete="off" required placeholder="Nombre y apellidos">
+        </div>
+        <div class="full">
+          <label for="datosAdminDomicilio">Calle, privada y número</label>
+          <input id="datosAdminDomicilio" maxlength="220" autocomplete="off" placeholder="Calle o privada y número">
+        </div>
+        <div>
+          <label for="datosAdminColonia">Colonia o fraccionamiento</label>
+          <input id="datosAdminColonia" maxlength="140" autocomplete="off">
+        </div>
+        <div>
+          <label for="datosAdminMunicipio">Municipio</label>
+          <input id="datosAdminMunicipio" maxlength="140" autocomplete="off">
+        </div>
+        <div>
+          <label for="datosAdminEstado">Estado</label>
+          <input id="datosAdminEstado" maxlength="100" autocomplete="off">
+        </div>
+        <div>
+          <label for="datosAdminCP">Código postal</label>
+          <input id="datosAdminCP" type="text" inputmode="numeric" maxlength="5" pattern="[0-9]{5}" autocomplete="off" placeholder="5 dígitos">
+        </div>
+        <div>
+          <label for="datosAdminCorreo">Correo de contacto (opcional)</label>
+          <input id="datosAdminCorreo" type="email" maxlength="180" autocomplete="off" placeholder="Correo de contacto">
+        </div>
+        <div>
+          <label for="datosAdminTelefono">Teléfono de contacto (opcional)</label>
+          <input id="datosAdminTelefono" type="tel" maxlength="24" autocomplete="off" placeholder="Celular o fijo">
+        </div>
+      </div>
+      <div class="actions" style="margin-top:15px">
+        <button id="datosAdminGuardar" type="submit" class="primary" disabled>💾 Guardar datos</button>
+        <button id="datosAdminRecargar" type="button">↻ Actualizar</button>
+      </div>
+      <p id="datosAdminMensaje" role="status" aria-live="polite" class="muted">Selecciona una cuenta para editar su información.</p>
+    </form>
+    <p class="muted" style="margin-top:16px;font-size:.85rem">Esta ficha no modifica el nombre de acceso, el rol ni las autorizaciones de ningún usuario. Para publicar datos como responsable del aviso de privacidad se requiere una revisión separada.</p>
+  </div>
+</section>
+
 <section id="ownerPanel" class="ownerOnly hidden">
   <h2>👑 Centro de control Sistema Admin</h2>
+  <div class="card" style="margin-bottom:14px">
+    <h3>🪪 Datos de administración</h3>
+    <p class="muted">Registra o modifica los datos privados de Sistema Admin y del Administrador cuando sea necesario.</p>
+    <button type="button" class="primary" onclick="show('datosAdministradores')">➕ Agregar o modificar datos del administrador</button>
+  </div>
   <div id="ownerAnalyticsDashboard" class="ownerAnalyticsDashboard">
     <div class="ownerAnalyticsHeading">
       <div>
@@ -1673,6 +1736,11 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
 
 <section id="interfonTelefonos" class="residentAdminOnly">
   <h2>📞 Teléfonos del interfón</h2>
+  <div class="card ownerOnly hidden" style="margin-bottom:14px">
+    <h3>🪪 Datos privados de la administración</h3>
+    <p class="muted">Como Sistema Admin puedes registrar tus propios datos y los del Administrador. Estos datos no se publican automáticamente en el aviso de privacidad.</p>
+    <button class="primary" type="button" onclick="show('datosAdministradores')">➕ Agregar o modificar datos del administrador</button>
+  </div>
   <div class="card">
     <h3 id="interfonTelTitulo">Configuración de llamadas</h3>
     <p class="muted">Los residentes registrarán hasta dos teléfonos por casa: <strong>principal</strong> y <strong>respaldo</strong>. Sistema Admin podrá registrar su propio teléfono para atender solicitudes sin respuesta.</p>
@@ -3295,6 +3363,10 @@ async function basuraAccion(action){
 
 function show(id){
   if(id==='disciplina' && typeof disciplinaCargar==='function')setTimeout(disciplinaCargar,0);
+  if(id==='datosAdministradores'){
+    if(profile?.rol!=='owner')return;
+    if(typeof window.cargarDatosAdministradores==='function')window.cargarDatosAdministradores();
+  }
   if(profile?.rol==='owner' && ownerPanelMode==='resident' && id!=='ownerResidentPreview')return;
   if(id==='ownerResidentPreview' && (profile?.rol!=='owner'||ownerPanelMode!=='resident'))return;
   if(id==='ownerPanel' && (profile?.rol!=='owner'||ownerPanelMode!=='owner'))return;
@@ -8312,6 +8384,7 @@ async function actualizarVistaActiva(){
 <script src="./acciones-menu.js?v=1"></script>
 <script src="./qr-servicio-admin.js?v=1"></script>
 <script src="./interfon-telefonos.js?v=1"></script>
+<script src="./datos-administradores.js?v=1"></script>
 
 <dialog id="ownerChatEspecialDialog" aria-labelledby="ownerChatEspecialTitulo">
   <h3 id="ownerChatEspecialTitulo">💬 Chat especial · Sistema Admin</h3>
