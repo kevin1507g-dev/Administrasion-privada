@@ -38,3 +38,11 @@ grant select,insert,update,delete on public.interfon_webrtc_signals to service_r
 grant usage,select on sequence public.interfon_webrtc_signals_id_seq to service_role;
 -- Las señales incluyen metadatos ICE/SDP: deben borrarse al finalizar la llamada.
 -- El backend también limpia sesiones vencidas al recibir solicitudes.
+-- Eliminar SDP y candidatos ICE (que pueden contener IP) de forma periódica.
+-- No guarda grabaciones ni audio. pg_cron ya está instalado en este proyecto.
+select cron.schedule(
+ 'interfon_webrtc_purgar_senales',
+ '*/15 * * * *',
+ $job$delete from public.interfon_webrtc_signals
+      where creado_at < now() - interval '10 minutes'$job$
+);
