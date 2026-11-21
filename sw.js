@@ -1,4 +1,4 @@
-const APP_CACHE = "privada-beteles-v36-aviso-interfon-institucional";
+const APP_CACHE = "privada-beteles-v37-owner-telefono-cifrado";
 const APP_SHELL = [
   "./",
   "./index.html",
