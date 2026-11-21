@@ -20,7 +20,7 @@ create table if not exists access_private.interfon_telefonos (
    or (destino='sistema_admin' and casa_id is null and slot='sistema_admin')
  ),
  constraint interfon_tipo_ck check (tipo in ('movil','fijo')),
- constraint interfon_numero_ck check (numero_e164 ~ '^\\+52[0-9]{10}$')
+ constraint interfon_numero_ck check (numero_e164 ~ '^\+52[0-9]{10}$')
 );
 create unique index if not exists interfon_telefono_por_casa
   on access_private.interfon_telefonos(casa_id,slot) where destino='casa';
@@ -120,7 +120,7 @@ begin
  end if;
  if p_tipo not in ('movil','fijo') then raise exception 'Selecciona celular o teléfono fijo.'; end if;
  v_numero:=regexp_replace(coalesce(p_numero,''),'[[:space:]()-]','','g');
- if v_numero !~ '^\\+52[0-9]{10}$' then
+ if v_numero !~ '^\+52[0-9]{10}$' then
    raise exception 'Escribe un número válido de México: +52 y 10 dígitos.';
  end if;
  if v.rol='residente' then
