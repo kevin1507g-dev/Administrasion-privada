@@ -231,6 +231,7 @@ function volverASeleccion(){
  ocultarFotoEvidencia();
  porteroChatEscalado=false;porteroChatEscalando=false;porteroChatReintentarEn=0;
  token=null;expiresAt=null;porteroIntervencionAt=null;esperandoPorteroMixto=false;
+ window.webrtcVisitorReset?.();
  document.getElementById('visitorPassCard').classList.add('hidden');
  document.getElementById('porteroCard').classList.add('hidden');
  document.getElementById('formCard').classList.add('hidden');
@@ -959,6 +960,7 @@ async function enviarSolicitud(opciones={}){
     }
 
     token=data?.token||null;
+    window.webrtcVisitorReady?.(token);
     porteroChatEscalado=false;porteroChatEscalando=false;porteroChatReintentarEn=0;
     document.getElementById('ownerChatRetryBtn').classList.add('hidden');
     expiresAt=data?.expires_at||null;
@@ -1053,6 +1055,7 @@ function nuevaSolicitud(){
   ocultarFotoEvidencia();
   porteroChatEscalado=false;porteroChatEscalando=false;porteroChatReintentarEn=0;
   document.getElementById('salidaRepartidorCard').classList.add('hidden');
+  window.webrtcVisitorReset?.();
   token=null;
   expiresAt=null;
   porteroIntervencionAt=null;
@@ -1064,5 +1067,6 @@ function nuevaSolicitud(){
 window.addEventListener('beforeunload',detenerConsulta);
 </script>
 <script src="./qr-fuera-servicio.js?v=1"></script>
+<script src="./interfon-webrtc.js?v=1" defer></script>
 </body>
 </html>
