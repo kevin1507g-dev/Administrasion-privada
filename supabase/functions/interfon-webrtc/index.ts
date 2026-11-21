@@ -60,7 +60,11 @@ async function participant(req:Request,body:any,call:Row):Promise<Participant|nu
   return null;
  }
  const user=await resident(req);
- if(user&&user.casa_id===call.casa_id)return {rol:"residente",id:user.id};
+ if(user&&user.casa_id===call.casa_id){
+  // Una vez atendida, solo quien aceptó puede participar del audio.
+  if(call.estado==="conectando"&&call.atendida_por!==user.id)return null;
+  return {rol:"residente",id:user.id};
+ }
  return null;
 }
 async function purge(id:string){
@@ -129,7 +133,10 @@ Deno.serve(async(req:Request)=>{
   if(!call)return fail("No se encontró la llamada.",404);
   const who=await participant(req,body,call);
   if(!who)return fail("No tienes permiso para esta llamada.",403);
-  if(Date.parse(call.vence_at)<=Date.now())return fail("La llamada venció.",410);
+  if(Date.parse(call.vence_at)<=Date.now() || call.estado==="vencida"){
+    if(action==="estado")return answer({ok:true,estado:"vencida",senales:[]});
+    return fail("La llamada venció.",410);
+  }
 
   if(action==="aceptar"||action==="rechazar"){
    if(who.rol!=="residente")return fail("Solo el residente puede responder.",403);
