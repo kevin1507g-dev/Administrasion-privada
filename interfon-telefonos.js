@@ -40,7 +40,7 @@
      const description=document.createElement("p");description.className="muted";description.style.margin="4px 0 0";
      description.textContent=item
        ? ((item.tipo==="fijo"?"Fijo":"Celular")+" · •••• "+String(item.ultimos4||"")+
-          (item.verificado?" · Verificado":" · Pendiente de verificación"))
+          (item.verificado?" · Verificado":(item.origen_registro==="sistema_admin"?" · Añadido por Sistema Admin, sin SMS":" · Pendiente de verificación")))
        : "Todavía no hay número registrado";
      detail.append(title,description);
      row.append(detail);

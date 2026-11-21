@@ -1741,13 +1741,53 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
     <p class="muted">Como Sistema Admin puedes registrar tus propios datos y los del Administrador. Estos datos no se publican automáticamente en el aviso de privacidad.</p>
     <button class="primary" type="button" onclick="show('datosAdministradores')">➕ Agregar o modificar datos del administrador</button>
   </div>
+  <div id="interfonResidentesOwner" class="card ownerOnly hidden" style="margin-bottom:14px">
+    <h3>🏠 Teléfonos de residentes · Sistema Admin</h3>
+    <p class="muted">Selecciona la casa (40 a 66) y registra o reemplaza el teléfono principal y de respaldo. <strong>No se solicitarán códigos SMS</strong> para este registro administrativo. Los números se guardarán cifrados y no se utilizarán para llamadas ni aperturas hasta completar los requisitos del servicio.</p>
+    <p id="interfonOwnerEstado" class="muted" role="status" aria-live="polite">Consulta los teléfonos privados de las casas.</p>
+    <form id="interfonOwnerFormulario" autocomplete="off">
+      <div class="form">
+        <div>
+          <label for="interfonOwnerCasa">Casa</label>
+          <select id="interfonOwnerCasa" required><option value="">Selecciona una casa</option></select>
+        </div>
+        <div>
+          <label for="interfonOwnerSlot">Contacto</label>
+          <select id="interfonOwnerSlot" required>
+            <option value="principal">Teléfono principal</option>
+            <option value="respaldo">Teléfono de respaldo</option>
+          </select>
+        </div>
+        <div>
+          <label for="interfonOwnerTipo">Tipo</label>
+          <select id="interfonOwnerTipo" required>
+            <option value="movil">Celular</option>
+            <option value="fijo">Teléfono fijo</option>
+          </select>
+        </div>
+        <div>
+          <label for="interfonOwnerNumero">Teléfono mexicano (10 dígitos)</label>
+          <input id="interfonOwnerNumero" type="tel" inputmode="numeric" maxlength="18" autocomplete="off" placeholder="10 dígitos" required>
+        </div>
+        <label class="full" style="display:flex;align-items:flex-start;gap:10px">
+          <input id="interfonOwnerAutoriza" type="checkbox" style="width:auto;min-width:18px;margin:4px 0" required>
+          <span>Confirmo que el titular del teléfono me autorizó a registrar o modificar este contacto para la administración del interfón. Entiendo que no se verificará por SMS y que todavía no se harán llamadas.</span>
+        </label>
+      </div>
+      <div class="actions" style="margin-top:12px">
+        <button class="primary" type="submit" id="interfonOwnerGuardar" disabled>➕ Guardar teléfono de la casa</button>
+        <button type="button" id="interfonOwnerActualizar">↻ Actualizar contactos</button>
+      </div>
+    </form>
+    <div id="interfonOwnerLista" style="display:grid;gap:8px;margin-top:14px"></div>
+  </div>
   <div class="card">
     <h3 id="interfonTelTitulo">Configuración de llamadas</h3>
-    <p class="muted">Los residentes registrarán hasta dos teléfonos por casa: <strong>principal</strong> y <strong>respaldo</strong>. Sistema Admin podrá registrar su propio teléfono para atender solicitudes sin respuesta.</p>
+    <p class="muted">Cada casa puede tener dos teléfonos: <strong>principal</strong> y <strong>respaldo</strong>. Sistema Admin puede guardarlos por casa con autorización del titular y sin SMS; también puede administrar su teléfono de respaldo.</p>
     <p id="interfonTelEstado" role="status" aria-live="polite">Consulta tus teléfonos y el estado de la configuración.</p>
     <p class="muted" style="margin:10px 0 14px">
       <a href="./aviso-privacidad-interfon.html" target="_blank" rel="noopener noreferrer" style="color:#93c5fd;font-weight:700">📄 Consultar documento institucional de privacidad del interfón</a>
-      <span style="display:block;font-size:.85rem;margin-top:6px">Como Sistema Admin puedes registrar tu propio número cifrado. La verificación SMS aparecerá en su tarjeta cuando se conecte Twilio Verify en Supabase; las llamadas seguirán desactivadas. Los teléfonos de residentes continúan bloqueados hasta completar el aviso integral.</span>
+      <span style="display:block;font-size:.85rem;margin-top:6px">Los contactos de residentes pueden ser registrados exclusivamente por Sistema Admin con autorización del titular y sin SMS. El registro directo de los residentes y las llamadas reales siguen deshabilitados por ahora.</span>
     </p>
     <div id="interfonTelArea" class="hidden">
       <p id="interfonTelDestino" class="muted"></p>
@@ -3397,6 +3437,7 @@ function show(id){
   });
 
   if(id==='interfonTelefonos' && typeof window.cargarInterfonTelefonos==='function')window.cargarInterfonTelefonos();
+  if(id==='interfonTelefonos' && typeof window.cargarInterfonResidentesOwner==='function')window.cargarInterfonResidentesOwner();
   if(id==='controlDigital'){
     digitalButtonsDisabled(true);
     refreshDigitalAccess();
@@ -8384,6 +8425,7 @@ async function actualizarVistaActiva(){
 <script src="./acciones-menu.js?v=1"></script>
 <script src="./qr-servicio-admin.js?v=1"></script>
 <script src="./interfon-telefonos.js?v=3"></script>
+<script src="./interfon-residentes-owner.js?v=1"></script>
 <script src="./datos-administradores.js?v=1"></script>
 
 <dialog id="ownerChatEspecialDialog" aria-labelledby="ownerChatEspecialTitulo">
