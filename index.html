@@ -1747,7 +1747,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
     <p id="interfonTelEstado" role="status" aria-live="polite">Consulta tus teléfonos y el estado de la configuración.</p>
     <p class="muted" style="margin:10px 0 14px">
       <a href="./aviso-privacidad-interfon.html" target="_blank" rel="noopener noreferrer" style="color:#93c5fd;font-weight:700">📄 Consultar documento institucional de privacidad del interfón</a>
-      <span style="display:block;font-size:.85rem;margin-top:6px">Como Sistema Admin puedes registrar tu propio número cifrado, sin llamadas activas. Los teléfonos de residentes continúan bloqueados hasta completar el aviso integral y la verificación.</span>
+      <span style="display:block;font-size:.85rem;margin-top:6px">Como Sistema Admin puedes registrar tu propio número cifrado. La verificación SMS aparecerá en su tarjeta cuando se conecte Twilio Verify en Supabase; las llamadas seguirán desactivadas. Los teléfonos de residentes continúan bloqueados hasta completar el aviso integral.</span>
     </p>
     <div id="interfonTelArea" class="hidden">
       <p id="interfonTelDestino" class="muted"></p>
@@ -8383,7 +8383,7 @@ async function actualizarVistaActiva(){
 <script src="./aviso-cuotas-residente.js?v=1"></script>
 <script src="./acciones-menu.js?v=1"></script>
 <script src="./qr-servicio-admin.js?v=1"></script>
-<script src="./interfon-telefonos.js?v=2"></script>
+<script src="./interfon-telefonos.js?v=3"></script>
 <script src="./datos-administradores.js?v=1"></script>
 
 <dialog id="ownerChatEspecialDialog" aria-labelledby="ownerChatEspecialTitulo">
