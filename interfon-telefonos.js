@@ -1,5 +1,5 @@
 // Directorio del futuro interfón. Números privados en el servidor; solo últimos 4 dígitos al cliente.
-// El registro sigue desactivado hasta contar con un aviso de privacidad y verificación de teléfonos.
+// En esta fase solo Sistema Admin puede registrar su propio teléfono, cifrado y pendiente de verificación. Residentes continúan sin captura.
 (()=>{
  "use strict";
  const el=id=>document.getElementById(id);
@@ -88,9 +88,11 @@
        }
      }
      showList(data.telefonos);
-     status.textContent=data.captura_habilitada
-       ?"Registro de números habilitado. Los números guardados permanecerán pendientes de verificación y no recibirán llamadas todavía."
-       :"Registro de números todavía no disponible. Falta validar el aviso de privacidad, la protección de teléfonos y el servicio de verificación; no se están realizando llamadas.";
+     status.textContent=data.destino==="sistema_admin"
+       ? (data.captura_habilitada
+         ? "Puedes registrar tu propio celular o fijo. El número se almacena cifrado; quedará pendiente de verificación y NO recibirá llamadas todavía."
+         : "El registro del número de Sistema Admin está temporalmente deshabilitado.")
+       : "El registro de números de residentes aún no está disponible; falta completar el aviso integral y la verificación. No se están realizando llamadas.";
    }catch(err){
      last=null;area.classList.add("hidden");
      status.textContent="No se pudo consultar la configuración: "+(err?.message||"sin conexión");

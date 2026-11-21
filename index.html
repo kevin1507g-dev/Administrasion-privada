@@ -1747,7 +1747,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
     <p id="interfonTelEstado" role="status" aria-live="polite">Consulta tus teléfonos y el estado de la configuración.</p>
     <p class="muted" style="margin:10px 0 14px">
       <a href="./aviso-privacidad-interfon.html" target="_blank" rel="noopener noreferrer" style="color:#93c5fd;font-weight:700">📄 Consultar documento institucional de privacidad del interfón</a>
-      <span style="display:block;font-size:.85rem;margin-top:6px">Documento institucional publicado. Aún falta validar la identidad jurídica y el domicilio oficial del responsable, así como la seguridad y verificación telefónica. El registro de números continúa deshabilitado.</span>
+      <span style="display:block;font-size:.85rem;margin-top:6px">Como Sistema Admin puedes registrar tu propio número cifrado, sin llamadas activas. Los teléfonos de residentes continúan bloqueados hasta completar el aviso integral y la verificación.</span>
     </p>
     <div id="interfonTelArea" class="hidden">
       <p id="interfonTelDestino" class="muted"></p>
@@ -1775,7 +1775,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
           </div>
           <label class="full" style="display:flex;align-items:flex-start;gap:10px">
             <input id="interfonTelConsentimiento" type="checkbox" style="width:auto;min-width:18px;margin:4px 0" required>
-            <span>Confirmo que este número puede recibir las llamadas del interfón, que tengo autorización de su titular y que acepto su tratamiento para esa finalidad cuando el aviso de privacidad esté disponible.</span>
+            <span>Confirmo que el número me pertenece o tengo autorización para registrarlo, he consultado el documento institucional de privacidad y acepto guardarlo para preparar el interfón. Entiendo que no habrá llamadas hasta su verificación y la puesta en servicio.</span>
           </label>
         </div>
         <div class="actions" style="margin-top:12px">
@@ -8383,7 +8383,7 @@ async function actualizarVistaActiva(){
 <script src="./aviso-cuotas-residente.js?v=1"></script>
 <script src="./acciones-menu.js?v=1"></script>
 <script src="./qr-servicio-admin.js?v=1"></script>
-<script src="./interfon-telefonos.js?v=1"></script>
+<script src="./interfon-telefonos.js?v=2"></script>
 <script src="./datos-administradores.js?v=1"></script>
 
 <dialog id="ownerChatEspecialDialog" aria-labelledby="ownerChatEspecialTitulo">
