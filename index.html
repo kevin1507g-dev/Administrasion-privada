@@ -141,15 +141,18 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 .digitalAccessButton{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-height:160px;padding:24px 12px;font-size:23px;background:#1e293b;border:1px solid #475569;color:#cbd5e1}
 .digitalAccessButton span:first-child{font-size:42px}
 .digitalAccessButton:disabled{cursor:not-allowed}
-/* Fijar posiciones: el camión de basura queda debajo de Portón aun si Paquetería está oculta para residentes. */
+/* Orden visual: Portón | Puerta peatonal / Camión de basura | Paquetería.
+   La puerta peatonal es informativa, reservada para admin y Sistema Admin. */
 .digitalAccessButtons #digitalPortonBtn{grid-column:1;grid-row:1}
-.digitalAccessButtons #paqueteriaPreviewBtn{grid-column:2;grid-row:1}
+.digitalAccessButtons #digitalPeatonalProximamenteBtn{grid-column:2;grid-row:1}
 .digitalAccessButtons #basuraStartBtn{grid-column:1;grid-row:2}
+.digitalAccessButtons #paqueteriaPreviewBtn{grid-column:2;grid-row:2}
 @media(max-width:360px){
   .digitalAccessButtons{grid-template-columns:1fr}
   .digitalAccessButtons #digitalPortonBtn,
-  .digitalAccessButtons #paqueteriaPreviewBtn,
-  .digitalAccessButtons #basuraStartBtn{grid-column:1;grid-row:auto}
+  .digitalAccessButtons #digitalPeatonalProximamenteBtn,
+  .digitalAccessButtons #basuraStartBtn,
+  .digitalAccessButtons #paqueteriaPreviewBtn{grid-column:1;grid-row:auto}
 }
 
 
@@ -699,11 +702,14 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       <button id="digitalPortonBtn" onclick="requestDigitalAccess('porton')" class="digitalAccessButton" type="button" disabled aria-describedby="digitalControlStatus">
         <span aria-hidden="true">🚗</span><span>Portón</span>
       </button>
-      <button id="paqueteriaPreviewBtn" onclick="paqueteriaVistaPrevia()" class="digitalAccessButton adminOnly hidden" type="button" aria-describedby="paqueteriaPreviewNota paqueteriaPreviewStatus">
-        <span aria-hidden="true">📦</span><span>Paquetería</span><small style="font-size:14px">3 min · prueba</small>
+      <button id="digitalPeatonalProximamenteBtn" class="digitalAccessButton adminOnly hidden" type="button" disabled aria-label="Puerta peatonal, próximamente, solo Administrador y Sistema Admin" title="Disponible próximamente para Administrador y Sistema Admin">
+        <span aria-hidden="true">🚶</span><span>Puerta peatonal</span><small style="font-size:14px">Próximamente</small>
       </button>
       <button id="basuraStartBtn" type="button" class="digitalAccessButton" onclick="basuraAccion('start')" disabled aria-describedby="basuraAdvertencia basuraStatus">
         <span aria-hidden="true">🚛</span><span>Camión de basura</span><small style="font-size:14px">20 minutos</small>
+      </button>
+      <button id="paqueteriaPreviewBtn" onclick="paqueteriaVistaPrevia()" class="digitalAccessButton adminOnly hidden" type="button" aria-describedby="paqueteriaPreviewNota paqueteriaPreviewStatus">
+        <span aria-hidden="true">📦</span><span>Paquetería</span><small style="font-size:14px">3 min · prueba</small>
       </button>
     </div>
     <div class="adminOnly hidden" style="margin-top:14px">
