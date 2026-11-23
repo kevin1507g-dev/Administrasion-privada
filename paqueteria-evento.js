@@ -61,13 +61,13 @@
     return data;
   }
 
-  async function refresh() {
+  async function refresh(preserveError=false) {
     if(!authorized()){render();return;}
     if(busy||reading||!section()?.classList.contains('active'))return;
     reading=true;
     try {
       current=await getStatus();
-      lastError='';
+      if(!preserveError)lastError='';
     } catch(e) {
       current=null;
       lastError='No se pudo consultar Paquetería: '+(e?.message||'intenta de nuevo')+'. No se envió ninguna orden.';
@@ -82,6 +82,7 @@
     if(busy||reading||!section()?.classList.contains('active')||!current?.allowed)return;
     const intended=current.active?'stop':'start';
     busy=true;lastError='';render();
+    let actionFailed=false;
     try {
       // Revalidar en el servidor sin reinterpretar el toque:
       // si ya cambió la ventana, no cancelar ni abrir una nueva por error.
@@ -99,6 +100,7 @@
       current=data;
       lastError='';
     } catch(e) {
+      actionFailed=true;
       lastError='No se pudo '+(intended==='start'?'activar':'cancelar')+
         ' Paquetería: '+(e?.message||'error del servidor');
     } finally {
@@ -106,7 +108,7 @@
       render();
       // Restablece estado compartido con basura y control digital.
       await Promise.allSettled([
-        refresh(),
+        refresh(actionFailed),
         typeof basuraActualizar==='function'?basuraActualizar():Promise.resolve(),
         typeof refreshDigitalAccess==='function'?refreshDigitalAccess():Promise.resolve()
       ]);
