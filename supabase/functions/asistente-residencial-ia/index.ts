@@ -53,6 +53,39 @@ function consultaDirecta(message){
  if(/\b(chat|mensajes|conversaciones|mensaje nuevo|mensaje sin leer|abrir el chat|mis mensajes|bandeja de mensajes)\b/.test(m))return "chat";
  return null;
 }
+// Ruta específica: nunca delegar cambios de controles a la interpretación del modelo.
+function bloqueoControlesIntent(message){
+ const m=String(message||"").toLowerCase().normalize("NFD")
+  .replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9#\s]/g," ").replace(/\s+/g," ").trim();
+ if(!/\b(controles?|mandos?|acceso digital)\b/.test(m)||
+    !/\b(bloquear|bloquea|bloqueen|bloqueo|suspender|suspende|suspendan|suspension)\b/.test(m))return null;
+ const house=(m.match(/\bcasa\s*(?:numero\s*)?#?\s*(\d{1,3})\b/)||[])[1]||"";
+ const queryOnly=/\b(puedes|puedo|se puede|es posible|como|que permisos|quien puede)\b/.test(m)
+  &&!/\b(quiero|solicito|necesito|bloquea|suspende|hazlo)\b/.test(m);
+ return {house,queryOnly};
+}
+async function prepararBloqueoControles(ctx,intent){
+ if(!["admin","owner"].includes(ctx.p.rol))return {answer:
+  "El bloqueo de controles es exclusivo de Administración y Sistema Admin. Como residente puedes consultar tus controles o contactar a administración."};
+ if(intent.queryOnly||!intent.house)return {answer:
+  "Sí. Solo Administración y Sistema Admin pueden solicitar un bloqueo temporal desde la IA, siempre con confirmación. Indica el número de casa entre 40 y 66, por ejemplo: Bloquear controles de la casa 63."};
+ if(!/^(4[0-9]|5[0-9]|6[0-6])$/.test(intent.house))return {answer:
+  "Solo se aceptan casas de la 40 a la 66."};
+ if(intent.house==="45"&&ctx.p.rol!=="owner")return {answer:
+  "Los controles de la casa 45 solo los puede bloquear Sistema Admin."};
+ const id=crypto.randomUUID();
+ const {data,error}=await ctx.db.rpc("ia_operar",{
+  p_id:id,p_accion:"bloquear_controles",p_objetivo:intent.house,p_confirmar:false
+ });
+ if(error)throw Error(error.message);
+ return {
+  answer:"Bloqueo temporal de los controles de la casa "+intent.house+" preparado. Debes confirmarlo expresamente. No se desprograman los mandos físicos de radiofrecuencia y debe mantenerse una alternativa segura de acceso.",
+  proposal:{id,action:"bloquear_controles",target:intent.house,
+   description:"Suspender el Control Digital de la casa "+intent.house+" y todos sus controles registrados. Solo podrá reactivarlos personal autorizado.",
+   expires_minutes:10},data
+ };
+}
+
 function alcanceAnterior(prior){
  const lastUser=[...prior].reverse().find(x=>x.rol==="user")?.contenido||"";
  const lastReply=[...prior].reverse().find(x=>x.rol==="assistant")?.contenido||"";
@@ -152,7 +185,7 @@ async function targetHouse(ctx,number){
 async function runQuery(ctx,tool,house,prior=[]){
  const privileged=ctx.p.rol!=="residente";
  if(["ranking","finanzas","pendientes"].includes(tool)&&!privileged)throw Error("Consulta exclusiva de administración.");
- if(tool==="ayuda")return {answer:"Puedo consultar deuda, pagos, eventos, reservaciones, avisos y multas, solicitudes de huella, controles y estado del ESP32. Sistema Admin puede preparar cancelaciones y eliminaciones con confirmación. No realizo aperturas físicas ni cobros."};
+ if(tool==="ayuda")return {answer:"Puedo consultar deuda, pagos, eventos, reservaciones, avisos y multas, solicitudes de huella, controles y estado del ESP32. Sistema Admin puede preparar cancelaciones y eliminaciones con confirmación. "+(privileged?"Administración también puede solicitar bloqueos temporales de controles con número de casa y confirmación. ":"El bloqueo de controles está reservado exclusivamente a Administración y Sistema Admin. ")+"No realizo aperturas físicas ni cobros."};
  if(tool==="identidad"){
   const x=await ok(ctx.db.from("ia_configuracion").select("nombre").eq("id",true).limit(1));
   return {answer:"Soy "+(x[0]?.nombre||"Asistente Residencial IA")+". Puedo consultar información actualizada de Administración Residencial según tu cuenta."};
@@ -368,14 +401,17 @@ Deno.serve(async(req)=>{
   const opts=await optionsFor(ctx);
   const orderedPrior=prior.reverse();
   const intent=ctx.p.rol==="residente"?reservationIntent(message):null;
+  const bloqueoIntent=bloqueoControlesIntent(message);
   const direct=consultaDirecta(message);
-  const planned=intent?{route:{tool:"reservaciones",house:"",action:null,target_id:""},mode:"reserva_guiada"}:
+  const planned=bloqueoIntent?{route:{tool:"controles",house:"",action:null,target_id:""},mode:"bloqueo_avisado"}:
+    intent?{route:{tool:"reservaciones",house:"",action:null,target_id:""},mode:"reserva_guiada"}:
     direct?{route:{tool:direct,house:"",action:null,target_id:""},mode:"consulta_precisa"}:
     await plan(message,ctx,orderedPrior,opts);
   const {route,mode}=planned;
   const conocimiento=preguntaDeReglamento(message,route.tool,direct,intent,route.action)
     ?await responderConocimiento(ctx,message):null;
-  const answer=intent?await reservationAssistance(ctx,intent,message):
+  const answer=bloqueoIntent?await prepararBloqueoControles(ctx,bloqueoIntent):
+    intent?await reservationAssistance(ctx,intent,message):
     route.action?await propose(ctx,route,opts):conocimiento||
     await runQuery(ctx,route.tool,route.house,orderedPrior);
   if(!ctx.admin)throw Error("No está configurado el servicio de historial.");
