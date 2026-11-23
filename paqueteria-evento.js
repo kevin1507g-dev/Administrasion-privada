@@ -62,7 +62,8 @@
   }
 
   async function refresh() {
-    if(busy||reading||!authorized()||!section()?.classList.contains('active'))return;
+    if(!authorized()){render();return;}
+    if(busy||reading||!section()?.classList.contains('active'))return;
     reading=true;
     try {
       current=await getStatus();
@@ -77,7 +78,8 @@
   }
 
   async function toggle() {
-    if(busy||reading||!authorized()||!section()?.classList.contains('active')||!current?.allowed)return;
+    if(!authorized()){render();return;}
+    if(busy||reading||!section()?.classList.contains('active')||!current?.allowed)return;
     const intended=current.active?'stop':'start';
     busy=true;lastError='';render();
     try {
