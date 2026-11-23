@@ -144,6 +144,21 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 #paqueteriaStartBtn.paqueteriaActiva{border-color:#14b8a6;background:#123b47}
 #paqueteriaContador,#basuraContador{font-size:21px;font-variant-numeric:tabular-nums;letter-spacing:.04em;font-weight:700}
 #basuraStartBtn.basuraActiva{border-color:#14b8a6;background:#123b47}
+/* Al bloquear temporalmente, el residente ve todo el panel gris y sin interacción. */
+#controlDigital.digitalTemporarilyLocked{background:rgba(71,85,105,.18);border-radius:18px;padding:12px}
+#controlDigital.digitalTemporarilyLocked > :not(.digitalTemporaryLockNotice){
+  filter:grayscale(1);opacity:.32;pointer-events:none;user-select:none
+}
+#controlDigital .digitalTemporaryLockNotice{
+  max-width:640px;margin:14px auto 18px;padding:26px 18px;
+  border:1px solid #64748b;border-radius:18px;
+  background:linear-gradient(135deg,#334155,#1f2937);
+  color:#f1f5f9;text-align:center
+}
+#controlDigital .digitalTemporaryLockNotice h3{font-size:clamp(21px,4vw,30px);margin:8px 0}
+#controlDigital .digitalTemporaryLockNotice p{font-size:15px;color:#e2e8f0;line-height:1.55}
+#controlDigital .digitalTemporaryLockNotice button{margin:14px auto 0;max-width:340px;width:100%}
+#controlDigital .digitalTemporaryLockNotice.hidden{display:none!important}
 /* Orden visual: Portón | Puerta peatonal / Camión de basura | Paquetería.
    La puerta peatonal es informativa, reservada para admin y Sistema Admin. */
 .digitalAccessButtons #digitalPortonBtn{grid-column:1;grid-row:1}
@@ -697,6 +712,12 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
 
 <section id="controlDigital" class="controlAccessOnly">
   <h2>📲 Control digital</h2>
+  <div id="digitalTemporaryLockNotice" class="digitalTemporaryLockNotice hidden" role="alert" aria-live="polite">
+    <span aria-hidden="true" style="font-size:40px">🔒</span>
+    <h3>Bloqueo temporal</h3>
+    <p>Los controles de acceso de tu casa están suspendidos temporalmente. Comunícate con Administración o Sistema Admin para solicitar la revisión de tu acceso.</p>
+    <button class="primary" type="button" onclick="contactarPorBloqueoTemporal()">💬 Contactar Admin o Sistema Admin</button>
+  </div>
   <div class="card">
     <h3>Accesos de la privada</h3>
     <p class="muted" id="digitalControlStatus" role="status">Pendiente de conexión. Los botones estarán disponibles cuando la administración conecte el equipo de apertura.</p>
@@ -3415,6 +3436,7 @@ function basuraRender(){
  const ss=String(segundos%60).padStart(2,'0');
  basuraPonerTexto(reloj,mm+':'+ss);
  boton.disabled=basuraBusy||basuraLectura||!cuentaAutorizada||!basuraEstado?.allowed||
+  (profile?.rol==='residente'&&digitalTemporaryLockActive)||
   (activo?vencido:!basuraEstado?.hardware_ready);
  boton.classList.toggle('basuraActiva',activo&&!vencido);
  boton.setAttribute('aria-label',activo
@@ -3463,6 +3485,7 @@ async function basuraActualizar(conservarError=false){
 }
 async function basuraAlternar(){
  if(basuraBusy||basuraLectura||!user||!['owner','admin','residente'].includes(profile?.rol)||
+    (profile?.rol==='residente'&&digitalTemporaryLockActive)||
     !document.getElementById('controlDigital')?.classList.contains('active')||!basuraEstado?.allowed)return;
  const accion=basuraEstado.active?'stop':'start';
  basuraBusy=true;basuraError='';basuraRender();
@@ -4104,10 +4127,10 @@ async function setControlEstado(id,estado){
  const casa=casaNumero(casaId)||control.unidad||'sin asignar';
  const otrosSuspendidos=controles.filter(c=>String(c.id)!==String(id)&&String(casaIdDeRegistro(c))===String(casaId)&&c.estado==='suspendido').length;
  const mensaje=estado==='suspendido'
-   ? '¿Bloquear temporalmente el control '+control.numero_control+' de la casa '+casa+'?\n\nEsto bloqueará AMBOS botones digitales (portón y peatonal) para todos los residentes de esta casa.\n\nEl control físico de radiofrecuencia quedará marcado como suspendido en el sistema, pero no se desprograma del receptor automáticamente.'
+   ? '¿Bloquear temporalmente el control '+control.numero_control+' de la casa '+casa+'?\n\nEsto bloqueará todo el panel Control Digital (Portón, Camión de basura y demás accesos digitales) para los residentes de esta casa.\n\nEl control físico de radiofrecuencia quedará marcado como suspendido en el sistema, pero no se desprograma del receptor automáticamente.'
    : '¿Reactivar el control '+control.numero_control+' de la casa '+casa+'?\n\n'+(otrosSuspendidos
      ? 'Aún hay otros controles suspendidos en esta casa, por lo que el Control Digital seguirá bloqueado.'
-     : 'El Control Digital volverá a estar disponible si no existen otras restricciones, como cuotas vencidas.');
+     : 'El panel Control Digital volverá a estar disponible si no existen otras restricciones, como cuotas vencidas.');
  if(!confirm(mensaje))return;
  const {data,error}=await sb.from('controles_residenciales')
    .update({estado,actualizado_por:user.id,actualizado_en:new Date().toISOString()})
@@ -8199,6 +8222,34 @@ window.addEventListener('error', e => {
 let digitalBusy=false;
 let digitalRefreshBusy=false;
 let digitalLastStatus=null;
+let digitalTemporaryLockActive=false;
+
+function actualizarBloqueoTemporalPanel(bloqueado){
+  const seccion=document.getElementById('controlDigital');
+  const aviso=document.getElementById('digitalTemporaryLockNotice');
+  if(!seccion||!aviso)return;
+  const activo=profile?.rol==='residente' && bloqueado===true;
+  digitalTemporaryLockActive=activo;
+  seccion.classList.toggle('digitalTemporarilyLocked',activo);
+  aviso.classList.toggle('hidden',!activo);
+  // El chat permanece fuera del panel y continúa disponible.
+  for(const hijo of seccion.children){
+    if(hijo!==aviso)hijo.inert=activo;
+  }
+  if(activo){
+    for(const id of ['digitalPortonBtn','basuraStartBtn','paqueteriaStartBtn']){
+      const btn=document.getElementById(id);
+      if(btn)btn.disabled=true;
+    }
+  }
+}
+
+function contactarPorBloqueoTemporal(){
+  if(profile?.rol!=='residente'||!digitalTemporaryLockActive)return;
+  // El selector del chat permite elegir Administración o Sistema Admin.
+  void abrirChatFlotante();
+}
+
 
 function digitalButtonsDisabled(value){
   for(const id of ['digitalPeatonalBtn','digitalPortonBtn']){
@@ -8215,6 +8266,7 @@ async function refreshDigitalAccess(){
     if(profile?.id!==userId)return;
     if(error)throw error;
     digitalLastStatus=data;
+    actualizarBloqueoTemporalPanel(data.temporary_locked===true);
     document.getElementById('digitalControlStatus').textContent=data.reason;
     digitalButtonsDisabled(digitalBusy || !data.allowed);
     document.getElementById('digitalPairBtn').textContent=data.registered?'Volver a vincular ESP32':'Vincular ESP32';
@@ -8274,7 +8326,7 @@ async function configureDigitalAccess(kind){
 async function requestDigitalAccess(target){
   // Los residentes únicamente pueden usar el portón desde esta interfaz.
   if(profile?.rol==='residente' && target==='peatonal')return;
-  if(digitalBusy || !digitalLastStatus?.allowed)return;
+  if(digitalBusy || digitalTemporaryLockActive || !digitalLastStatus?.allowed)return;
   digitalBusy=true;digitalButtonsDisabled(true);
   const msg=document.getElementById('digitalCommandStatus');
   try{
