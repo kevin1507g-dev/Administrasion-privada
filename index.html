@@ -715,8 +715,8 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
   <div id="digitalTemporaryLockNotice" class="digitalTemporaryLockNotice hidden" role="alert" aria-live="polite">
     <span aria-hidden="true" style="font-size:40px">🔒</span>
     <h3>Bloqueo temporal</h3>
-    <p>Los controles de acceso de tu casa están suspendidos temporalmente. Comunícate con Administración o Sistema Admin para solicitar la revisión de tu acceso.</p>
-    <button class="primary" type="button" onclick="contactarPorBloqueoTemporal()">💬 Contactar Admin o Sistema Admin</button>
+    <p>Los controles de acceso de tu casa están suspendidos temporalmente. Contacta directamente a Sistema Admin para solicitar la revisión de tu acceso. Si lo necesitas, puedes elegir Administración en el chat.</p>
+    <button class="primary" type="button" onclick="contactarPorBloqueoTemporal()">💬 Contactar directamente a Sistema Admin</button>
   </div>
   <div class="card">
     <h3>Accesos de la privada</h3>
@@ -5706,7 +5706,7 @@ function llenarSelectorChatAdmin(){
  select.value=[...select.options].some(x=>x.value===desired)?desired:'';
 }
 
-async function abrirChatFlotante(conversacionId=null){
+async function abrirChatFlotante(conversacionId=null,destinoPreferido=null){
  if(!user||!['owner','admin','residente'].includes(profile?.rol))return;
  const panel=document.getElementById('chatPanel');
  if(!panel)return;
@@ -5749,6 +5749,9 @@ async function abrirChatFlotante(conversacionId=null){
  }else{
   selectorDestinoChatResidente();
   const select=document.getElementById('chatDestinoRol');
+  // El acceso rápido del bloqueo temporal elige Sistema Admin después de cargar datos.
+  // No cambia el destino predeterminado del chat cuando se abre desde otras secciones.
+  if(destinoPreferido==='owner'&&select)select.value='owner';
   if(conversacionId){
    const conv=chatConversaciones.find(c=>String(c.id)===String(conversacionId)&&
      String(c.residente_id)===String(user.id));
@@ -8246,8 +8249,9 @@ function actualizarBloqueoTemporalPanel(bloqueado){
 
 function contactarPorBloqueoTemporal(){
   if(profile?.rol!=='residente'||!digitalTemporaryLockActive)return;
-  // El selector del chat permite elegir Administración o Sistema Admin.
-  void abrirChatFlotante();
+  // Abre el chat privado con Sistema Admin preseleccionado.
+  // El residente puede cambiar manualmente a Administración si lo desea.
+  void abrirChatFlotante(null,'owner');
 }
 
 
