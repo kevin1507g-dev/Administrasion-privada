@@ -165,12 +165,16 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 .digitalAccessButtons #digitalPeatonalProximamenteBtn{grid-column:2;grid-row:1}
 .digitalAccessButtons #basuraStartBtn{grid-column:1;grid-row:2}
 .digitalAccessButtons #paqueteriaStartBtn{grid-column:2;grid-row:2}
+body[data-session-role="residente"] .digitalAccessButtons #basuraStartBtn{grid-column:2;grid-row:1}
+body[data-session-role="residente"] .digitalAccessButtons #paqueteriaStartBtn{grid-column:1/-1;grid-row:2}
 @media(max-width:360px){
   .digitalAccessButtons{grid-template-columns:1fr}
   .digitalAccessButtons #digitalPortonBtn,
   .digitalAccessButtons #digitalPeatonalProximamenteBtn,
   .digitalAccessButtons #basuraStartBtn,
   .digitalAccessButtons #paqueteriaStartBtn{grid-column:1;grid-row:auto}
+  body[data-session-role="residente"] .digitalAccessButtons #basuraStartBtn,
+  body[data-session-role="residente"] .digitalAccessButtons #paqueteriaStartBtn{grid-column:1;grid-row:auto}
 }
 
 
@@ -731,11 +735,11 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       <button id="basuraStartBtn" type="button" class="digitalAccessButton" onclick="basuraAlternar()" disabled aria-describedby="basuraStatus" aria-label="Camión de basura. Pulsar para activar durante 20 minutos.">
         <span aria-hidden="true">🚛</span><span>Camión de basura</span><small id="basuraContador" aria-live="off">20:00</small>
       </button>
-      <button id="paqueteriaStartBtn" onclick="paqueteriaAlternar()" class="digitalAccessButton adminOnly hidden" type="button" disabled aria-describedby="paqueteriaStatus" aria-label="Paquetería. Pulsar para activar durante tres minutos.">
+      <button id="paqueteriaStartBtn" onclick="paqueteriaAlternar()" class="digitalAccessButton" type="button" disabled aria-describedby="paqueteriaStatus" aria-label="Paquetería. Pulsar para activar durante tres minutos.">
         <span aria-hidden="true">📦</span><span>Paquetería</span><small id="paqueteriaContador" aria-live="off">03:00</small>
       </button>
     </div>
-    <div class="adminOnly hidden">
+    <div>
       <p id="paqueteriaStatus" class="muted" style="margin:10px 0 0;font-size:.9rem" role="status" aria-live="polite" hidden></p>
     </div>
     <p id="basuraStatus" class="muted" style="margin:10px 0 0;font-size:.9rem" role="status" aria-live="polite" hidden></p>
@@ -8593,7 +8597,7 @@ async function actualizarVistaActiva(){
 <script src="./interfon-residentes-owner.js?v=1"></script>
 <script src="./interfon-voice-demo.js?v=1"></script>
 <script src="./interfon-webrtc.js?v=1" defer></script>
-<script src="./paqueteria-evento.js?v=2" defer></script>
+<script src="./paqueteria-evento.js?v=3" defer></script>
 <script src="./controles-prorrogas.js?v=2" defer></script>
 <script src="./datos-administradores.js?v=1"></script>
 
