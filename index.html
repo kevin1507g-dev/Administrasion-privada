@@ -4127,10 +4127,10 @@ async function setControlEstado(id,estado){
  const casa=casaNumero(casaId)||control.unidad||'sin asignar';
  const otrosSuspendidos=controles.filter(c=>String(c.id)!==String(id)&&String(casaIdDeRegistro(c))===String(casaId)&&c.estado==='suspendido').length;
  const mensaje=estado==='suspendido'
-   ? '¿Bloquear temporalmente el control '+control.numero_control+' de la casa '+casa+'?\n\nEsto bloqueará AMBOS botones digitales (portón y peatonal) para todos los residentes de esta casa.\n\nEl control físico de radiofrecuencia quedará marcado como suspendido en el sistema, pero no se desprograma del receptor automáticamente.'
+   ? '¿Bloquear temporalmente el control '+control.numero_control+' de la casa '+casa+'?\n\nEsto bloqueará todo el panel Control Digital (Portón, Camión de basura y demás accesos digitales) para los residentes de esta casa.\n\nEl control físico de radiofrecuencia quedará marcado como suspendido en el sistema, pero no se desprograma del receptor automáticamente.'
    : '¿Reactivar el control '+control.numero_control+' de la casa '+casa+'?\n\n'+(otrosSuspendidos
      ? 'Aún hay otros controles suspendidos en esta casa, por lo que el Control Digital seguirá bloqueado.'
-     : 'El Control Digital volverá a estar disponible si no existen otras restricciones, como cuotas vencidas.');
+     : 'El panel Control Digital volverá a estar disponible si no existen otras restricciones, como cuotas vencidas.');
  if(!confirm(mensaje))return;
  const {data,error}=await sb.from('controles_residenciales')
    .update({estado,actualizado_por:user.id,actualizado_en:new Date().toISOString()})
