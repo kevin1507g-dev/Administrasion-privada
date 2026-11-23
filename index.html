@@ -3430,10 +3430,13 @@ function basuraRender(){
  }else if(vencido){
   basuraPonerTexto(etiqueta,'Los 20 minutos finalizaron. Verificando el estado del servidor; comprueba el portón.');
  }else if(activo){
-  basuraPonerTexto(etiqueta,'Recolección activada. Pulsa el mismo botón para cancelar. Comprueba físicamente el portón; el temporizador no confirma su posición.');
+  basuraPonerTexto(etiqueta,'Recolección activa. Pulsa de nuevo para cancelar. Verifica físicamente el portón.');
  }else{
   basuraPonerTexto(etiqueta,basuraEstado.reason||'Sin ventana de recolección activa.');
  }
+ // Sin recuadro explicativo: mostrar solo activaciones, bloqueos o errores.
+ etiqueta.hidden=!(basuraError || !cuentaAutorizada ||
+   (basuraEstado && (activo || !basuraEstado.allowed || !basuraEstado.hardware_ready)));
 }
 async function basuraConsultarEstado(){
  const {data,error}=await sb.rpc('garbage_window_status');
