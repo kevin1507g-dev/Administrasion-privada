@@ -61,11 +61,24 @@
        suspended+' control(es) suspendido(s) · '+automatic+' por mora · '+manual+' manual(es)'+
        ' · Deuda vencida de 10+ días: '+fmtMoney(debt),
        'muted',card);
+     // Mostrar los números efectivamente suspendidos, no solo totales por casa.
+     const houseControls=typeof controles!=='undefined'&&Array.isArray(controles)
+       ?controles.filter(c=>String(c.casa_id)===String(item.casa_id)):[];
+     const blocked=houseControls.filter(c=>c.estado==='suspendido');
+     if(blocked.length){
+       const list=el('ul',null,'',card);
+       list.style.paddingLeft='24px';
+       for(const c of blocked){
+         el('li','Control '+String(c.numero_control||'—')+' · '+
+           (c.suspension_automatica?'Suspendido por mora':'Suspensión manual o administrativa'),
+           null,list);
+       }
+     }
      if(grace)el('p','✅ Días adicionales autorizados hasta '+fmtDate(item.prorroga_hasta)+
        '. El adeudo sigue pendiente.','muted',card);
      if(manual>0)el('p','⚠️ Los bloqueos manuales o exclusivos de Sistema Admin no se levantan con días adicionales.','muted',card);
      if(!isOwner())continue;
-     if(debt>0.009){
+     if(debt>0.009&&houseControls.length){
        const actions=el('div',null,'actions',card);
        actions.style.alignItems='end';
        actions.style.marginTop='10px';
