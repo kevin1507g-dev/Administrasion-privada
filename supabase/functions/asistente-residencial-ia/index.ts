@@ -84,7 +84,9 @@ async function prepararBloqueoControles(ctx,intent){
    if(protegida){
      const fecha=new Date(protegida.prorroga_hasta||"");
      const limite=Number.isFinite(fecha.getTime())
-       ?fecha.toLocaleString("es-MX",{timeZone:"America/Mexico_City",dateStyle:"medium",timeStyle:"short"})
+       ?fecha.toLocaleString("es-MX",{timeZone:"America/Mexico_City",
+         day:"2-digit",month:"2-digit",year:"numeric",
+         hour:"2-digit",minute:"2-digit",hour12:false})
        :"el vencimiento registrado";
      return {answer:"🔒 Sistema Admin otorgó días adicionales a la casa "+intent.house+
        " hasta "+limite+". No puedes bloquear sus controles mientras la prórroga esté vigente. Consulta con Sistema Admin si necesitas modificarla."};
