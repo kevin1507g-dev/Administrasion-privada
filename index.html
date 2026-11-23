@@ -142,7 +142,8 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 .digitalAccessButton span:first-child{font-size:42px}
 .digitalAccessButton:disabled{cursor:not-allowed}
 #paqueteriaStartBtn.paqueteriaActiva{border-color:#14b8a6;background:#123b47}
-#paqueteriaContador{font-size:21px;font-variant-numeric:tabular-nums;letter-spacing:.04em;font-weight:700}
+#paqueteriaContador,#basuraContador{font-size:21px;font-variant-numeric:tabular-nums;letter-spacing:.04em;font-weight:700}
+#basuraStartBtn.basuraActiva{border-color:#14b8a6;background:#123b47}
 /* Orden visual: Portón | Puerta peatonal / Camión de basura | Paquetería.
    La puerta peatonal es informativa, reservada para admin y Sistema Admin. */
 .digitalAccessButtons #digitalPortonBtn{grid-column:1;grid-row:1}
@@ -706,8 +707,8 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       <button id="digitalPeatonalProximamenteBtn" class="digitalAccessButton adminOnly hidden" type="button" disabled aria-label="Puerta peatonal, próximamente, solo Administrador y Sistema Admin" title="Disponible próximamente para Administrador y Sistema Admin">
         <span aria-hidden="true">🚶</span><span>Puerta peatonal</span><small style="font-size:14px">Próximamente</small>
       </button>
-      <button id="basuraStartBtn" type="button" class="digitalAccessButton" onclick="basuraAccion('start')" disabled aria-describedby="basuraAdvertencia basuraStatus">
-        <span aria-hidden="true">🚛</span><span>Camión de basura</span><small style="font-size:14px">20 minutos</small>
+      <button id="basuraStartBtn" type="button" class="digitalAccessButton" onclick="basuraAlternar()" disabled aria-describedby="basuraAdvertencia basuraStatus" aria-label="Camión de basura. Pulsar para activar durante 20 minutos.">
+        <span aria-hidden="true">🚛</span><span>Camión de basura</span><small id="basuraContador" aria-live="off">20:00</small>
       </button>
       <button id="paqueteriaStartBtn" onclick="paqueteriaAlternar()" class="digitalAccessButton adminOnly hidden" type="button" disabled aria-describedby="paqueteriaNota paqueteriaStatus" aria-label="Paquetería. Pulsar para activar durante tres minutos.">
         <span aria-hidden="true">📦</span><span>Paquetería</span><small id="paqueteriaContador" aria-live="off">03:00</small>
@@ -723,9 +724,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
     <h3>🚛 Apertura a camión de basura</h3>
     <p class="muted" id="basuraAdvertencia">Ventana de 20 minutos. Disponible para administradores y residentes autorizados. Utiliza el Modo Evento existente cuando esté habilitado y el ESP32 conectado. La apertura termina a los 20 minutos o al desactivarla. Si hay una reservación activa, esta conserva su horario.</p>
     <p id="basuraStatus" role="status" aria-live="polite">Consultando estado...</p>
-    <div class="actions">
-      <button id="basuraStopBtn" type="button" class="danger" onclick="basuraAccion('stop')" disabled>⏹ Desactivar</button>
-    </div>
+    <p class="muted" style="font-size:.88rem">Pulsa el botón de Camión de basura una vez para activar y vuelve a pulsarlo para cancelar antes de tiempo.</p>
   </div>
   <p class="muted">El acceso digital se suspende cuando una cuota de tu casa conserva saldo pendiente al cumplir 10 días de vencida. Se restablece al liquidar el saldo que causa el bloqueo.</p>
   <p id="digitalCommandStatus" role="status" aria-live="polite"></p>
@@ -3400,41 +3399,106 @@ function actualizarSeleccionBiometrica(){
 }
 
 
-/* Solicitud para recolección de basura, sin actuar sobre el ESP32. */
-let basuraBusy=false,basuraTimer=null;
-async function basuraActualizar(){
- const status=document.getElementById('basuraStatus');
- if(!status||!document.getElementById('controlDigital')?.classList.contains('active')||!user)return;
- const start=document.getElementById('basuraStartBtn'),stop=document.getElementById('basuraStopBtn');
- try{
-  const {data,error}=await sb.rpc('garbage_window_status');
-  if(error)throw error;
-  const active=!!data?.active,allowed=!!data?.allowed;
-  const until=Date.parse(data?.until||'');
-  const mins=Number.isFinite(until)?Math.max(0,Math.ceil((until-Date.now())/60000)):0;
-  status.textContent=active?'Modo recolección solicitado: '+mins+' minuto(s) restantes. Verifica físicamente el estado del portón.':(data?.reason||'No hay solicitud activa.');
-  start.disabled=basuraBusy||!allowed||!data?.hardware_ready||active;
-  stop.disabled=basuraBusy||!allowed||!active;
- }catch(e){
-  status.textContent='Función pendiente de configurar en Supabase: '+(e.message||'sin conexión')+'. No se enviaron órdenes al portón.';
-  start.disabled=true;stop.disabled=true;
+/* Ventana de recolección de basura: el mismo botón inicia y cancela.
+   El estado de 20 minutos es del servidor, no una orden física del navegador.
+   El contador NO confirma la posición del portón. */
+let basuraBusy=false, basuraLectura=false, basuraEstado=null, basuraError='';
+function basuraPonerTexto(elemento,valor){
+ if(elemento&&elemento.textContent!==valor)elemento.textContent=valor;
+}
+function basuraRender(){
+ const boton=document.getElementById('basuraStartBtn');
+ const reloj=document.getElementById('basuraContador');
+ const etiqueta=document.getElementById('basuraStatus');
+ if(!boton||!reloj||!etiqueta)return;
+ const cuentaAutorizada=!!user&&['owner','admin','residente'].includes(profile?.rol);
+ const activo=!!basuraEstado?.active;
+ const vence=Date.parse(basuraEstado?.until||'');
+ const milisegundos=activo&&Number.isFinite(vence)?Math.max(0,vence-Date.now()):0;
+ const vencido=activo&&milisegundos<=0;
+ const segundos=activo?Math.ceil(milisegundos/1000):1200;
+ const mm=String(Math.floor(segundos/60)).padStart(2,'0');
+ const ss=String(segundos%60).padStart(2,'0');
+ basuraPonerTexto(reloj,mm+':'+ss);
+ boton.disabled=basuraBusy||basuraLectura||!cuentaAutorizada||!basuraEstado?.allowed||
+  (activo?vencido:!basuraEstado?.hardware_ready);
+ boton.classList.toggle('basuraActiva',activo&&!vencido);
+ boton.setAttribute('aria-label',activo
+  ?'Camión de basura activo. Pulsar para cancelar la ventana de 20 minutos.'
+  :'Camión de basura. Pulsar para activar durante 20 minutos.');
+ boton.title=activo?'Pulsar para cancelar recolección':'Activar recolección por 20 minutos';
+ if(basuraError){
+  basuraPonerTexto(etiqueta,basuraError);
+ }else if(!cuentaAutorizada){
+  basuraPonerTexto(etiqueta,'Cuenta sin autorización.');
+ }else if(!basuraEstado){
+  basuraPonerTexto(etiqueta,'Consultando disponibilidad de recolección...');
+ }else if(vencido){
+  basuraPonerTexto(etiqueta,'Los 20 minutos finalizaron. Verificando el estado del servidor; comprueba el portón.');
+ }else if(activo){
+  basuraPonerTexto(etiqueta,'Recolección activada. Pulsa el mismo botón para cancelar. Comprueba físicamente el portón; el temporizador no confirma su posición.');
+ }else{
+  basuraPonerTexto(etiqueta,basuraEstado.reason||'Sin ventana de recolección activa.');
  }
 }
-async function basuraAccion(action){
- if(basuraBusy||!user||!['owner','admin','residente'].includes(profile?.rol))return;
- const texto=action==='start'?'¿Registrar una ventana de recolección de basura de 20 minutos? Esto solicitará mantener abierto el portón mediante Modo Evento si está habilitado. Comprueba que el paso esté despejado.':'¿Cancelar la ventana de recolección de basura activa?';
- if(!confirm(texto))return;
- basuraBusy=true;
- const status=document.getElementById('basuraStatus');
- document.getElementById('basuraStartBtn').disabled=true;
- document.getElementById('basuraStopBtn').disabled=true;
- try{
-  const {data,error}=await sb.rpc('garbage_window_manage',{p_action:action});
-  if(error)throw error;
-  status.textContent=action==='start'?'Modo recolección solicitado durante 20 minutos. Comprueba el estado físico del portón.':'Solicitud de recolección cancelada. El ESP32 actualizará el estado al sincronizar; comprueba el portón.';
- }catch(e){status.textContent='No se pudo completar la solicitud: '+(e.message||'error');}
- finally{basuraBusy=false;await basuraActualizar();}
+async function basuraConsultarEstado(){
+ const {data,error}=await sb.rpc('garbage_window_status');
+ if(error)throw error;
+ if(!data||typeof data!=='object')throw new Error('Respuesta de estado inválida.');
+ return data;
 }
+async function basuraActualizar(conservarError=false){
+ if(basuraBusy||basuraLectura||!document.getElementById('controlDigital')?.classList.contains('active')||!user)return;
+ const identidad=profile?.id,usuario=user.id;
+ basuraLectura=true;
+ try{
+  const nuevoEstado=await basuraConsultarEstado();
+  if(profile?.id!==identidad||user?.id!==usuario){
+   basuraEstado=null;
+   return;
+  }
+  basuraEstado=nuevoEstado;
+  if(!conservarError)basuraError='';
+ }catch(e){
+  basuraEstado=null;
+  basuraError='No se pudo consultar recolección: '+(e?.message||'intenta de nuevo')+'. No se enviaron órdenes.';
+ }finally{basuraLectura=false;basuraRender();}
+}
+async function basuraAlternar(){
+ if(basuraBusy||basuraLectura||!user||!['owner','admin','residente'].includes(profile?.rol)||
+    !document.getElementById('controlDigital')?.classList.contains('active')||!basuraEstado?.allowed)return;
+ const accion=basuraEstado.active?'stop':'start';
+ basuraBusy=true;basuraError='';basuraRender();
+ let fallo=false;
+ try{
+  // Revalidar la autorización y que la ventana no cambió antes de emitir acción.
+  const reciente=await basuraConsultarEstado();
+  basuraEstado=reciente;
+  if(!reciente.allowed)throw new Error('Cuenta sin autorización.');
+  if(Boolean(reciente.active)!==(accion==='stop')){
+   throw new Error('El estado cambió. Revisa el botón antes de volver a pulsar.');
+  }
+  if(accion==='start'&&!reciente.hardware_ready){
+   throw new Error('Modo de recolección no habilitado o ESP32 sin conexión.');
+  }
+  const {data,error}=await sb.rpc('garbage_window_manage',{p_action:accion});
+  if(error)throw error;
+  basuraEstado=data;
+ }catch(e){
+  fallo=true;
+  basuraError='No se pudo '+(accion==='start'?'activar':'cancelar')+
+   ' recolección: '+(e?.message||'error del servidor');
+ }finally{
+  basuraBusy=false;
+  basuraRender();
+  await Promise.allSettled([
+   basuraActualizar(fallo),
+   typeof window.paqueteriaActualizar==='function'?window.paqueteriaActualizar():Promise.resolve(),
+   typeof refreshDigitalAccess==='function'?refreshDigitalAccess():Promise.resolve()
+  ]);
+ }
+}
+setInterval(()=>{if(!document.hidden)basuraRender();},1000);
 
 function show(id){
   if(id==='disciplina' && typeof disciplinaCargar==='function')setTimeout(disciplinaCargar,0);
