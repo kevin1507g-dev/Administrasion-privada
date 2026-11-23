@@ -1,5 +1,4 @@
--- IA Bloquear Controles: preparación + confirmación para admin/owner exclusivamente.
--- No bloquea casas al aplicar esta migración.
+-- IA: bloqueo administrativo de controles con preparación y confirmación. No realiza cambios al instalar.
 CREATE OR REPLACE FUNCTION public.ia_operar(p_id uuid, p_accion text DEFAULT NULL::text, p_objetivo text DEFAULT NULL::text, p_confirmar boolean DEFAULT false)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -41,7 +40,18 @@ begin
      if v_rol not in ('admin','owner') then
        raise exception 'Solo Administración o Sistema Admin puede bloquear controles.' using errcode='42501';
      end if;
-     if p_objetivo is null or p_objetivo !~ '^(4[0-9]|5[0-9]|6[0-6])
+     if p_objetivo is null or p_objetivo !~ '^(4[0-9]|5[0-9]|6[0-6])$' then
+       raise exception 'Indica una casa entre 40 y 66.';
+     end if;
+     if p_objetivo='45' and v_rol<>'owner' then
+       raise exception 'La casa 45 requiere Sistema Admin.' using errcode='42501';
+     end if;
+     select id into v_target_house from public.casas where numero=p_objetivo and activo=true;
+     if v_target_house is null then raise exception 'Casa inexistente o inactiva.';end if;
+     select count(*) into v_total from public.controles_residenciales where casa_id=v_target_house;
+     if v_total=0 then raise exception 'No hay controles registrados en esta casa.';end if;
+   end if;
+   insert into public.ia_operaciones(id,usuario_id,accion,objetivo)
       values(p_id,v_uid,p_accion,p_objetivo) on conflict(id) do nothing;
    select * into v_op from public.ia_operaciones where id=p_id;
    if v_op.usuario_id<>v_uid then raise exception 'Operación ajena.' using errcode='42501';end if;
@@ -73,57 +83,7 @@ begin
      raise exception 'Solo Administración y Sistema Admin pueden confirmar bloqueos.' using errcode='42501';
    end if;
    v_numero:=v_op.objetivo;
-   if v_numero is null or v_numero !~ '^(4[0-9]|5[0-9]|6[0-6])
-   raise exception 'Acción no permitida.' using errcode='42501';
- end if;
- update public.ia_operaciones set estado='ejecutada',resultado=v_r,ejecutada_at=now() where id=p_id;
- return jsonb_build_object('id',p_id,'estado','ejecutada','resultado',v_r);
-end $function$
- then
-       raise exception 'Indica una casa entre 40 y 66.';
-     end if;
-     if p_objetivo='45' and v_rol<>'owner' then
-       raise exception 'La casa 45 requiere Sistema Admin.' using errcode='42501';
-     end if;
-     select id into v_target_house from public.casas where numero=p_objetivo and activo=true;
-     if v_target_house is null then raise exception 'Casa inexistente o inactiva.';end if;
-     select count(*) into v_total from public.controles_residenciales where casa_id=v_target_house;
-     if v_total=0 then raise exception 'No hay controles registrados en esta casa.';end if;
-   end if;
-   insert into public.ia_operaciones(id,usuario_id,accion,objetivo)
-      values(p_id,v_uid,p_accion,p_objetivo) on conflict(id) do nothing;
-   select * into v_op from public.ia_operaciones where id=p_id;
-   if v_op.usuario_id<>v_uid then raise exception 'Operación ajena.' using errcode='42501';end if;
-   return jsonb_build_object('id',v_op.id,'estado',v_op.estado,'accion',v_op.accion,'objetivo',v_op.objetivo);
- end if;
- select * into v_op from public.ia_operaciones where id=p_id and usuario_id=v_uid for update;
- if not found then raise exception 'Operación no encontrada.' using errcode='42501';end if;
- if v_op.estado='ejecutada' then return jsonb_build_object('id',v_op.id,'estado','ejecutada','resultado',v_op.resultado);end if;
- if v_op.estado<>'pendiente' or v_op.created_at<now()-interval '10 minutes' then
-   raise exception 'La confirmación caducó. Prepara nuevamente la operación.';end if;
- if v_op.accion in ('cancelar_evento','cancelar_reservacion','eliminar_reporte') and v_rol<>'owner' then
-   raise exception 'Solo Sistema Admin.' using errcode='42501';end if;
- if v_op.accion='cancelar_evento' then
-   v_r:=public.sistema_admin_cancelar_evento(v_op.objetivo::bigint);
- elsif v_op.accion='cancelar_reservacion' then
-   v_r:=public.sistema_admin_cancelar_reservacion(v_op.objetivo::uuid);
- elsif v_op.accion='eliminar_reporte' then
-   v_r:=public.sistema_admin_eliminar_reporte_disciplina(v_op.objetivo::uuid);
- elsif v_op.accion='solicitar_huella' then
-   if v_rol<>'residente' or v_casa is null or
-     not exists(select 1 from public.casas where id=v_casa and activo=true) then
-       raise exception 'Solo puedes registrar una solicitud para tu casa.' using errcode='42501';end if;
-   insert into public.solicitudes_huella(residente_id,casa_id,dedo,estado)
-   values(v_uid,v_casa,v_op.objetivo,'pendiente_captura')
-   returning id into v_obj;
-   v_r:=jsonb_build_object('ok',true,'solicitud_id',v_obj,'estado','pendiente_captura');
- else
-   raise exception 'Acción no permitida.' using errcode='42501';
- end if;
- update public.ia_operaciones set estado='ejecutada',resultado=v_r,ejecutada_at=now() where id=p_id;
- return jsonb_build_object('id',p_id,'estado','ejecutada','resultado',v_r);
-end $function$
- then
+   if v_numero is null or v_numero !~ '^(4[0-9]|5[0-9]|6[0-6])$' then
      raise exception 'Número de casa inválido.';
    end if;
    if v_numero='45' and v_rol<>'owner' then
@@ -142,50 +102,6 @@ end $function$
    if v_changed=0 then raise exception 'Los controles ya están suspendidos o protegidos.';end if;
    v_r:=jsonb_build_object('ok',true,'casa',v_numero,'controles_bloqueados',v_changed,
       'nota','La casa queda suspendida en Control Digital. Los mandos de radiofrecuencia no se desprograman automáticamente.');
- else
-   raise exception 'Acción no permitida.' using errcode='42501';
- end if;
- update public.ia_operaciones set estado='ejecutada',resultado=v_r,ejecutada_at=now() where id=p_id;
- return jsonb_build_object('id',p_id,'estado','ejecutada','resultado',v_r);
-end $function$
- then
-       raise exception 'Indica una casa entre 40 y 66.';
-     end if;
-     if p_objetivo='45' and v_rol<>'owner' then
-       raise exception 'La casa 45 requiere Sistema Admin.' using errcode='42501';
-     end if;
-     select id into v_target_house from public.casas where numero=p_objetivo and activo=true;
-     if v_target_house is null then raise exception 'Casa inexistente o inactiva.';end if;
-     select count(*) into v_total from public.controles_residenciales where casa_id=v_target_house;
-     if v_total=0 then raise exception 'No hay controles registrados en esta casa.';end if;
-   end if;
-   insert into public.ia_operaciones(id,usuario_id,accion,objetivo)
-      values(p_id,v_uid,p_accion,p_objetivo) on conflict(id) do nothing;
-   select * into v_op from public.ia_operaciones where id=p_id;
-   if v_op.usuario_id<>v_uid then raise exception 'Operación ajena.' using errcode='42501';end if;
-   return jsonb_build_object('id',v_op.id,'estado',v_op.estado,'accion',v_op.accion,'objetivo',v_op.objetivo);
- end if;
- select * into v_op from public.ia_operaciones where id=p_id and usuario_id=v_uid for update;
- if not found then raise exception 'Operación no encontrada.' using errcode='42501';end if;
- if v_op.estado='ejecutada' then return jsonb_build_object('id',v_op.id,'estado','ejecutada','resultado',v_op.resultado);end if;
- if v_op.estado<>'pendiente' or v_op.created_at<now()-interval '10 minutes' then
-   raise exception 'La confirmación caducó. Prepara nuevamente la operación.';end if;
- if v_op.accion in ('cancelar_evento','cancelar_reservacion','eliminar_reporte') and v_rol<>'owner' then
-   raise exception 'Solo Sistema Admin.' using errcode='42501';end if;
- if v_op.accion='cancelar_evento' then
-   v_r:=public.sistema_admin_cancelar_evento(v_op.objetivo::bigint);
- elsif v_op.accion='cancelar_reservacion' then
-   v_r:=public.sistema_admin_cancelar_reservacion(v_op.objetivo::uuid);
- elsif v_op.accion='eliminar_reporte' then
-   v_r:=public.sistema_admin_eliminar_reporte_disciplina(v_op.objetivo::uuid);
- elsif v_op.accion='solicitar_huella' then
-   if v_rol<>'residente' or v_casa is null or
-     not exists(select 1 from public.casas where id=v_casa and activo=true) then
-       raise exception 'Solo puedes registrar una solicitud para tu casa.' using errcode='42501';end if;
-   insert into public.solicitudes_huella(residente_id,casa_id,dedo,estado)
-   values(v_uid,v_casa,v_op.objetivo,'pendiente_captura')
-   returning id into v_obj;
-   v_r:=jsonb_build_object('ok',true,'solicitud_id',v_obj,'estado','pendiente_captura');
  else
    raise exception 'Acción no permitida.' using errcode='42501';
  end if;
