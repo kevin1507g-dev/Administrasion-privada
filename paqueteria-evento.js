@@ -21,6 +21,7 @@
     if(!btn||!clock||!label)return;
     if(!authorized()) {
       btn.disabled=true;
+      label.hidden=true;
       return;
     }
 
@@ -48,10 +49,13 @@
     } else if(expired) {
       text(label,'La ventana ha llegado a cero. Verificando su finalización con el servidor; comprueba físicamente el portón.');
     } else if(active) {
-      text(label,'Paquetería activada. Pulsa el mismo botón para cancelar antes de tiempo. Comprueba físicamente el portón; el contador no confirma su posición.');
+      text(label,'Paquetería activa. Pulsa de nuevo para cancelar. Verifica físicamente el portón.');
     } else {
       text(label,current.reason||'Paquetería disponible.');
     }
+    // Sin explicación permanente: solo actividad, restricciones o errores.
+    label.hidden=!(lastError ||
+      (current && (active || !current.allowed || !current.hardware_ready)));
   }
 
   async function getStatus() {
