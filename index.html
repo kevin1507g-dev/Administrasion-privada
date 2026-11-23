@@ -146,13 +146,13 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 .digitalAccessButtons #digitalPortonBtn{grid-column:1;grid-row:1}
 .digitalAccessButtons #digitalPeatonalProximamenteBtn{grid-column:2;grid-row:1}
 .digitalAccessButtons #basuraStartBtn{grid-column:1;grid-row:2}
-.digitalAccessButtons #paqueteriaPreviewBtn{grid-column:2;grid-row:2}
+.digitalAccessButtons #paqueteriaStartBtn{grid-column:2;grid-row:2}
 @media(max-width:360px){
   .digitalAccessButtons{grid-template-columns:1fr}
   .digitalAccessButtons #digitalPortonBtn,
   .digitalAccessButtons #digitalPeatonalProximamenteBtn,
   .digitalAccessButtons #basuraStartBtn,
-  .digitalAccessButtons #paqueteriaPreviewBtn{grid-column:1;grid-row:auto}
+  .digitalAccessButtons #paqueteriaStartBtn{grid-column:1;grid-row:auto}
 }
 
 
@@ -708,14 +708,14 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       <button id="basuraStartBtn" type="button" class="digitalAccessButton" onclick="basuraAccion('start')" disabled aria-describedby="basuraAdvertencia basuraStatus">
         <span aria-hidden="true">🚛</span><span>Camión de basura</span><small style="font-size:14px">20 minutos</small>
       </button>
-      <button id="paqueteriaPreviewBtn" onclick="paqueteriaVistaPrevia()" class="digitalAccessButton adminOnly hidden" type="button" aria-describedby="paqueteriaPreviewNota paqueteriaPreviewStatus">
-        <span aria-hidden="true">📦</span><span>Paquetería</span><small style="font-size:14px">3 min · prueba</small>
+      <button id="paqueteriaStartBtn" onclick="paqueteriaAccion('start')" class="digitalAccessButton adminOnly hidden" type="button" disabled aria-describedby="paqueteriaNota paqueteriaStatus">
+        <span aria-hidden="true">📦</span><span>Paquetería</span><small style="font-size:14px">Modo Evento · 3 min</small>
       </button>
     </div>
     <div class="adminOnly hidden" style="margin-top:14px">
-      <p id="paqueteriaPreviewNota" class="muted">Paquetería: vista previa de un temporizador de 3 minutos. No abre ni mantiene abierto el portón. Para una apertura sostenida real se necesitan comprobaciones de seguridad del motor y sensores.</p>
-      <p id="paqueteriaPreviewStatus" class="muted" role="status" aria-live="polite">Sin prueba activa.</p>
-      <button id="paqueteriaCancelBtn" class="danger" type="button" onclick="paqueteriaCancelarVistaPrevia()" hidden>Cancelar prueba de Paquetería</button>
+      <p id="paqueteriaNota" class="muted">Paquetería solicita el Modo Evento durante 3 minutos, exclusivamente para Admin y Sistema Admin. Solo funciona si el ESP32 está conectado y el modo habilitado. No se superpone con basura ni reservaciones. Verifica siempre que el paso esté libre: el temporizador no confirma la posición real del portón y no sustituye sus fotoceldas de seguridad.</p>
+      <p id="paqueteriaStatus" class="muted" role="status" aria-live="polite">Consultando disponibilidad...</p>
+      <button id="paqueteriaCancelBtn" class="danger" type="button" onclick="paqueteriaAccion('stop')" hidden>⏹ Desactivar Paquetería</button>
     </div>
     <button type="button" class="residentOnly" style="margin-top:14px" onclick="solicitudesIr('huellas')">🖐️ Solicitar registro de mis huellas</button>
   </div>
@@ -3478,6 +3478,7 @@ function show(id){
     digitalButtonsDisabled(true);
     refreshDigitalAccess();
     basuraActualizar();
+    window.paqueteriaActualizar?.();
   }
   if(id==='esp32Panel'){
     if(!isAdminProfileRole(profile?.rol))return;
@@ -8432,7 +8433,7 @@ async function actualizarVistaActiva(){
  liveRefreshRunning=true;
  try{
   if(document.getElementById('controlDigital')?.classList.contains('active')){
-   await Promise.all([refreshDigitalAccess(),basuraActualizar()]);
+   await Promise.all([refreshDigitalAccess(),basuraActualizar(),window.paqueteriaActualizar?.()]);
   }else if(document.getElementById('biometrico')?.classList.contains('active')){
    await cargarSolicitudesHuellas();
   }else if(isAdminProfileRole(profile.rol)&&document.getElementById('esp32Panel')?.classList.contains('active')){
@@ -8463,7 +8464,7 @@ async function actualizarVistaActiva(){
 <script src="./interfon-residentes-owner.js?v=1"></script>
 <script src="./interfon-voice-demo.js?v=1"></script>
 <script src="./interfon-webrtc.js?v=1" defer></script>
-<script src="./paqueteria-preview.js?v=1" defer></script>
+<script src="./paqueteria-evento.js?v=1" defer></script>
 <script src="./datos-administradores.js?v=1"></script>
 
 <dialog id="ownerChatEspecialDialog" aria-labelledby="ownerChatEspecialTitulo">
