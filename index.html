@@ -141,6 +141,8 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 .digitalAccessButton{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-height:160px;padding:24px 12px;font-size:23px;background:#1e293b;border:1px solid #475569;color:#cbd5e1}
 .digitalAccessButton span:first-child{font-size:42px}
 .digitalAccessButton:disabled{cursor:not-allowed}
+#paqueteriaStartBtn.paqueteriaActiva{border-color:#14b8a6;background:#123b47}
+#paqueteriaContador{font-size:21px;font-variant-numeric:tabular-nums;letter-spacing:.04em;font-weight:700}
 /* Orden visual: Portón | Puerta peatonal / Camión de basura | Paquetería.
    La puerta peatonal es informativa, reservada para admin y Sistema Admin. */
 .digitalAccessButtons #digitalPortonBtn{grid-column:1;grid-row:1}
@@ -707,14 +709,13 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       <button id="basuraStartBtn" type="button" class="digitalAccessButton" onclick="basuraAccion('start')" disabled aria-describedby="basuraAdvertencia basuraStatus">
         <span aria-hidden="true">🚛</span><span>Camión de basura</span><small style="font-size:14px">20 minutos</small>
       </button>
-      <button id="paqueteriaStartBtn" onclick="paqueteriaAccion('start')" class="digitalAccessButton adminOnly hidden" type="button" disabled aria-describedby="paqueteriaNota paqueteriaStatus">
-        <span aria-hidden="true">📦</span><span>Paquetería</span><small style="font-size:14px">Modo Evento · 3 min</small>
+      <button id="paqueteriaStartBtn" onclick="paqueteriaAlternar()" class="digitalAccessButton adminOnly hidden" type="button" disabled aria-describedby="paqueteriaNota paqueteriaStatus" aria-label="Paquetería. Pulsar para activar durante tres minutos.">
+        <span aria-hidden="true">📦</span><span>Paquetería</span><small id="paqueteriaContador" aria-live="off">03:00</small>
       </button>
     </div>
     <div class="adminOnly hidden" style="margin-top:14px">
-      <p id="paqueteriaNota" class="muted">Paquetería solicita el Modo Evento durante 3 minutos, exclusivamente para Admin y Sistema Admin. Solo funciona si el ESP32 está conectado y el modo habilitado. No se superpone con basura ni reservaciones. Verifica siempre que el paso esté libre: el temporizador no confirma la posición real del portón y no sustituye sus fotoceldas de seguridad.</p>
+      <p id="paqueteriaNota" class="muted">Paquetería: pulsa una vez para solicitar la apertura durante 3 minutos y vuelve a pulsar el mismo botón para cancelar antes de tiempo. Disponible solo para Admin y Sistema Admin cuando el ESP32 esté conectado y la función habilitada. No se superpone con basura ni reservaciones. Verifica que el paso esté libre: el contador no confirma la posición del portón ni sustituye sus fotoceldas de seguridad.</p>
       <p id="paqueteriaStatus" class="muted" role="status" aria-live="polite">Consultando disponibilidad...</p>
-      <button id="paqueteriaCancelBtn" class="danger" type="button" onclick="paqueteriaAccion('stop')" hidden>⏹ Desactivar Paquetería</button>
     </div>
     <button type="button" class="residentOnly" style="margin-top:14px" onclick="solicitudesIr('huellas')">🖐️ Solicitar registro de mis huellas</button>
   </div>
@@ -8463,7 +8464,7 @@ async function actualizarVistaActiva(){
 <script src="./interfon-residentes-owner.js?v=1"></script>
 <script src="./interfon-voice-demo.js?v=1"></script>
 <script src="./interfon-webrtc.js?v=1" defer></script>
-<script src="./paqueteria-evento.js?v=1" defer></script>
+<script src="./paqueteria-evento.js?v=2" defer></script>
 <script src="./datos-administradores.js?v=1"></script>
 
 <dialog id="ownerChatEspecialDialog" aria-labelledby="ownerChatEspecialTitulo">
