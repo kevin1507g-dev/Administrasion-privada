@@ -837,10 +837,19 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       <div id="adminControlsRows"></div>
     </div>
 
+    <div id="controlesBloqueadosPanel" class="card" style="margin-top:14px">
+      <div class="row" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <h3 style="margin:0">🔒 Controles suspendidos y días adicionales</h3>
+        <button type="button" class="mini" onclick="window.controlesBloqueosActualizar?.(true)">↻ Actualizar</button>
+      </div>
+      <p class="muted">Casas con controles suspendidos, mora de 10 días o más, o prórrogas vigentes. Solo Sistema Admin puede conceder o revocar días adicionales por falta de pago.</p>
+      <p class="muted" style="font-size:.88rem">Una prórroga no elimina cuotas ni pagos pendientes y no levanta bloqueos manuales o exclusivos de Sistema Admin. Conserva siempre una alternativa segura de acceso.</p>
+      <p id="controlesBloqueadosEstado" class="muted" role="status" aria-live="polite">Consultando controles...</p>
+      <div id="controlesBloqueadosLista"></div>
+    </div>
     <div class="card" style="margin-top:14px">
       <p class="muted">
-        Los residentes con cuotas vencidas se señalan para revisión. La suspensión no es automática:
-        el administrador decide qué control suspender o reactivar.
+        La suspensión por mora se revisa automáticamente y respeta los días adicionales autorizados por Sistema Admin. La revisión de abajo es orientativa y no modifica el plazo guardado.
       </p>
       <div class="form">
         <div><label>Días de gracia</label><input id="graceDays" type="number" min="0" value="10"></div>
