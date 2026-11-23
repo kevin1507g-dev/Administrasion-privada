@@ -73,6 +73,25 @@ async function prepararBloqueoControles(ctx,intent){
   "Solo se aceptan casas de la 40 a la 66."};
  if(intent.house==="45"&&ctx.p.rol!=="owner")return {answer:
   "Los controles de la casa 45 solo los puede bloquear Sistema Admin."};
+ if(ctx.p.rol==="admin"){
+   // Consultar la autorización real del servidor antes de preparar la operación.
+   // La RPC de bloqueo vuelve a comprobar el plazo al confirmar.
+   const {data:casasProtegidas,error:plazoError}=await ctx.db.rpc("controles_bloqueos_resumen");
+   if(plazoError)throw Error("No se pudo verificar los días autorizados por Sistema Admin: "+plazoError.message);
+   const protegida=Array.isArray(casasProtegidas)
+     ?casasProtegidas.find(c=>String(c.numero)===intent.house&&c.prorroga_activa===true)
+     :null;
+   if(protegida){
+     const fecha=new Date(protegida.prorroga_hasta||"");
+     const limite=Number.isFinite(fecha.getTime())
+       ?fecha.toLocaleString("es-MX",{timeZone:"America/Mexico_City",
+         day:"2-digit",month:"2-digit",year:"numeric",
+         hour:"2-digit",minute:"2-digit",hour12:false})
+       :"el vencimiento registrado";
+     return {answer:"🔒 Sistema Admin otorgó días adicionales a la casa "+intent.house+
+       " hasta "+limite+". No puedes bloquear sus controles mientras la prórroga esté vigente. Consulta con Sistema Admin si necesitas modificarla."};
+   }
+ }
  const id=crypto.randomUUID();
  const {data,error}=await ctx.db.rpc("ia_operar",{
   p_id:id,p_accion:"bloquear_controles",p_objetivo:intent.house,p_confirmar:false

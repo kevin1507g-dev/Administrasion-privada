@@ -76,6 +76,14 @@
      }
      if(grace)el('p','✅ Días adicionales autorizados hasta '+fmtDate(item.prorroga_hasta)+
        '. El adeudo sigue pendiente.','muted',card);
+     if(grace&&!isOwner()){
+       const alert=el('p','🔒 Sistema Admin otorgó días adicionales hasta '+
+         fmtDate(item.prorroga_hasta)+
+         '. Como Administrador no puedes bloquear los controles de esta casa mientras la prórroga esté vigente.',
+         'muted',card);
+       alert.style.fontWeight='700';
+       alert.style.color='#fbbf24';
+     }
      if(manual>0)el('p','⚠️ Los bloqueos manuales o exclusivos de Sistema Admin no se levantan con días adicionales.','muted',card);
      if(!isOwner())continue;
      if(debt>0.009&&houseControls.length){
