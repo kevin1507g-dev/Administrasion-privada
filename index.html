@@ -707,24 +707,18 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       <button id="digitalPeatonalProximamenteBtn" class="digitalAccessButton adminOnly hidden" type="button" disabled aria-label="Puerta peatonal, próximamente, solo Administrador y Sistema Admin" title="Disponible próximamente para Administrador y Sistema Admin">
         <span aria-hidden="true">🚶</span><span>Puerta peatonal</span><small style="font-size:14px">Próximamente</small>
       </button>
-      <button id="basuraStartBtn" type="button" class="digitalAccessButton" onclick="basuraAlternar()" disabled aria-describedby="basuraAdvertencia basuraStatus" aria-label="Camión de basura. Pulsar para activar durante 20 minutos.">
+      <button id="basuraStartBtn" type="button" class="digitalAccessButton" onclick="basuraAlternar()" disabled aria-describedby="basuraStatus" aria-label="Camión de basura. Pulsar para activar durante 20 minutos.">
         <span aria-hidden="true">🚛</span><span>Camión de basura</span><small id="basuraContador" aria-live="off">20:00</small>
       </button>
-      <button id="paqueteriaStartBtn" onclick="paqueteriaAlternar()" class="digitalAccessButton adminOnly hidden" type="button" disabled aria-describedby="paqueteriaNota paqueteriaStatus" aria-label="Paquetería. Pulsar para activar durante tres minutos.">
+      <button id="paqueteriaStartBtn" onclick="paqueteriaAlternar()" class="digitalAccessButton adminOnly hidden" type="button" disabled aria-describedby="paqueteriaStatus" aria-label="Paquetería. Pulsar para activar durante tres minutos.">
         <span aria-hidden="true">📦</span><span>Paquetería</span><small id="paqueteriaContador" aria-live="off">03:00</small>
       </button>
     </div>
-    <div class="adminOnly hidden" style="margin-top:14px">
-      <p id="paqueteriaNota" class="muted">Paquetería: pulsa una vez para solicitar la apertura durante 3 minutos y vuelve a pulsar el mismo botón para cancelar antes de tiempo. Disponible solo para Admin y Sistema Admin cuando el ESP32 esté conectado y la función habilitada. No se superpone con basura ni reservaciones. Verifica que el paso esté libre: el contador no confirma la posición del portón ni sustituye sus fotoceldas de seguridad.</p>
-      <p id="paqueteriaStatus" class="muted" role="status" aria-live="polite">Consultando disponibilidad...</p>
+    <div class="adminOnly hidden">
+      <p id="paqueteriaStatus" class="muted" style="margin:10px 0 0;font-size:.9rem" role="status" aria-live="polite" hidden></p>
     </div>
+    <p id="basuraStatus" class="muted" style="margin:10px 0 0;font-size:.9rem" role="status" aria-live="polite" hidden></p>
     <button type="button" class="residentOnly" style="margin-top:14px" onclick="solicitudesIr('huellas')">🖐️ Solicitar registro de mis huellas</button>
-  </div>
-  <div class="card" style="margin-top:14px">
-    <h3>🚛 Apertura a camión de basura</h3>
-    <p class="muted" id="basuraAdvertencia">Ventana de 20 minutos. Disponible para administradores y residentes autorizados. Utiliza el Modo Evento existente cuando esté habilitado y el ESP32 conectado. La apertura termina a los 20 minutos o al desactivarla. Si hay una reservación activa, esta conserva su horario.</p>
-    <p id="basuraStatus" role="status" aria-live="polite">Consultando estado...</p>
-    <p class="muted" style="font-size:.88rem">Pulsa el botón de Camión de basura una vez para activar y vuelve a pulsarlo para cancelar antes de tiempo.</p>
   </div>
   <p class="muted">El acceso digital se suspende cuando una cuota de tu casa conserva saldo pendiente al cumplir 10 días de vencida. Se restablece al liquidar el saldo que causa el bloqueo.</p>
   <p id="digitalCommandStatus" role="status" aria-live="polite"></p>
