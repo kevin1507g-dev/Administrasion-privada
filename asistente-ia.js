@@ -332,6 +332,7 @@ function starters(){
  const wrap=node('div',{className:'ia-starters'},refs.messages);
  node('p',{className:'ia-starters-heading',text:'CONSULTAS RÁPIDAS'},wrap);
  const own=typeof profile!=='undefined'&&profile?.rol==='residente';
+ const staff=typeof profile!=='undefined'&&['admin','owner'].includes(profile?.rol);
  const questions=own?[
   ['📅 Quiero reservar el portón','Quiero reservar el portón'],
   ['🗓️ Cancelar mi reservación','Cancelar mi reservación'],
@@ -341,7 +342,8 @@ function starters(){
   ['🏡 ¿De qué casa soy?','¿De qué casa soy?'],
   ['📋 Pendientes de la privada','Pendientes de toda la privada'],
   ['💰 Casas con más adeudos','Casas con más adeudos'],
-  ['✦ ¿Qué puedes consultar?','¿Qué puedes consultar?']
+  ['✦ ¿Qué puedes consultar?','¿Qué puedes consultar?'],
+  ...(staff?[['⛔ Bloquear controles','Bloquear controles de una casa']]:[])
  ];
  for(const [label,query] of questions){
   const button=node('button',{type:'button',text:label},wrap);
@@ -482,19 +484,30 @@ function addMessage(role,text,extras={}){
  }
  if(extras.proposal){
   const p=extras.proposal;
+  const bloqueo=p.action==="bloquear_controles";
   const box=node("div",{className:"ia-confirm"},container);
   node("strong",{text:"Confirmación necesaria"},box);
   node("p",{text:String(p.description||p.action||"Operación").slice(0,150)},box);
   node("small",{text:"El sistema verificará nuevamente tus permisos. Esta acción puede ser irreversible."},box);
-  const btn=node("button",{type:"button",className:"ia-danger",text:"Confirmar operación"},box);
+  const btn=node("button",{type:"button",className:"ia-danger",
+   text:bloqueo?"⛔ Confirmar bloqueo de casa "+String(p.target||""):"Confirmar operación"},box);
   btn.onclick=async()=>{
    if(busy)return;
+   if(bloqueo&&!window.confirm("¿Confirmas el BLOQUEO TEMPORAL de los controles de la casa "+
+     String(p.target||"")+"? Los residentes no podrán usar Control Digital. Verifica que exista una alternativa segura de acceso. Los mandos físicos no se desprograman."))return;
    btn.disabled=true;btn.textContent="Confirmando…";
    try{
     const result=await call({kind:"confirm",operationId:p.id});
     if(!result.executed)throw Error("El servidor no confirmó la ejecución.");
     btn.textContent="✓ Confirmada";status("Operación registrada y confirmada.");
-    addMessage("assistant","La operación fue ejecutada y confirmada por el servidor.");
+    if(bloqueo){
+     const n=Number(result.operation?.resultado?.controles_bloqueados)||0;
+     addMessage("assistant","Bloqueo temporal confirmado para la casa "+String(p.target||"")+
+       ". Controles suspendidos: "+n+". Los mandos físicos no se desprograman automáticamente.");
+     if(typeof loadAll==="function")void loadAll();
+    }else{
+     addMessage("assistant","La operación fue ejecutada y confirmada por el servidor.");
+    }
    }catch(err){btn.disabled=false;btn.textContent="Reintentar confirmación";status(err.message);addMessage("assistant","No se pudo ejecutar: "+err.message);}
   };
   const cancel=node("button",{type:"button",text:"No ejecutar"},box);
