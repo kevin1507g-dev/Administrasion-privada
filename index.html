@@ -141,7 +141,16 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 .digitalAccessButton{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-height:160px;padding:24px 12px;font-size:23px;background:#1e293b;border:1px solid #475569;color:#cbd5e1}
 .digitalAccessButton span:first-child{font-size:42px}
 .digitalAccessButton:disabled{cursor:not-allowed}
-@media(max-width:360px){.digitalAccessButtons{grid-template-columns:1fr}}
+/* Fijar posiciones: el camión de basura queda debajo de Portón aun si Paquetería está oculta para residentes. */
+.digitalAccessButtons #digitalPortonBtn{grid-column:1;grid-row:1}
+.digitalAccessButtons #paqueteriaPreviewBtn{grid-column:2;grid-row:1}
+.digitalAccessButtons #basuraStartBtn{grid-column:1;grid-row:2}
+@media(max-width:360px){
+  .digitalAccessButtons{grid-template-columns:1fr}
+  .digitalAccessButtons #digitalPortonBtn,
+  .digitalAccessButtons #paqueteriaPreviewBtn,
+  .digitalAccessButtons #basuraStartBtn{grid-column:1;grid-row:auto}
+}
 
 
 /* Panel de monitoreo ESP32: solo visualizacion, ninguna orden de apertura */
@@ -693,6 +702,9 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       <button id="paqueteriaPreviewBtn" onclick="paqueteriaVistaPrevia()" class="digitalAccessButton adminOnly hidden" type="button" aria-describedby="paqueteriaPreviewNota paqueteriaPreviewStatus">
         <span aria-hidden="true">📦</span><span>Paquetería</span><small style="font-size:14px">3 min · prueba</small>
       </button>
+      <button id="basuraStartBtn" type="button" class="digitalAccessButton" onclick="basuraAccion('start')" disabled aria-describedby="basuraAdvertencia basuraStatus">
+        <span aria-hidden="true">🚛</span><span>Camión de basura</span><small style="font-size:14px">20 minutos</small>
+      </button>
     </div>
     <div class="adminOnly hidden" style="margin-top:14px">
       <p id="paqueteriaPreviewNota" class="muted">Paquetería: vista previa de un temporizador de 3 minutos. No abre ni mantiene abierto el portón. Para una apertura sostenida real se necesitan comprobaciones de seguridad del motor y sensores.</p>
@@ -703,10 +715,9 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
   </div>
   <div class="card" style="margin-top:14px">
     <h3>🚛 Apertura a camión de basura</h3>
-    <p class="muted">Ventana de 20 minutos. Disponible para administradores y residentes autorizados. Utiliza el Modo Evento existente cuando esté habilitado y el ESP32 conectado. La apertura termina a los 20 minutos o al desactivarla. Si hay una reservación activa, esta conserva su horario.</p>
+    <p class="muted" id="basuraAdvertencia">Ventana de 20 minutos. Disponible para administradores y residentes autorizados. Utiliza el Modo Evento existente cuando esté habilitado y el ESP32 conectado. La apertura termina a los 20 minutos o al desactivarla. Si hay una reservación activa, esta conserva su horario.</p>
     <p id="basuraStatus" role="status" aria-live="polite">Consultando estado...</p>
     <div class="actions">
-      <button id="basuraStartBtn" type="button" class="primary" onclick="basuraAccion('start')" disabled>🚛 Apertura a camión de basura · 20 min</button>
       <button id="basuraStopBtn" type="button" class="danger" onclick="basuraAccion('stop')" disabled>⏹ Desactivar</button>
     </div>
   </div>
