@@ -73,7 +73,7 @@ begin
   end if;
   return jsonb_build_object('allowed',true,'admin',false);
 end
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION access_private.status(p_command uuid)
  RETURNS jsonb
@@ -105,7 +105,7 @@ begin
    'temporary_locked',coalesce((e->>'temporary_locked')::boolean,false),
    'event_active',v_event_active,'event_until',v_event->'until',
    'reason',reason,'grace_days',10,'command_state',case when c.state='pending' and c.expires_at<=now() then 'expired' when c.state='dispatched' and c.expires_at+interval '15 seconds'<=now() then 'unconfirmed' else c.state end);
-end $function$
+end $function$;
 
 CREATE OR REPLACE FUNCTION public.garbage_window_status()
  RETURNS jsonb
@@ -130,5 +130,5 @@ begin
  'active',coalesce(w.ends_at>now() and w.stopped_at is null,false),'hardware_ready',coalesce(ready,false),
  'until',case when w.ends_at>now() and w.stopped_at is null then w.ends_at else null end,
  'reason',reason);
-end $function$
+end $function$;
 
