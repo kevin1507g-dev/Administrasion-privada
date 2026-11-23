@@ -9,7 +9,7 @@
   const button=()=>byId('paqueteriaStartBtn');
   const counter=()=>byId('paqueteriaContador');
   const status=()=>byId('paqueteriaStatus');
-  const authorized=()=>['owner','admin'].includes(document.body?.dataset?.sessionRole);
+  const authorized=()=>['owner','admin','residente'].includes(document.body?.dataset?.sessionRole);
   let busy=false,reading=false,current=null,lastError='';
 
   const text=(element,value)=>{
@@ -35,12 +35,16 @@
     text(clock,mm+':'+ss);
 
     btn.disabled=busy||reading||!current?.allowed||
-      (active?expired:!current?.hardware_ready);
+      (active?(expired||!current?.can_stop):!current?.hardware_ready);
     btn.classList.toggle('paqueteriaActiva',active&&!expired);
     btn.setAttribute('aria-label',active
-      ? 'Paquetería activa. Pulsar para cancelar la ventana de tres minutos.'
+      ? (current?.can_stop
+        ? 'Paquetería activa. Pulsar para cancelar la ventana de tres minutos.'
+        : 'Paquetería en uso por otra persona. No se puede cancelar desde esta cuenta.')
       : 'Paquetería. Pulsar para activar durante tres minutos.');
-    btn.title=active?'Pulsar para cancelar Paquetería':'Activar Paquetería por 3 minutos';
+    btn.title=active
+      ? (current?.can_stop?'Pulsar para cancelar Paquetería':'Paquetería en uso por otra persona')
+      : 'Activar Paquetería por 3 minutos';
 
     if(lastError) {
       text(label,lastError);
@@ -49,7 +53,9 @@
     } else if(expired) {
       text(label,'La ventana ha llegado a cero. Verificando su finalización con el servidor; comprueba físicamente el portón.');
     } else if(active) {
-      text(label,'Paquetería activa. Pulsa de nuevo para cancelar. Verifica físicamente el portón.');
+      text(label,current?.can_stop
+        ? 'Paquetería activa. Pulsa de nuevo para cancelar. Verifica físicamente el portón.'
+        : 'Paquetería está en uso por otra persona. Espera a que termine.');
     } else {
       text(label,current.reason||'Paquetería disponible.');
     }
@@ -83,7 +89,8 @@
 
   async function toggle() {
     if(!authorized()){render();return;}
-    if(busy||reading||!section()?.classList.contains('active')||!current?.allowed)return;
+    if(busy||reading||!section()?.classList.contains('active')||!current?.allowed||
+      (current.active&&!current.can_stop))return;
     const intended=current.active?'stop':'start';
     busy=true;lastError='';render();
     let actionFailed=false;
@@ -92,7 +99,8 @@
       // si ya cambió la ventana, no cancelar ni abrir una nueva por error.
       const latest=await getStatus();
       current=latest;
-      if(!latest.allowed)throw new Error('Cuenta sin permiso para usar Paquetería.');
+      if(!latest.allowed)throw new Error(latest.reason||'Cuenta sin permiso para usar Paquetería.');
+      if(intended==='stop'&&!latest.can_stop)throw new Error('Esta ventana pertenece a otra persona.');
       if(Boolean(latest.active)!==(intended==='stop')) {
         throw new Error('El estado cambió. Revisa el botón y vuelve a pulsar si lo necesitas.');
       }
