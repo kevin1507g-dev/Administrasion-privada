@@ -159,22 +159,17 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 #controlDigital .digitalTemporaryLockNotice p{font-size:15px;color:#e2e8f0;line-height:1.55}
 #controlDigital .digitalTemporaryLockNotice button{margin:14px auto 0;max-width:340px;width:100%}
 #controlDigital .digitalTemporaryLockNotice.hidden{display:none!important}
-/* Orden visual: Portón | Puerta peatonal / Camión de basura | Paquetería.
-   La puerta peatonal es informativa, reservada para admin y Sistema Admin. */
+/* Orden visual para todos los roles: Portón | Peatonal (próximamente) / Camión de basura | Paquetería. */
 .digitalAccessButtons #digitalPortonBtn{grid-column:1;grid-row:1}
 .digitalAccessButtons #digitalPeatonalProximamenteBtn{grid-column:2;grid-row:1}
 .digitalAccessButtons #basuraStartBtn{grid-column:1;grid-row:2}
 .digitalAccessButtons #paqueteriaStartBtn{grid-column:2;grid-row:2}
-body[data-session-role="residente"] .digitalAccessButtons #basuraStartBtn{grid-column:2;grid-row:1}
-body[data-session-role="residente"] .digitalAccessButtons #paqueteriaStartBtn{grid-column:1/-1;grid-row:2}
 @media(max-width:360px){
   .digitalAccessButtons{grid-template-columns:1fr}
   .digitalAccessButtons #digitalPortonBtn,
   .digitalAccessButtons #digitalPeatonalProximamenteBtn,
   .digitalAccessButtons #basuraStartBtn,
   .digitalAccessButtons #paqueteriaStartBtn{grid-column:1;grid-row:auto}
-  body[data-session-role="residente"] .digitalAccessButtons #basuraStartBtn,
-  body[data-session-role="residente"] .digitalAccessButtons #paqueteriaStartBtn{grid-column:1;grid-row:auto}
 }
 
 
@@ -729,7 +724,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       <button id="digitalPortonBtn" onclick="requestDigitalAccess('porton')" class="digitalAccessButton" type="button" disabled aria-describedby="digitalControlStatus">
         <span aria-hidden="true">🚗</span><span>Portón</span>
       </button>
-      <button id="digitalPeatonalProximamenteBtn" class="digitalAccessButton adminOnly hidden" type="button" disabled aria-label="Puerta peatonal, próximamente, solo Administrador y Sistema Admin" title="Disponible próximamente para Administrador y Sistema Admin">
+      <button id="digitalPeatonalProximamenteBtn" class="digitalAccessButton" type="button" disabled aria-label="Puerta peatonal. Próximamente. Función no disponible." title="Próximamente: función todavía no disponible">
         <span aria-hidden="true">🚶</span><span>Puerta peatonal</span><small style="font-size:14px">Próximamente</small>
       </button>
       <button id="basuraStartBtn" type="button" class="digitalAccessButton" onclick="basuraAlternar()" disabled aria-describedby="basuraStatus" aria-label="Camión de basura. Pulsar para activar durante 20 minutos.">
