@@ -29,7 +29,9 @@
     const until=Date.parse(current?.until||'');
     const ms=active&&Number.isFinite(until)?Math.max(0,until-Date.now()):0;
     const expired=active&&ms<=0;
-    const seconds=active?Math.ceil(ms/1000):180;
+    const durationSeconds=Math.max(60,Math.min(180,Number(current?.duration_seconds)||180));
+    const minutesConfigured=Math.ceil(durationSeconds/60);
+    const seconds=active?Math.ceil(ms/1000):durationSeconds;
     const mm=String(Math.floor(seconds/60)).padStart(2,'0');
     const ss=String(seconds%60).padStart(2,'0');
     text(clock,mm+':'+ss);
@@ -39,12 +41,12 @@
     btn.classList.toggle('paqueteriaActiva',active&&!expired);
     btn.setAttribute('aria-label',active
       ? (current?.can_stop
-        ? 'Paquetería activa. Pulsar para cancelar la ventana de tres minutos.'
+        ? 'Paquetería activa. Pulsar para cancelar la ventana.'
         : 'Paquetería en uso por otra persona. No se puede cancelar desde esta cuenta.')
-      : 'Paquetería. Pulsar para activar durante tres minutos.');
+      : 'Paquetería. Pulsar para activar durante '+minutesConfigured+' minutos.');
     btn.title=active
       ? (current?.can_stop?'Pulsar para cancelar Paquetería':'Paquetería en uso por otra persona')
-      : 'Activar Paquetería por 3 minutos';
+      : 'Activar Paquetería por '+minutesConfigured+' minutos';
 
     if(lastError) {
       text(label,lastError);
