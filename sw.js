@@ -1,4 +1,4 @@
-const APP_CACHE = "privada-beteles-v43-duraciones-control-digital";
+const APP_CACHE = "privada-beteles-v44-duraciones-ampliadas";
 const APP_SHELL = [
   "./",
   "./index.html",
