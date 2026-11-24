@@ -173,6 +173,23 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 }
 
 
+
+/* Configuración de ventanas digitales: disponible únicamente para Sistema Admin. */
+#digitalDurationSettingsBtn{margin-top:14px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+#digitalDurationSettingsBtn.hidden{display:none!important}
+#digitalDurationsDialog{width:min(460px,calc(100vw - 26px));max-height:calc(100dvh - 32px);overflow:auto;
+  border:1px solid #475569;border-radius:18px;padding:22px;background:#111827;color:#f8fafc;
+  box-shadow:0 24px 70px rgba(0,0,0,.6)}
+#digitalDurationsDialog::backdrop{background:rgba(2,6,23,.78)}
+#digitalDurationsDialog h3{margin:0 0 12px}
+#digitalDurationsDialog .durationSettingsField{display:grid;gap:6px;margin:18px 0}
+#digitalDurationsDialog label{margin:0;color:#e2e8f0;font-weight:700}
+#digitalDurationsDialog input[type="number"]{width:100%;font-size:18px}
+#digitalDurationsDialog .durationSettingsHint{font-size:13px;color:#94a3b8;margin-top:4px}
+#digitalDurationsDialog .durationSettingsActions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:18px}
+#digitalDurationsDialog .durationSettingsActions button{flex:1;min-width:125px}
+#digitalDurationsStatus{margin:12px 0 0;min-height:24px;font-size:14px}
+
 /* Panel de monitoreo ESP32: solo visualizacion, ninguna orden de apertura */
 .esp32PanelIntro{margin:0 0 14px;color:var(--m)}
 .esp32PanelActions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0 18px}
@@ -739,7 +756,28 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
     </div>
     <p id="basuraStatus" class="muted" style="margin:10px 0 0;font-size:.9rem" role="status" aria-live="polite" hidden></p>
     <button type="button" class="residentOnly" style="margin-top:14px" onclick="solicitudesIr('huellas')">🖐️ Solicitar registro de mis huellas</button>
+    <button id="digitalDurationSettingsBtn" class="ownerOnly hidden" type="button" onclick="abrirDuracionesControlDigital()">⚙️ Configurar tiempos de acceso</button>
   </div>
+  <dialog id="digitalDurationsDialog" aria-labelledby="digitalDurationsHeading">
+    <h3 id="digitalDurationsHeading">⚙️ Configuración de tiempos</h3>
+    <p class="muted">Configura cuánto dura cada ventana al activarla. Solo Sistema Admin puede guardar cambios.</p>
+    <div class="durationSettingsField">
+      <label for="durationGarbageMinutes">🚛 Camión de basura (minutos)</label>
+      <input type="number" id="durationGarbageMinutes" min="1" max="20" step="1" inputmode="numeric" value="20">
+      <span class="durationSettingsHint">De 1 a 20 minutos. Valor inicial: 20 minutos.</span>
+    </div>
+    <div class="durationSettingsField">
+      <label for="durationParcelMinutes">📦 Paquetería (minutos)</label>
+      <input type="number" id="durationParcelMinutes" min="1" max="3" step="1" inputmode="numeric" value="3">
+      <span class="durationSettingsHint">De 1 a 3 minutos. Valor inicial: 3 minutos.</span>
+    </div>
+    <p class="muted" style="font-size:13px">Los cambios se aplican en la próxima activación. No alteran las ventanas que ya están activas ni confirman la posición física del portón.</p>
+    <p id="digitalDurationsStatus" role="status" aria-live="polite"></p>
+    <div class="durationSettingsActions">
+      <button type="button" id="digitalDurationsSaveBtn" class="primary" onclick="guardarDuracionesControlDigital()">Guardar tiempos</button>
+      <button type="button" id="digitalDurationsCloseBtn" onclick="cerrarDuracionesControlDigital()">Cerrar</button>
+    </div>
+  </dialog>
   <p class="muted">El acceso digital se suspende cuando una cuota de tu casa conserva saldo pendiente al cumplir 10 días de vencida. Se restablece al liquidar el saldo que causa el bloqueo.</p>
   <p id="digitalCommandStatus" role="status" aria-live="polite"></p>
   <div class="adminOnly card">
@@ -3439,7 +3477,9 @@ function basuraRender(){
  const vence=Date.parse(basuraEstado?.until||'');
  const milisegundos=activo&&Number.isFinite(vence)?Math.max(0,vence-Date.now()):0;
  const vencido=activo&&milisegundos<=0;
- const segundos=activo?Math.ceil(milisegundos/1000):1200;
+ const duracionSegundos=Math.max(60,Math.min(1200,Number(basuraEstado?.duration_seconds)||1200));
+ const minutosConfigurados=Math.ceil(duracionSegundos/60);
+ const segundos=activo?Math.ceil(milisegundos/1000):duracionSegundos;
  const mm=String(Math.floor(segundos/60)).padStart(2,'0');
  const ss=String(segundos%60).padStart(2,'0');
  basuraPonerTexto(reloj,mm+':'+ss);
@@ -3448,9 +3488,9 @@ function basuraRender(){
   (activo?vencido:!basuraEstado?.hardware_ready);
  boton.classList.toggle('basuraActiva',activo&&!vencido);
  boton.setAttribute('aria-label',activo
-  ?'Camión de basura activo. Pulsar para cancelar la ventana de 20 minutos.'
-  :'Camión de basura. Pulsar para activar durante 20 minutos.');
- boton.title=activo?'Pulsar para cancelar recolección':'Activar recolección por 20 minutos';
+  ?'Camión de basura activo. Pulsar para cancelar la ventana.'
+  :'Camión de basura. Pulsar para activar durante '+minutosConfigurados+' minutos.');
+ boton.title=activo?'Pulsar para cancelar recolección':'Activar recolección por '+minutosConfigurados+' minutos';
  if(basuraError){
   basuraPonerTexto(etiqueta,basuraError);
  }else if(!cuentaAutorizada){
@@ -3458,7 +3498,7 @@ function basuraRender(){
  }else if(!basuraEstado){
   basuraPonerTexto(etiqueta,'Consultando disponibilidad de recolección...');
  }else if(vencido){
-  basuraPonerTexto(etiqueta,'Los 20 minutos finalizaron. Verificando el estado del servidor; comprueba el portón.');
+  basuraPonerTexto(etiqueta,'La ventana terminó. Verificando el estado del servidor; comprueba el portón.');
  }else if(activo){
   basuraPonerTexto(etiqueta,'Recolección activa. Pulsa de nuevo para cancelar. Verifica físicamente el portón.');
  }else{
@@ -8592,7 +8632,8 @@ async function actualizarVistaActiva(){
 <script src="./interfon-residentes-owner.js?v=1"></script>
 <script src="./interfon-voice-demo.js?v=1"></script>
 <script src="./interfon-webrtc.js?v=1" defer></script>
-<script src="./paqueteria-evento.js?v=3" defer></script>
+<script src="./paqueteria-evento.js?v=4" defer></script>
+<script src="./duraciones-control-digital.js?v=1" defer></script>
 <script src="./controles-prorrogas.js?v=2" defer></script>
 <script src="./datos-administradores.js?v=1"></script>
 
