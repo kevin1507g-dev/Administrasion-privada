@@ -1,4 +1,4 @@
-// Paquetería: el mismo botón activa o cancela la ventana de tres minutos.
+// Paquetería: el mismo botón activa o cancela una ventana de duración configurable.
 // El servidor valida el rol, duración, estado del dispositivo y conflictos.
 // El contador muestra tiempo solicitado; NO certifica la posición del portón.
 (function () {
@@ -29,7 +29,7 @@
     const until=Date.parse(current?.until||'');
     const ms=active&&Number.isFinite(until)?Math.max(0,until-Date.now()):0;
     const expired=active&&ms<=0;
-    const durationSeconds=Math.max(60,Math.min(180,Number(current?.duration_seconds)||180));
+    const durationSeconds=Math.max(60,Math.min(900,Number(current?.duration_seconds)||180));
     const minutesConfigured=Math.ceil(durationSeconds/60);
     const seconds=active?Math.ceil(ms/1000):durationSeconds;
     const mm=String(Math.floor(seconds/60)).padStart(2,'0');
