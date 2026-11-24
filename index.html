@@ -763,13 +763,13 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
     <p class="muted">Configura cuánto dura cada ventana al activarla. Solo Sistema Admin puede guardar cambios.</p>
     <div class="durationSettingsField">
       <label for="durationGarbageMinutes">🚛 Camión de basura (minutos)</label>
-      <input type="number" id="durationGarbageMinutes" min="1" max="20" step="1" inputmode="numeric" value="20">
-      <span class="durationSettingsHint">De 1 a 20 minutos. Valor inicial: 20 minutos.</span>
+      <input type="number" id="durationGarbageMinutes" min="1" max="60" step="1" inputmode="numeric" value="20">
+      <span class="durationSettingsHint">De 1 a 60 minutos. Valor inicial: 20 minutos.</span>
     </div>
     <div class="durationSettingsField">
       <label for="durationParcelMinutes">📦 Paquetería (minutos)</label>
-      <input type="number" id="durationParcelMinutes" min="1" max="3" step="1" inputmode="numeric" value="3">
-      <span class="durationSettingsHint">De 1 a 3 minutos. Valor inicial: 3 minutos.</span>
+      <input type="number" id="durationParcelMinutes" min="1" max="15" step="1" inputmode="numeric" value="3">
+      <span class="durationSettingsHint">De 1 a 15 minutos. Valor inicial: 3 minutos.</span>
     </div>
     <p class="muted" style="font-size:13px">Los cambios se aplican en la próxima activación. No alteran las ventanas que ya están activas ni confirman la posición física del portón.</p>
     <p id="digitalDurationsStatus" role="status" aria-live="polite"></p>
@@ -3477,7 +3477,7 @@ function basuraRender(){
  const vence=Date.parse(basuraEstado?.until||'');
  const milisegundos=activo&&Number.isFinite(vence)?Math.max(0,vence-Date.now()):0;
  const vencido=activo&&milisegundos<=0;
- const duracionSegundos=Math.max(60,Math.min(1200,Number(basuraEstado?.duration_seconds)||1200));
+ const duracionSegundos=Math.max(60,Math.min(3600,Number(basuraEstado?.duration_seconds)||1200));
  const minutosConfigurados=Math.ceil(duracionSegundos/60);
  const segundos=activo?Math.ceil(milisegundos/1000):duracionSegundos;
  const mm=String(Math.floor(segundos/60)).padStart(2,'0');
@@ -8632,8 +8632,8 @@ async function actualizarVistaActiva(){
 <script src="./interfon-residentes-owner.js?v=1"></script>
 <script src="./interfon-voice-demo.js?v=1"></script>
 <script src="./interfon-webrtc.js?v=1" defer></script>
-<script src="./paqueteria-evento.js?v=4" defer></script>
-<script src="./duraciones-control-digital.js?v=1" defer></script>
+<script src="./paqueteria-evento.js?v=5" defer></script>
+<script src="./duraciones-control-digital.js?v=2" defer></script>
 <script src="./controles-prorrogas.js?v=2" defer></script>
 <script src="./datos-administradores.js?v=1"></script>
 
