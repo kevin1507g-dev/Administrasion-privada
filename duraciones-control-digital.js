@@ -38,9 +38,9 @@
     if(!owner()||sending||!modal()?.open)return;
     const garbage=Number(el('durationGarbageMinutes').value);
     const parcel=Number(el('durationParcelMinutes').value);
-    if(!Number.isInteger(garbage)||garbage<1||garbage>20||
-       !Number.isInteger(parcel)||parcel<1||parcel>3){
-      message('Valores válidos: basura de 1 a 20 minutos y paquetería de 1 a 3 minutos.');
+    if(!Number.isInteger(garbage)||garbage<1||garbage>60||
+       !Number.isInteger(parcel)||parcel<1||parcel>15){
+      message('Valores válidos: basura de 1 a 60 minutos y paquetería de 1 a 15 minutos.');
       return;
     }
     sending=true;busy(true);message('Guardando cambios...');
