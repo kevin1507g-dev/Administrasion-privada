@@ -1,4 +1,4 @@
-const APP_CACHE = "privada-beteles-v46-accesos-pestanas";
+const APP_CACHE = "privada-beteles-v47-historial-paqueteria";
 const APP_SHELL = [
   "./",
   "./index.html",
