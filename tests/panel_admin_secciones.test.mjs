@@ -7,8 +7,8 @@ const js=readFileSync(new URL('../panel-admin-secciones.js',import.meta.url),'ut
 const css=readFileSync(new URL('../panel-admin-secciones.css',import.meta.url),'utf8');
 
 test('El Panel Administrador utiliza pestañas como Cuotas',()=>{
- assert.match(html,/panel-admin-secciones\.css\?v=1/);
- assert.match(html,/panel-admin-secciones\.js\?v=1/);
+ assert.match(html,/panel-admin-secciones\.css\?v=2/);
+ assert.match(html,/panel-admin-secciones\.js\?v=2/);
  assert.match(html,/window\.panelAdminSeccionesAbrir\?\.\('admin'\)/);
  assert.match(html,/window\.panelAdminSeccionesActualizar\?\.\(\)/);
  assert.match(css,/#inicio \.pa-tabs/);
@@ -42,4 +42,16 @@ test('Los residentes no reciben pestañas ni cambios de permisos',()=>{
  assert.match(js,/if\(kind==="admin" && !staff\(\)\)return false/);
  assert.match(js,/if\(kind==="owner" && !ownerAllowed\(\)\)return false/);
  assert.doesNotMatch(js,/\.rpc\(|sb\.|fetch\(/);
+});
+
+test('Gestión general agrupa accesos y conserva los enlaces originales',()=>{
+ assert.match(html,/class="ownerQuickLinks" role="navigation"/);
+ for(const category of ['Casas y residentes','Cobros y finanzas','Accesos y seguridad','Comunidad y servicios'])
+  assert.ok(html.includes(category));
+ const groups=(html.match(/<details class="ownerQuickGroup"/g)||[]);
+ assert.equal(groups.length,4);
+ assert.match(html,/Historial de Paquetería/);
+ assert.match(html,/window\.accesosSeccionesAbrir\?\.\('basura'\)/);
+ assert.match(js,/anchors:\["ownerUsersRoleCard","ownerAdminDataCard"\]/);
+ assert.match(js,/anchors:\["ownerGeneralAccessCard"\]/);
 });
