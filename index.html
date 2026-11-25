@@ -255,6 +255,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <link rel="stylesheet" href="./pendientes-residente.css?v=1" />
 <link rel="stylesheet" href="./panel-organizado.css?v=2" />
 <link rel="stylesheet" href="./cuotas-secciones.css?v=1" />
+<link rel="stylesheet" href="./accesos-secciones.css?v=1" />
 <link rel="stylesheet" href="./actualizar-cuadros.css?v=2" />
 <link rel="stylesheet" href="./centro-conocimientos-ia.css?v=2" />
 <link rel="stylesheet" href="./asistente-ia-moderno.css?v=2" />
@@ -2060,7 +2061,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
 <div class="card table" style="margin-top:14px"><h3 style="padding:14px 14px 0">Actividad reciente</h3><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th><th>Estado / Monto</th></tr></thead><tbody id="historialRows"></tbody></table></div>
 </section>
 
-<section id="accesos"><h2>📋 Historial de accesos</h2><div class="card staffOnly"><div class="form">
+<section id="accesos"><h2>📋 Historial de accesos</h2><div class="card staffOnly"><h3>➕ Registrar acceso manual</h3><div class="form">
 <div><label>Persona</label><input id="aPersona"></div><div><label>Tipo</label><select id="aTipo"><option>Residente</option><option>Visita</option><option>Proveedor</option><option>Personal</option></select></div>
 <div><label>Movimiento</label><select id="aMov"><option>Entrada</option><option>Salida</option></select></div><div><label>Casa</label><select id="aUnidad"></select></div><div class="full"><label>Observaciones</label><input id="aObs"></div></div>
 <button class="primary" style="margin-top:12px" onclick="addAcceso()">Registrar acceso</button></div><div class="card table staffOnly" style="margin-top:14px"><h3 style="padding:14px 14px 0">🚪 Historial de accesos manuales</h3><table><thead><tr><th>Fecha</th><th>Persona</th><th>Tipo</th><th>Movimiento</th><th>Unidad</th></tr></thead><tbody id="accesosRows"></tbody></table></div>
@@ -3633,6 +3634,7 @@ function show(id){
     if(!isAdminProfileRole(profile?.rol))return;
     refreshEsp32Panel();
   }
+  if(id==='accesos')window.accesosSeccionesAbrir?.();
   if(id==='accesos'&&isAdminProfileRole(profile?.rol))refreshEsp32History();
   if(id==='accesos'&&isOwnerPanelActive())cargarHistorialBasuraOwner();
   if(id==='visitas'&&['owner','admin','residente'].includes(profile?.rol)){cargarCodigosVisita();if(isAdminProfileRole(profile.rol))adminVisPrepararCasas();}
@@ -8636,6 +8638,7 @@ async function actualizarVistaActiva(){
 <script src="./solicitudes-unificadas.js?v=3"></script>
 <script src="./solicitudes-baja-cuotas.js?v=1"></script>
 <script src="./cuotas-secciones.js?v=1"></script>
+<script src="./accesos-secciones.js?v=1"></script>
 <script src="./actualizar-cuadros.js?v=4"></script>
 <script src="./asistente-ia-voces.js?v=1"></script>
 <script src="./asistente-ia.js?v=16"></script>
