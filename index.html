@@ -144,6 +144,21 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 #paqueteriaStartBtn.paqueteriaActiva{border-color:#14b8a6;background:#123b47}
 #paqueteriaContador,#basuraContador{font-size:21px;font-variant-numeric:tabular-nums;letter-spacing:.04em;font-weight:700}
 #basuraStartBtn.basuraActiva{border-color:#14b8a6;background:#123b47}
+#basuraStartBtn.basuraActiva,#paqueteriaStartBtn.paqueteriaActiva{
+  touch-action:none;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none;
+}
+.digitalHoldHint{display:none;font-size:13px;line-height:1.25;font-weight:600;text-align:center;color:#a7f3d0}
+#basuraStartBtn.basuraActiva .digitalHoldHint,
+#paqueteriaStartBtn.paqueteriaActiva .digitalHoldHint{display:block}
+#basuraStartBtn.digitalHoldArming,#paqueteriaStartBtn.digitalHoldArming{position:relative;overflow:hidden;border-color:#facc15}
+#basuraStartBtn.digitalHoldArming::after,#paqueteriaStartBtn.digitalHoldArming::after{
+  content:"";position:absolute;bottom:0;left:0;height:6px;width:0;background:#facc15;
+  animation:digitalHoldProgress 1.5s linear forwards;pointer-events:none
+}
+@keyframes digitalHoldProgress{from{width:0}to{width:100%}}
+@media(prefers-reduced-motion:reduce){
+  #basuraStartBtn.digitalHoldArming::after,#paqueteriaStartBtn.digitalHoldArming::after{animation:none;width:100%}
+}
 /* Al bloquear temporalmente, el residente ve todo el panel gris y sin interacción. */
 #controlDigital.digitalTemporarilyLocked{background:rgba(71,85,105,.18);border-radius:18px;padding:12px}
 #controlDigital.digitalTemporarilyLocked > :not(.digitalTemporaryLockNotice){
@@ -744,11 +759,11 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       <button id="digitalPeatonalProximamenteBtn" class="digitalAccessButton" type="button" disabled aria-label="Puerta peatonal. Próximamente. Función no disponible." title="Próximamente: función todavía no disponible">
         <span aria-hidden="true">🚶</span><span>Puerta peatonal</span><small style="font-size:14px">Próximamente</small>
       </button>
-      <button id="basuraStartBtn" type="button" class="digitalAccessButton" onclick="basuraAlternar()" disabled aria-describedby="basuraStatus" aria-label="Camión de basura. Pulsar para activar durante 20 minutos.">
-        <span aria-hidden="true">🚛</span><span>Camión de basura</span><small id="basuraContador" aria-live="off">20:00</small>
+      <button id="basuraStartBtn" type="button" class="digitalAccessButton" onclick="basuraAlternar('tap')" disabled aria-describedby="basuraStatus" aria-label="Camión de basura. Pulsar para activar durante 20 minutos.">
+        <span aria-hidden="true">🚛</span><span>Camión de basura</span><small id="basuraContador" aria-live="off">20:00</small><small class="digitalHoldHint" aria-hidden="true">Mantén 1.5 s para cancelar</small>
       </button>
-      <button id="paqueteriaStartBtn" onclick="paqueteriaAlternar()" class="digitalAccessButton" type="button" disabled aria-describedby="paqueteriaStatus" aria-label="Paquetería. Pulsar para activar durante tres minutos.">
-        <span aria-hidden="true">📦</span><span>Paquetería</span><small id="paqueteriaContador" aria-live="off">03:00</small>
+      <button id="paqueteriaStartBtn" onclick="paqueteriaAlternar('tap')" class="digitalAccessButton" type="button" disabled aria-describedby="paqueteriaStatus" aria-label="Paquetería. Pulsar para activar durante tres minutos.">
+        <span aria-hidden="true">📦</span><span>Paquetería</span><small id="paqueteriaContador" aria-live="off">03:00</small><small class="digitalHoldHint" aria-hidden="true">Mantén 1.5 s para cancelar</small>
       </button>
     </div>
     <div>
@@ -3488,9 +3503,9 @@ function basuraRender(){
   (activo?vencido:!basuraEstado?.hardware_ready);
  boton.classList.toggle('basuraActiva',activo&&!vencido);
  boton.setAttribute('aria-label',activo
-  ?'Camión de basura activo. Pulsar para cancelar la ventana.'
+  ?'Camión de basura activo. Mantén presionado un segundo y medio para cancelar.'
   :'Camión de basura. Pulsar para activar durante '+minutosConfigurados+' minutos.');
- boton.title=activo?'Pulsar para cancelar recolección':'Activar recolección por '+minutosConfigurados+' minutos';
+ boton.title=activo?'Mantén presionado 1.5 segundos para cancelar':'Activar recolección por '+minutosConfigurados+' minutos';
  if(basuraError){
   basuraPonerTexto(etiqueta,basuraError);
  }else if(!cuentaAutorizada){
@@ -3500,7 +3515,7 @@ function basuraRender(){
  }else if(vencido){
   basuraPonerTexto(etiqueta,'La ventana terminó. Verificando el estado del servidor; comprueba el portón.');
  }else if(activo){
-  basuraPonerTexto(etiqueta,'Recolección activa. Pulsa de nuevo para cancelar. Verifica físicamente el portón.');
+  basuraPonerTexto(etiqueta,'Recolección activa. Mantén presionado 1.5 segundos para cancelar. Verifica físicamente el portón.');
  }else{
   basuraPonerTexto(etiqueta,basuraEstado.reason||'Sin ventana de recolección activa.');
  }
@@ -3531,11 +3546,12 @@ async function basuraActualizar(conservarError=false){
   basuraError='No se pudo consultar recolección: '+(e?.message||'intenta de nuevo')+'. No se enviaron órdenes.';
  }finally{basuraLectura=false;basuraRender();}
 }
-async function basuraAlternar(){
+async function basuraAlternar(modo='tap'){
  if(basuraBusy||basuraLectura||!user||!['owner','admin','residente'].includes(profile?.rol)||
     (profile?.rol==='residente'&&digitalTemporaryLockActive)||
     !document.getElementById('controlDigital')?.classList.contains('active')||!basuraEstado?.allowed)return;
  const accion=basuraEstado.active?'stop':'start';
+ if((accion==='start'&&modo!=='tap')||(accion==='stop'&&modo!=='hold'))return;
  basuraBusy=true;basuraError='';basuraRender();
  let fallo=false;
  try{
@@ -8632,7 +8648,8 @@ async function actualizarVistaActiva(){
 <script src="./interfon-residentes-owner.js?v=1"></script>
 <script src="./interfon-voice-demo.js?v=1"></script>
 <script src="./interfon-webrtc.js?v=1" defer></script>
-<script src="./paqueteria-evento.js?v=5" defer></script>
+<script src="./paqueteria-evento.js?v=6" defer></script>
+<script src="./control-digital-pulsacion.js?v=1" defer></script>
 <script src="./duraciones-control-digital.js?v=2" defer></script>
 <script src="./controles-prorrogas.js?v=2" defer></script>
 <script src="./datos-administradores.js?v=1"></script>
