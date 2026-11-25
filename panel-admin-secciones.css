@@ -88,3 +88,55 @@ html[data-ui-theme="light"] #ownerPanel .pa-tab.pa-selected{
  #inicio .pa-tabs,#ownerPanel .pa-tabs,
  #inicio .pa-panel>.grid{grid-template-columns:minmax(0,1fr)}
 }
+
+/* Sistema Admin: accesos rápidos plegables y agrupados, accesibles en iPhone. */
+#ownerPanel #ownerGeneralAccessCard .ownerQuickLinks{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;
+ margin:14px 0 2px;align-items:start;
+}
+#ownerPanel .ownerQuickGroup{
+ min-width:0;overflow:hidden;border:1px solid var(--ui-line);
+ border-radius:14px;background:var(--p2);padding:0;
+}
+#ownerPanel .ownerQuickGroup>summary{
+ display:flex;align-items:center;justify-content:space-between;gap:10px;
+ min-height:54px;padding:13px 14px;cursor:pointer;
+ font-weight:750;line-height:1.4;list-style:none;
+}
+#ownerPanel .ownerQuickGroup>summary::-webkit-details-marker{display:none}
+#ownerPanel .ownerQuickGroup>summary::before{
+ content:"▸";display:inline-block;color:var(--g);flex:none;font-size:1.05rem;
+}
+#ownerPanel .ownerQuickGroup[open]>summary::before{content:"▾"}
+#ownerPanel .ownerQuickGroup>summary:focus-visible{
+ outline:3px solid var(--g);outline-offset:-3px;border-radius:14px;
+}
+#ownerPanel .ownerQuickGroup[open]>summary{border-bottom:1px solid var(--ui-line)}
+#ownerPanel .ownerQuickCount{
+ margin-left:auto;flex:none;font-size:.75rem;font-weight:550;
+ color:var(--m);white-space:nowrap;
+}
+#ownerPanel .ownerQuickGroupLinks{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:8px;padding:12px;min-width:0;
+}
+#ownerPanel .ownerQuickGroupLinks>button{
+ width:100%;min-width:0;min-height:47px;line-height:1.35;
+ text-align:left;padding:11px 12px;white-space:normal;
+ border-radius:10px;overflow-wrap:anywhere;
+}
+#ownerPanel .pa-panel>.card#ownerGeneralAccessCard .ownerMetrics{
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;
+}
+@media(max-width:900px){
+ #ownerPanel .pa-panel>.card#ownerGeneralAccessCard .ownerMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #ownerPanel .ownerQuickGroupLinks{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:700px){
+ #ownerPanel #ownerGeneralAccessCard .ownerQuickLinks{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:560px){
+ #ownerPanel .ownerQuickGroup>summary{padding:12px;min-height:51px}
+ #ownerPanel .ownerQuickGroupLinks{padding:10px}
+ #ownerPanel .ownerQuickCount{font-size:.7rem}
+}
