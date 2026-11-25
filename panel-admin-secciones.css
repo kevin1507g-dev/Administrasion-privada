@@ -1,0 +1,90 @@
+/* Pestañas del Panel Administrador y Centro de control Sistema Admin.
+   Mismos criterios visuales que Cuotas. Sin cambios en funciones ni privilegios. */
+#inicio #panelAdminSecciones,
+#ownerPanel #panelSistemaAdminSecciones{
+ grid-column:1/-1;width:100%;min-width:0;margin:0;
+}
+#inicio .pa-intro,#ownerPanel .pa-intro{margin:0 0 13px;line-height:1.5}
+#inicio .pa-tabs,#ownerPanel .pa-tabs{
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+ align-items:stretch;gap:10px;margin:0 0 18px;
+}
+#inicio .pa-tab,#ownerPanel .pa-tab{
+ display:flex;align-items:center;justify-content:center;
+ width:100%;min-width:0;min-height:54px;padding:10px 12px;
+ background:#183841;color:#d9ece6;border:1px solid #3d756f;
+ border-radius:13px;font-size:13px;font-weight:700;line-height:1.35;
+ text-align:center;white-space:normal;
+}
+#inicio .pa-tab.pa-selected,#ownerPanel .pa-tab.pa-selected{
+ background:#0b765e;border-color:#50c9ab;color:#fff;
+ box-shadow:0 0 0 1px rgba(80,201,171,.24);
+}
+#inicio .pa-tab:focus-visible,#ownerPanel .pa-tab:focus-visible{
+ outline:3px solid #60dfc0;outline-offset:3px;
+}
+#inicio .pa-tab[hidden],#inicio .pa-panel[hidden],
+#ownerPanel .pa-tab[hidden],#ownerPanel .pa-panel[hidden]{display:none!important}
+#inicio .pa-content,#ownerPanel .pa-content{width:100%;min-width:0}
+#inicio .pa-panel,#ownerPanel .pa-panel{
+ display:flex;flex-direction:column;gap:14px;min-width:0;
+}
+#inicio .pa-panel>.card,#ownerPanel .pa-panel>.card{
+ width:100%;max-width:100%;min-width:0;margin:0!important;
+ padding:clamp(14px,1.6vw,22px);border-radius:18px;
+}
+#inicio .pa-panel>.card>h3:first-child,
+#ownerPanel .pa-panel>.card>h3:first-child{
+ margin:0 0 14px!important;padding:0 0 11px!important;
+ border-bottom:1px solid var(--ui-line);
+}
+#inicio .pa-panel .grid,#ownerPanel .pa-panel .grid{
+ min-width:0;gap:12px;
+}
+#inicio .pa-panel>.grid{
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+ align-items:stretch;
+}
+#inicio .pa-panel>.grid>.card{
+ display:flex;flex-direction:column;justify-content:space-between;
+ min-width:0;min-height:130px;padding:clamp(13px,1.5vw,19px);
+}
+#inicio .pa-panel>.grid>.card>.muted{margin:0 0 10px}
+#inicio .pa-panel>.grid>.card .kpi{margin-top:auto}
+#inicio .pa-panel>.grid>.card button{margin-top:8px!important}
+#inicio .pa-panel .houseOccupancyCard{width:100%;margin:0!important}
+#ownerPanel .pa-panel>.ownerAnalyticsDashboard{width:100%;min-width:0;margin:0!important}
+#ownerPanel .pa-panel .table{min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+#ownerPanel .pa-panel .table>table{min-width:630px}
+#ownerPanel .pa-panel .form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+#ownerPanel .pa-panel .form>*{min-width:0}
+#ownerPanel .pa-panel button{max-width:100%;white-space:normal}
+#ownerPanel .pa-panel .ownerQuickLinks{min-width:0}
+html[data-ui-theme="light"] #inicio .pa-tab,
+html[data-ui-theme="light"] #ownerPanel .pa-tab{
+ background:var(--p2);border-color:var(--ui-line);color:var(--t);
+}
+html[data-ui-theme="light"] #inicio .pa-tab.pa-selected,
+html[data-ui-theme="light"] #ownerPanel .pa-tab.pa-selected{
+ background:#087b69;border-color:#087b69;color:#fff;
+}
+@media(max-width:1100px){
+ #inicio .pa-panel>.grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:850px){
+ #inicio .pa-tabs,#ownerPanel .pa-tabs{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ #inicio .pa-panel>.grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:560px){
+ #inicio .pa-tabs,#ownerPanel .pa-tabs{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:13px}
+ #inicio .pa-tab,#ownerPanel .pa-tab{font-size:12px;min-height:50px;padding:9px 7px}
+ #inicio .pa-panel>.card,#ownerPanel .pa-panel>.card{padding:13px!important;border-radius:15px}
+ #inicio .pa-panel>.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ #inicio .pa-panel>.grid>.card{min-height:105px;padding:13px 10px}
+ #ownerPanel .pa-panel .form{grid-template-columns:minmax(0,1fr)}
+ #inicio .pa-panel button,#ownerPanel .pa-panel button{min-height:43px}
+}
+@media(max-width:340px){
+ #inicio .pa-tabs,#ownerPanel .pa-tabs,
+ #inicio .pa-panel>.grid{grid-template-columns:minmax(0,1fr)}
+}
