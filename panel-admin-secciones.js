@@ -68,9 +68,19 @@
    const found=[];
    for(const anchor of item.anchors){
     const element=document.getElementById(anchor);
-    if(!element || element.parentElement!==root){
+    if(!element){
      console.warn("Panel Admin: no se encontró cuadro",anchor);
-     return false;
+     continue;
+    }
+    // Solicitudes y permisos traslada tarjetas de Repartidores fuera de ownerPanel.
+    // No moverlas de regreso: hacerlo rompería el módulo que las administra.
+    if(element.parentElement!==root){
+     if(kind==="owner" && ["ownerEmpresasReparto","ownerChatEspecialListaCard"].includes(anchor)
+       && document.getElementById("solicitudes")?.contains(element)){
+       continue;
+     }
+     console.warn("Panel Admin: el cuadro está administrado por otra sección",anchor);
+     continue;
     }
     found.push(element);
    }
@@ -117,23 +127,72 @@
    content.appendChild(panel);panels.set(item.id,panel);
   }
   region.append(intro,tablist,content);
-  root.appendChild(region);
+  // Igual que Cuotas: las pestañas quedan inmediatamente bajo el título.
+  root.insertBefore(region,root.querySelector("h2")?.nextElementSibling||null);
   for(const item of cfg.sections){
    const panel=panels.get(item.id);
    for(const node of anchored.get(item.id))panel.appendChild(node);
+  }
+  if(kind==="owner"){
+   // Opciones originales de Repartidores están centralizadas en Solicitudes.
+   const info=document.createElement("div");
+   info.className="card pa-owner-requests";
+   const title=document.createElement("h3");
+   title.textContent="📝 Solicitudes de repartidores y empresas";
+   const description=document.createElement("p");
+   description.className="muted";
+   description.textContent="Gestiona las solicitudes en su sección original. No cambia autorizaciones ni habilita aperturas.";
+   const actions=document.createElement("div");
+   actions.className="actions";
+   for(const [label,category] of [
+    ["🛵 Revisar entradas y repartidores","entradas"],
+    ["🏢 Administrar permisos de empresas","empresas"]
+   ]){
+    const button=document.createElement("button");
+    button.type="button";
+    button.textContent=label;
+    button.addEventListener("click",()=>window.solicitudesIr?.(category));
+    actions.appendChild(button);
+   }
+   info.append(title,description,actions);
+   panels.get("repartidores").insertBefore(info,panels.get("repartidores").firstChild);
   }
   stores.set(kind,{tabs,panels,selected:cfg.defaultTab});
   render(kind);
   return true;
  }
 
+ function moveOwnerShortcut(){
+  const state=stores.get("owner");
+  if(!state)return;
+  const root=document.getElementById("ownerPanel");
+  const link=[...(root?.children||[])].find(el=>el.classList?.contains("su-redirect"));
+  if(link){
+   const target=state.panels.get("usuarios");
+   target?.insertBefore(link,target.firstChild);
+  }
+ }
  window.panelAdminSeccionesAbrir=function(kind,tab){
   if(!["admin","owner"].includes(kind))return;
   if(!init(kind))return;
   if(tab&&config[kind].sections.some(x=>x.id===tab))stores.get(kind).selected=tab;
+  if(kind==="owner")moveOwnerShortcut();
   render(kind);
  };
  window.panelAdminSeccionesActualizar=function(){
   if(staff())window.panelAdminSeccionesAbrir("admin");
+  if(ownerAllowed()&&document.getElementById("ownerPanel")?.classList.contains("active"))
+   window.panelAdminSeccionesAbrir("owner");
  };
+ // Iniciar una vez que el DOM esté completo, aunque ya haya sesión restaurada.
+ // También cubre el caso donde 'show' corrió antes de cargar este script.
+ function bootstrap(){
+  if(staff()&&document.getElementById("inicio")?.classList.contains("active"))
+   window.panelAdminSeccionesAbrir("admin");
+  if(ownerAllowed()&&document.getElementById("ownerPanel")?.classList.contains("active"))
+   window.panelAdminSeccionesAbrir("owner");
+ }
+ if(document.readyState==="loading")
+  document.addEventListener("DOMContentLoaded",bootstrap,{once:true});
+ else bootstrap();
 })();
