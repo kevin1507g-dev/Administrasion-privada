@@ -256,6 +256,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <link rel="stylesheet" href="./panel-organizado.css?v=2" />
 <link rel="stylesheet" href="./cuotas-secciones.css?v=1" />
 <link rel="stylesheet" href="./accesos-secciones.css?v=1" />
+<link rel="stylesheet" href="./telefonos-admin-secciones.css?v=1" />
 <link rel="stylesheet" href="./actualizar-cuadros.css?v=2" />
 <link rel="stylesheet" href="./centro-conocimientos-ia.css?v=2" />
 <link rel="stylesheet" href="./asistente-ia-moderno.css?v=2" />
@@ -1837,7 +1838,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
 
 <section id="interfonTelefonos" class="residentAdminOnly">
   <h2>📞 Teléfonos del interfón</h2>
-  <div class="card ownerOnly hidden" style="margin-bottom:14px">
+  <div id="interfonAdminDatosCard" class="card ownerOnly hidden" style="margin-bottom:14px">
     <h3>🪪 Datos privados de la administración</h3>
     <p class="muted">Como Sistema Admin puedes registrar tus propios datos y los del Administrador. Estos datos no se publican automáticamente en el aviso de privacidad.</p>
     <button class="primary" type="button" onclick="show('datosAdministradores')">➕ Agregar o modificar datos del administrador</button>
@@ -1892,7 +1893,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
     </div>
     <p class="muted" style="font-size:.85rem;margin-top:12px">Solo se inicia la llamada al pulsar el botón y confirmar. La cuenta de prueba de Twilio puede limitar los destinos y el número de origen. No hay grabaciones ni aperturas automáticas.</p>
   </div>
-  <div class="card">
+  <div id="interfonTelConfigCard" class="card">
     <h3 id="interfonTelTitulo">Configuración de llamadas</h3>
     <p class="muted">Cada casa puede tener dos teléfonos: <strong>principal</strong> y <strong>respaldo</strong>. Sistema Admin puede guardarlos por casa con autorización del titular y sin SMS; también puede administrar su teléfono de respaldo.</p>
     <p id="interfonTelEstado" role="status" aria-live="polite">Consulta tus teléfonos y el estado de la configuración.</p>
@@ -1936,7 +1937,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       </form>
     </div>
   </div>
-  <div class="card" style="margin-top:14px">
+  <div id="interfonTelInfoCard" class="card" style="margin-top:14px">
     <h3>Cómo se usarán estos números</h3>
     <p>El interfón llamará primero al teléfono principal y, si no contestan, al de respaldo. Si ambos fallan, trasladará la solicitud a Sistema Admin. Esto se aplicará a repartidores, proveedores, técnicos y visitas.</p>
     <p class="muted">El registro, la verificación del titular y las llamadas son etapas distintas. No se activarán llamadas ni aperturas hasta conectar un proveedor de telefonía, comprobar los números y revisar los requisitos de privacidad y seguridad.</p>
@@ -3635,6 +3636,7 @@ function show(id){
     else btn.removeAttribute('aria-current');
   });
 
+  if(id==='interfonTelefonos')window.telefonosAdminSeccionesAbrir?.();
   if(id==='interfonTelefonos' && typeof window.cargarInterfonTelefonos==='function')window.cargarInterfonTelefonos();
   if(id==='interfonTelefonos' && typeof window.cargarInterfonResidentesOwner==='function')window.cargarInterfonResidentesOwner();
   if(id==='interfonTelefonos' && typeof window.cargarInterfonVoiceDemo==='function')window.cargarInterfonVoiceDemo();
@@ -8664,6 +8666,7 @@ async function actualizarVistaActiva(){
 <script src="./qr-servicio-admin.js?v=1"></script>
 <script src="./interfon-telefonos.js?v=3"></script>
 <script src="./interfon-residentes-owner.js?v=1"></script>
+<script src="./telefonos-admin-secciones.js?v=1"></script>
 <script src="./interfon-voice-demo.js?v=1"></script>
 <script src="./interfon-webrtc.js?v=1" defer></script>
 <script src="./paqueteria-evento.js?v=6" defer></script>
