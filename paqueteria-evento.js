@@ -41,11 +41,11 @@
     btn.classList.toggle('paqueteriaActiva',active&&!expired);
     btn.setAttribute('aria-label',active
       ? (current?.can_stop
-        ? 'Paquetería activa. Pulsar para cancelar la ventana.'
+        ? 'Paquetería activa. Mantén presionado un segundo y medio para cancelar.'
         : 'Paquetería en uso por otra persona. No se puede cancelar desde esta cuenta.')
       : 'Paquetería. Pulsar para activar durante '+minutesConfigured+' minutos.');
     btn.title=active
-      ? (current?.can_stop?'Pulsar para cancelar Paquetería':'Paquetería en uso por otra persona')
+      ? (current?.can_stop?'Mantén presionado 1.5 segundos para cancelar Paquetería':'Paquetería en uso por otra persona')
       : 'Activar Paquetería por '+minutesConfigured+' minutos';
 
     if(lastError) {
@@ -56,7 +56,7 @@
       text(label,'La ventana ha llegado a cero. Verificando su finalización con el servidor; comprueba físicamente el portón.');
     } else if(active) {
       text(label,current?.can_stop
-        ? 'Paquetería activa. Pulsa de nuevo para cancelar. Verifica físicamente el portón.'
+        ? 'Paquetería activa. Mantén presionado 1.5 segundos para cancelar. Verifica físicamente el portón.'
         : 'Paquetería está en uso por otra persona. Espera a que termine.');
     } else {
       text(label,current.reason||'Paquetería disponible.');
@@ -89,11 +89,12 @@
     }
   }
 
-  async function toggle() {
+  async function toggle(mode='tap') {
     if(!authorized()){render();return;}
     if(busy||reading||!section()?.classList.contains('active')||!current?.allowed||
       (current.active&&!current.can_stop))return;
     const intended=current.active?'stop':'start';
+    if((intended==='start'&&mode!=='tap')||(intended==='stop'&&mode!=='hold'))return;
     busy=true;lastError='';render();
     let actionFailed=false;
     try {
