@@ -2104,6 +2104,20 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
   </div>
   <p class="muted" style="font-size:.81rem">Se conserva el registro disponible más reciente al activar esta función; los movimientos posteriores quedarán en el historial.</p>
 </div>
+<div class="card ownerOnly hidden" id="parcelHistoryCard" style="margin-top:14px">
+  <h3>📦 Historial de accesos de Paquetería</h3>
+  <p class="muted">Muestra quién activó o canceló Paquetería, su casa y la hora. La solicitud no confirma que el portón se haya abierto físicamente.</p>
+  <div class="actions">
+    <button type="button" onclick="cargarHistorialPaqueteriaOwner()">↻ Actualizar historial</button>
+    <span id="parcelHistoryStatus" role="status" class="muted">Selecciona esta pestaña para consultar los movimientos.</span>
+  </div>
+  <div class="table" style="overflow-x:auto">
+    <table>
+      <thead><tr><th>Fecha y hora</th><th>Solicitó</th><th>Casa</th><th>Acción</th><th>Fin programado</th></tr></thead>
+      <tbody id="parcelHistoryRows"><tr><td colspan="5">Sin consultar todavía.</td></tr></tbody>
+    </table>
+  </div>
+</div>
 <div class="card esp32PanelTable adminOnly" style="margin-top:14px">
     <h3>🖥️ Historial de accesos del ESP32</h3>
     <div class="esp32PanelActions"><button type="button" onclick="refreshEsp32History()">↻ Actualizar historial</button><span id="esp32HistoryStatus" role="status" class="muted">Esperando consulta...</span></div>
@@ -8638,7 +8652,8 @@ async function actualizarVistaActiva(){
 <script src="./solicitudes-unificadas.js?v=3"></script>
 <script src="./solicitudes-baja-cuotas.js?v=1"></script>
 <script src="./cuotas-secciones.js?v=1"></script>
-<script src="./accesos-secciones.js?v=1"></script>
+<script src="./accesos-secciones.js?v=2"></script>
+<script src="./historial-paqueteria.js?v=1"></script>
 <script src="./actualizar-cuadros.js?v=4"></script>
 <script src="./asistente-ia-voces.js?v=1"></script>
 <script src="./asistente-ia.js?v=16"></script>
