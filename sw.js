@@ -1,4 +1,4 @@
-const APP_CACHE = "privada-beteles-v44-duraciones-ampliadas";
+const APP_CACHE = "privada-beteles-v45-mantener-presionado-cancelar";
 const APP_SHELL = [
   "./",
   "./index.html",
