@@ -12,14 +12,14 @@
  ];
  const tabs=new Map(),panels=new Map();
  let initialized=false,selected="";
- function permitted(item){return !!window.profile && item.roles.includes(profile.rol);}
+ function permitted(item){return typeof profile!=="undefined" && !!profile && item.roles.includes(profile.rol);}
  function findCard(root,anchor){
   const element=document.getElementById(anchor);
   if(!element)return null;
   return [...root.children].find(node=>node.classList?.contains("card")&&node.contains(element))||null;
  }
  function render(){
-  if(!initialized||!window.profile)return;
+  if(!initialized||typeof profile==="undefined"||!profile)return;
   const allowed=sections.filter(permitted);
   if(!allowed.some(x=>x.id===selected)){
    selected=(profile.rol==="guardia"?"manual":"visitas");
