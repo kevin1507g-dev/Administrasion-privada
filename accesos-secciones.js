@@ -8,7 +8,8 @@
   {id:"codigos",label:"🔑 Códigos de visita",roles:["residente","admin","owner"],anchors:["vcHistorialRows"]},
   {id:"manual",label:"🚪 Accesos manuales",roles:["guardia","admin","owner"],anchors:["aPersona","accesosRows"]},
   {id:"esp32",label:"🖥️ Accesos ESP32",roles:["admin","owner"],anchors:["esp32HistoryRows"]},
-  {id:"basura",label:"🚛 Camión de basura",roles:["owner"],anchors:["garbageHistoryCard"]}
+  {id:"basura",label:"🚛 Camión de basura",roles:["owner"],anchors:["garbageHistoryCard"]},
+  {id:"paqueteria",label:"📦 Paquetería",roles:["owner"],anchors:["parcelHistoryCard"]}
  ];
  const tabs=new Map(),panels=new Map();
  let initialized=false,selected="";
@@ -41,6 +42,7 @@
   if(!item||!permitted(item))return;
   selected=id;
   render();
+  if(id==="paqueteria")window.cargarHistorialPaqueteriaOwner?.();
   if(focus)tabs.get(id)?.focus();
  }
  function init(){
@@ -109,6 +111,7 @@
   if(!init())return;
   if(tab&&sections.some(item=>item.id===tab&&permitted(item)))selected=tab;
   render();
+  if(selected==="paqueteria")window.cargarHistorialPaqueteriaOwner?.();
  };
  window.accesosSeccionesActualizar=function(){if(init())render();};
  if(document.readyState==="loading")
