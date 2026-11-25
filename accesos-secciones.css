@@ -1,0 +1,65 @@
+/* Historial de accesos: pestañas con la misma distribución de Cuotas.
+   Exclusivamente visual: no cambia consultas ni permisos. */
+#accesos #accesosSecciones{
+ grid-column:1/-1;width:100%;min-width:0;margin:0;
+}
+#accesos .ac-intro{margin:0 0 13px;line-height:1.5}
+#accesos .ac-tabs{
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+ align-items:stretch;gap:10px;margin:0 0 18px;
+}
+#accesos .ac-tab{
+ display:flex;align-items:center;justify-content:center;
+ width:100%;min-width:0;min-height:54px;padding:10px 12px;
+ background:#183841;color:#d9ece6;border:1px solid #3d756f;
+ border-radius:13px;font-size:13px;font-weight:700;line-height:1.35;
+ text-align:center;white-space:normal;
+}
+#accesos .ac-tab.ac-selected{
+ background:#0b765e;border-color:#50c9ab;color:#fff;
+ box-shadow:0 0 0 1px rgba(80,201,171,.24);
+}
+#accesos .ac-tab:focus-visible{outline:3px solid #60dfc0;outline-offset:3px}
+#accesos .ac-tab[hidden],#accesos .ac-panel[hidden]{display:none!important}
+#accesos .ac-content{width:100%;min-width:0}
+#accesos .ac-panel{display:flex;flex-direction:column;gap:14px;min-width:0}
+#accesos .ac-panel>.card{
+ width:100%;max-width:100%;min-width:0;margin:0!important;
+ padding:clamp(14px,1.6vw,22px);border-radius:18px;
+}
+#accesos .ac-panel>.card>h3:first-child{
+ margin:0 0 14px!important;padding:0 0 11px!important;
+ border-bottom:1px solid var(--ui-line);
+}
+#accesos .ac-panel .form{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;
+}
+#accesos .ac-panel .form>*{min-width:0}
+#accesos .ac-panel :is(input,select,textarea){max-width:100%;min-width:0}
+#accesos .ac-panel .table,#accesos .ac-panel>.card.table{
+ max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;
+}
+#accesos .ac-panel>.card.table>table,
+#accesos .ac-panel>.card .table>table{width:100%;min-width:630px}
+#accesos .ac-panel button{max-width:100%;white-space:normal}
+#accesos .ac-panel .actions{gap:10px;flex-wrap:wrap}
+html[data-ui-theme="light"] #accesos .ac-tab{
+ background:var(--p2);border-color:var(--ui-line);color:var(--t);
+}
+html[data-ui-theme="light"] #accesos .ac-tab.ac-selected{
+ background:#087b69;border-color:#087b69;color:#fff;
+}
+@media(max-width:850px){
+ #accesos .ac-tabs{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+}
+@media(max-width:560px){
+ #accesos .ac-tabs{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:13px}
+ #accesos .ac-tab{font-size:12px;min-height:50px;padding:9px 7px}
+ #accesos .ac-panel>.card{padding:13px!important;border-radius:15px}
+ #accesos .ac-panel .form{grid-template-columns:minmax(0,1fr);gap:12px}
+ #accesos .ac-panel button{min-height:43px}
+ #accesos .ac-panel>.card.table{padding:11px!important}
+}
+@media(max-width:340px){
+ #accesos .ac-tabs{grid-template-columns:minmax(0,1fr)}
+}
