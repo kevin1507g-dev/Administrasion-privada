@@ -255,6 +255,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <link rel="stylesheet" href="./pendientes-residente.css?v=1" />
 <link rel="stylesheet" href="./panel-organizado.css?v=2" />
 <link rel="stylesheet" href="./cuotas-secciones.css?v=1" />
+<link rel="stylesheet" href="./panel-admin-secciones.css?v=1" />
 <link rel="stylesheet" href="./accesos-secciones.css?v=1" />
 <link rel="stylesheet" href="./telefonos-admin-secciones.css?v=1" />
 <link rel="stylesheet" href="./actualizar-cuadros.css?v=2" />
@@ -430,7 +431,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
     <button class="residentAdminOnly" onclick="show('notificaciones')">🔔 Ver avisos</button>
   </div>
 </div>
-<div class="grid">
+<div class="grid" id="inicioIndicadores">
 <div class="card"><div class="muted">Cuotas</div><div id="kCuotas" class="kpi">0</div></div>
 <div class="card"><div class="muted">Pagos</div><div id="kPagos" class="kpi">0</div></div>
 <div class="card"><div class="muted">Visitas</div><div id="kVisitas" class="kpi">0</div></div>
@@ -461,7 +462,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
   </div>
 </div>
 
-<div class="card residentAdminOnly" style="margin-top:14px">
+<div id="inicioNotifCard" class="card residentAdminOnly" style="margin-top:14px">
   <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
     <div>
       <div class="muted">Acceso directo</div>
@@ -1029,7 +1030,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
 
 <section id="ownerPanel" class="ownerOnly hidden">
   <h2>👑 Centro de control Sistema Admin</h2>
-  <div class="card" style="margin-bottom:14px">
+  <div id="ownerAdminDataCard" class="card" style="margin-bottom:14px">
     <h3>🪪 Datos de administración</h3>
     <p class="muted">Registra o modifica los datos privados de Sistema Admin y del Administrador cuando sea necesario.</p>
     <button type="button" class="primary" onclick="show('datosAdministradores')">➕ Agregar o modificar datos del administrador</button>
@@ -1097,7 +1098,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
     </div>
   </div>
 
-  <div class="card" style="margin-bottom:14px">
+  <div id="ownerModeCard" class="card" style="margin-bottom:14px">
     <h3>🔀 Cambiar de panel</h3>
     <p class="muted">Explora el panel de administrador o consulta cómo se ve una casa desde la vista de residente. Tu cuenta siempre conserva el rango Sistema Admin.</p>
     <div class="ownerModeButtons">
@@ -1106,7 +1107,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       <button type="button" onclick="cambiarPanelOwner('resident')">🏠 Vista Residente</button>
     </div>
   </div>
-  <div class="card" style="margin-bottom:14px">
+  <div id="ownerNotificationsCard" class="card" style="margin-bottom:14px">
     <h3>🔔 Notificaciones de toda la privada</h3>
     <p class="muted">Recibirás avisos cuando llegue o se entregue paquetería de cualquier casa, se registren o editen gastos y aclaraciones, cambien pagos, se suspendan o reactiven controles y haya movimientos importantes de residentes, visitas, incidentes o mantenimiento.</p>
     <p class="muted">Los avisos quedan en el Centro de notificaciones. Para recibir alertas en el iPhone aunque no estés viendo la plataforma, activa las notificaciones del dispositivo.</p>
@@ -1115,7 +1116,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       <button type="button" onclick="activarNotificaciones()">📱 Activar avisos en este iPhone</button>
     </div>
   </div>
-  <div class="card">
+  <div id="ownerGeneralAccessCard" class="card">
     <h3>Acceso general de propietario</h3>
     <p class="muted">Control administrativo de toda la privada. Los códigos de acceso, acciones físicas del portón y datos privados conservan sus verificaciones de seguridad.</p>
     <div class="grid ownerMetrics">
@@ -1155,7 +1156,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       <button type="button" onclick="show('historialCasa')">📚 Historial por casa</button>
     </div>
   </div>
-  <div class="card" style="margin-top:14px">
+  <div id="ownerUsersRoleCard" class="card" style="margin-top:14px">
     <h3>🛡️ Control de usuarios y administradores</h3>
     <p class="muted">Puedes cambiar roles o activar y suspender cuentas. La cuenta Sistema Admin actual y el último Sistema Admin activo están protegidos.</p>
     <div class="form">
@@ -1212,7 +1213,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       <tbody id="empresasRepartoRows"><tr><td colspan="4">Abre este panel para cargar empresas.</td></tr></tbody>
     </table></div>
   </div>
-  <div class="card" style="margin-top:14px">
+  <div id="ownerAuditCard" class="card" style="margin-top:14px">
     <h3>🕘 Historial de gestión Sistema Admin</h3>
     <p class="muted">Registro de cambios de roles y de cuentas activadas o suspendidas.</p>
     <div id="ownerAuditList" role="status" class="muted">Abre esta sección para consultar los movimientos.</div>
@@ -3623,6 +3624,8 @@ function show(id){
   if(target){
     target.classList.add('active');
   }
+  if(id==='inicio'&&isAdminProfileRole(profile?.rol))window.panelAdminSeccionesAbrir?.('admin');
+  if(id==='ownerPanel'&&isOwnerPanelActive())window.panelAdminSeccionesAbrir?.('owner');
   if(id==='porton')void window.controlesBloqueosActualizar?.(true);
   const pageTitle=document.getElementById('topbarSectionTitle');
   if(pageTitle&&target){
@@ -6792,6 +6795,7 @@ function render(){
  renderMetodosPago();
  renderCuotasArchivadas();
  window.cuotasSeccionesActualizar?.();
+ window.panelAdminSeccionesActualizar?.();
  window.solicitudesUnificadasActualizar?.();
  window.residenteCuotasPendientesActualizar?.();
 }
@@ -8654,6 +8658,7 @@ async function actualizarVistaActiva(){
 <script src="./solicitudes-unificadas.js?v=3"></script>
 <script src="./solicitudes-baja-cuotas.js?v=1"></script>
 <script src="./cuotas-secciones.js?v=1"></script>
+<script src="./panel-admin-secciones.js?v=1"></script>
 <script src="./accesos-secciones.js?v=2"></script>
 <script src="./historial-paqueteria.js?v=1"></script>
 <script src="./actualizar-cuadros.js?v=4"></script>
