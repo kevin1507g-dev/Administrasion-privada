@@ -7,8 +7,8 @@ const js=readFileSync(new URL('../panel-admin-secciones.js',import.meta.url),'ut
 const css=readFileSync(new URL('../panel-admin-secciones.css',import.meta.url),'utf8');
 
 test('El Panel Administrador utiliza pestañas como Cuotas',()=>{
- assert.match(html,/panel-admin-secciones\.css\?v=2/);
- assert.match(html,/panel-admin-secciones\.js\?v=2/);
+ assert.match(html,/panel-admin-secciones\.css\?v=3/);
+ assert.match(html,/panel-admin-secciones\.js\?v=3/);
  assert.match(html,/window\.panelAdminSeccionesAbrir\?\.\('admin'\)/);
  assert.match(html,/window\.panelAdminSeccionesActualizar\?\.\(\)/);
  assert.match(css,/#inicio \.pa-tabs/);
@@ -54,4 +54,14 @@ test('Gestión general agrupa accesos y conserva los enlaces originales',()=>{
  assert.match(html,/window\.accesosSeccionesAbrir\?\.\('basura'\)/);
  assert.match(js,/anchors:\["ownerUsersRoleCard","ownerAdminDataCard"\]/);
  assert.match(js,/anchors:\["ownerGeneralAccessCard"\]/);
+});
+
+test('Sistema Admin tolera los cuadros movidos por Solicitudes sin abortar sus pestañas',()=>{
+ assert.match(js,/\["ownerEmpresasReparto","ownerChatEspecialListaCard"\]\.includes\(anchor\)/);
+ assert.match(js,/document\.getElementById\("solicitudes"\)\?\.contains\(element\)/);
+ assert.match(js,/root\.insertBefore\(region,root\.querySelector\("h2"\)\?\.nextElementSibling\|\|null\)/);
+ assert.match(js,/window\.solicitudesIr\?\.\(category\)/);
+ assert.match(js,/function moveOwnerShortcut\(\)/);
+ assert.match(js,/document\.addEventListener\("DOMContentLoaded",bootstrap/);
+ assert.match(html,/<h2>👑 Panel Sistema Admin<\/h2>/);
 });
