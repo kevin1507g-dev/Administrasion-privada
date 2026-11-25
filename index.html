@@ -255,7 +255,7 @@ textarea{width:100%;min-height:100px;padding:12px;border:1px solid #334155;borde
 <link rel="stylesheet" href="./pendientes-residente.css?v=1" />
 <link rel="stylesheet" href="./panel-organizado.css?v=2" />
 <link rel="stylesheet" href="./cuotas-secciones.css?v=1" />
-<link rel="stylesheet" href="./panel-admin-secciones.css?v=1" />
+<link rel="stylesheet" href="./panel-admin-secciones.css?v=2" />
 <link rel="stylesheet" href="./accesos-secciones.css?v=1" />
 <link rel="stylesheet" href="./telefonos-admin-secciones.css?v=1" />
 <link rel="stylesheet" href="./actualizar-cuadros.css?v=2" />
@@ -1117,7 +1117,7 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
     </div>
   </div>
   <div id="ownerGeneralAccessCard" class="card">
-    <h3>Acceso general de propietario</h3>
+    <h3>🗂️ Accesos rápidos de Sistema Admin</h3>
     <p class="muted">Control administrativo de toda la privada. Los códigos de acceso, acciones físicas del portón y datos privados conservan sus verificaciones de seguridad.</p>
     <div class="grid ownerMetrics">
       <div class="card"><div class="muted">Propietarios</div><strong class="kpi" id="ownerCountOwner">—</strong></div>
@@ -1125,35 +1125,57 @@ body[data-session-role="admin"] button[data-answer] {display:none!important}
       <div class="card"><div class="muted">Residentes</div><strong class="kpi" id="ownerCountResidents">—</strong></div>
       <div class="card"><div class="muted">Guardias</div><strong class="kpi" id="ownerCountGuards">—</strong></div>
     </div>
-    <h3 style="margin-top:16px">Todas las secciones de administración</h3>
-    <div class="ownerQuickLinks">
-      <button type="button" onclick="show('inicio')">🏠 Panel principal</button>
-      <button type="button" onclick="show('residentes')">👥 Usuarios y residentes</button>
-      <button type="button" onclick="show('solicitudes')">📝 Aprobar registros</button>
-      <button type="button" onclick="show('casas')">🏘️ Casas</button>
-      <button type="button" onclick="show('cuotas')">🧾 Cuotas y vencimientos</button>
-      <button type="button" onclick="show('pagos')">💳 Pagos</button>
-      <button type="button" onclick="show('deudas')">💰 Deuda total</button>
-      <button type="button" onclick="show('gastos')">📋 Gastos y aclaraciones</button>
-      <button type="button" onclick="show('metodosPago')">💵 Métodos de pago</button>
-      <button type="button" onclick="show('porton')">🚧 Controles de portón</button>
-      <button type="button" onclick="show('controlDigital')">📲 Control digital</button>
-      <button type="button" onclick="show('esp32Panel')">🖥️ ESP32</button>
-      <button type="button" onclick="show('biometrico')">🖐️ Biométrico</button>
-      <button type="button" onclick="show('camaras')">📹 Cámaras</button>
-      <button type="button" onclick="show('visitas')">🔑 Visitas y códigos</button>
-      <button type="button" onclick="show('accesos')">📋 Historial de accesos</button>
-      <button type="button" onclick="abrirHistorialBasuraOwner()">🚛 Quién activó camión de basura</button>
-      <button type="button" onclick="show('entregas')">🛵 Repartidores y proveedores</button>
-      <button type="button" onclick="show('eventos')">📅 Eventos</button>
-      <button type="button" onclick="solicitudesIr('reservaciones')">🏡 Solicitudes de reservación</button>
-      <button type="button" onclick="show('paqueteria')">📦 Paquetería</button>
-      <button type="button" onclick="show('avisos')">📢 Avisos</button>
-      <button type="button" onclick="show('notificaciones')">🔔 Notificaciones</button>
-      <button type="button" onclick="show('mantenimiento')">🛠️ Mantenimiento</button>
-      <button type="button" onclick="show('incidentes')">⚠️ Incidentes</button>
-      <button type="button" onclick="show('documentos')">📄 Documentos</button>
-      <button type="button" onclick="show('historialCasa')">📚 Historial por casa</button>
+    <h3 style="margin-top:16px">Herramientas organizadas por categoría</h3>
+    <p class="muted">Toca una categoría para desplegar sus opciones. Los botones mantienen sus funciones originales.</p>
+    <div class="ownerQuickLinks" role="navigation" aria-label="Accesos rápidos del Sistema Admin">
+      <details class="ownerQuickGroup" open>
+        <summary>🏠 Casas y residentes<span class="ownerQuickCount">5 opciones</span></summary>
+        <div class="ownerQuickGroupLinks">
+          <button type="button" onclick="show('inicio')">🏠 Panel principal</button>
+          <button type="button" onclick="show('residentes')">👥 Usuarios y residentes</button>
+          <button type="button" onclick="show('solicitudes')">📝 Aprobar registros</button>
+          <button type="button" onclick="show('casas')">🏘️ Casas</button>
+          <button type="button" onclick="show('historialCasa')">📚 Historial por casa</button>
+        </div>
+      </details>
+      <details class="ownerQuickGroup">
+        <summary>💳 Cobros y finanzas<span class="ownerQuickCount">5 opciones</span></summary>
+        <div class="ownerQuickGroupLinks">
+          <button type="button" onclick="show('cuotas')">🧾 Cuotas y vencimientos</button>
+          <button type="button" onclick="show('pagos')">💳 Pagos</button>
+          <button type="button" onclick="show('deudas')">💰 Deuda total</button>
+          <button type="button" onclick="show('gastos')">📋 Gastos y aclaraciones</button>
+          <button type="button" onclick="show('metodosPago')">💵 Métodos de pago</button>
+        </div>
+      </details>
+      <details class="ownerQuickGroup">
+        <summary>🚧 Accesos y seguridad<span class="ownerQuickCount">9 opciones</span></summary>
+        <div class="ownerQuickGroupLinks">
+          <button type="button" onclick="show('porton')">🚧 Controles de portón</button>
+          <button type="button" onclick="show('controlDigital')">📲 Control digital</button>
+          <button type="button" onclick="show('esp32Panel')">🖥️ ESP32</button>
+          <button type="button" onclick="show('biometrico')">🖐️ Biométrico</button>
+          <button type="button" onclick="show('camaras')">📹 Cámaras</button>
+          <button type="button" onclick="show('visitas')">🔑 Visitas y códigos</button>
+          <button type="button" onclick="show('accesos')">📋 Historial de accesos</button>
+          <button type="button" onclick="abrirHistorialBasuraOwner()">🚛 Quién activó camión de basura</button>
+          <button type="button" onclick="show('accesos');window.accesosSeccionesAbrir?.('paqueteria')">📦 Historial de Paquetería</button>
+        </div>
+      </details>
+      <details class="ownerQuickGroup">
+        <summary>🛵 Comunidad y servicios<span class="ownerQuickCount">9 opciones</span></summary>
+        <div class="ownerQuickGroupLinks">
+          <button type="button" onclick="show('entregas')">🛵 Repartidores y proveedores</button>
+          <button type="button" onclick="show('eventos')">📅 Eventos</button>
+          <button type="button" onclick="solicitudesIr('reservaciones')">🏡 Solicitudes de reservación</button>
+          <button type="button" onclick="show('paqueteria')">📦 Paquetería</button>
+          <button type="button" onclick="show('avisos')">📢 Avisos</button>
+          <button type="button" onclick="show('notificaciones')">🔔 Notificaciones</button>
+          <button type="button" onclick="show('mantenimiento')">🛠️ Mantenimiento</button>
+          <button type="button" onclick="show('incidentes')">⚠️ Incidentes</button>
+          <button type="button" onclick="show('documentos')">📄 Documentos</button>
+        </div>
+      </details>
     </div>
   </div>
   <div id="ownerUsersRoleCard" class="card" style="margin-top:14px">
@@ -8552,6 +8574,7 @@ let garbageHistoryBusy=false;
 function abrirHistorialBasuraOwner(){
  if(!isOwnerPanelActive())return;
  show('accesos');
+ window.accesosSeccionesAbrir?.('basura');
  const card=document.getElementById('garbageHistoryCard');
  if(card)card.scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -8658,7 +8681,7 @@ async function actualizarVistaActiva(){
 <script src="./solicitudes-unificadas.js?v=3"></script>
 <script src="./solicitudes-baja-cuotas.js?v=1"></script>
 <script src="./cuotas-secciones.js?v=1"></script>
-<script src="./panel-admin-secciones.js?v=1"></script>
+<script src="./panel-admin-secciones.js?v=2"></script>
 <script src="./accesos-secciones.js?v=2"></script>
 <script src="./historial-paqueteria.js?v=1"></script>
 <script src="./actualizar-cuadros.js?v=4"></script>
