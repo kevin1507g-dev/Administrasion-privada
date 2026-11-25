@@ -17,12 +17,12 @@
    root:"ownerPanel",region:"panelSistemaAdminSecciones",defaultTab:"metricas",
    description:"Selecciona una categoría del Centro de control Sistema Admin.",
    sections:[
-    {id:"metricas",label:"📊 Gráficas y avance",anchors:["ownerAnalyticsDashboard"]},
-    {id:"gestion",label:"🏠 Gestión general",anchors:["ownerGeneralAccessCard","ownerAdminDataCard"]},
-    {id:"usuarios",label:"🛡️ Usuarios y roles",anchors:["ownerUsersRoleCard"]},
-    {id:"repartidores",label:"🛵 Repartidores",anchors:["ownerEmpresasReparto","ownerChatEspecialListaCard","ownerEvidenciasFotograficas"]},
-    {id:"avisos",label:"🔔 Avisos e historial",anchors:["ownerNotificationsCard","ownerAuditCard"]},
-    {id:"panel",label:"🔀 Cambiar panel",anchors:["ownerModeCard"]}
+    {id:"metricas",label:"📊 Indicadores y gráficas",anchors:["ownerAnalyticsDashboard"]},
+    {id:"gestion",label:"🗂️ Accesos rápidos",anchors:["ownerGeneralAccessCard"]},
+    {id:"usuarios",label:"👥 Usuarios y administración",anchors:["ownerUsersRoleCard","ownerAdminDataCard"]},
+    {id:"repartidores",label:"🛵 Repartidores y evidencias",anchors:["ownerEmpresasReparto","ownerChatEspecialListaCard","ownerEvidenciasFotograficas"]},
+    {id:"avisos",label:"🔔 Avisos y auditoría",anchors:["ownerNotificationsCard","ownerAuditCard"]},
+    {id:"panel",label:"🔀 Cambiar de vista",anchors:["ownerModeCard"]}
    ]
   }
  };
