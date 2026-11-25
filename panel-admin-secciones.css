@@ -140,3 +140,17 @@ html[data-ui-theme="light"] #ownerPanel .pa-tab.pa-selected{
  #ownerPanel .ownerQuickGroupLinks{padding:10px}
  #ownerPanel .ownerQuickCount{font-size:.7rem}
 }
+
+/* Los apartados externos de Solicitudes permanecen en su lugar; solo se enlazan. */
+#ownerPanel .pa-owner-requests{border-color:var(--ui-line);margin:0!important}
+#ownerPanel .pa-owner-requests .actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+#ownerPanel .pa-owner-requests .actions>button{width:100%;min-width:0;white-space:normal;line-height:1.35}
+#ownerPanel #panelSistemaAdminSecciones{padding-top:2px}
+#ownerPanel #panelSistemaAdminSecciones .pa-tabs{margin-top:12px}
+#ownerPanel #panelSistemaAdminSecciones .pa-panel>.su-redirect{
+ width:100%;min-height:48px;white-space:normal;text-align:center
+}
+@media(max-width:560px){
+ #ownerPanel .pa-owner-requests .actions{grid-template-columns:minmax(0,1fr)}
+ #ownerPanel #panelSistemaAdminSecciones .pa-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
