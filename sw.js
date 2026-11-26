@@ -1,4 +1,4 @@
-const APP_CACHE = "privada-beteles-v51-tabs-sistema-admin-corregidos";
+const APP_CACHE = "privada-beteles-v52-ia-contacto-sistema-admin";
 const APP_SHELL = [
   "./",
   "./index.html",
