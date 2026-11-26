@@ -1,0 +1,32 @@
+// Prueba de derivación explícita de IA al canal privado de Sistema Admin.
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+
+const backend=readFileSync(new URL("../supabase/functions/asistente-residencial-ia/index.ts",import.meta.url),"utf8");
+const client=readFileSync(new URL("../asistente-ia.js",import.meta.url),"utf8");
+const html=readFileSync(new URL("../index.html",import.meta.url),"utf8");
+const css=readFileSync(new URL("../asistente-ia-moderno.css",import.meta.url),"utf8");
+new Function(backend.replace(/^import.*\n/,""));
+new Function(client);
+const start=backend.indexOf("function requiereSistemaAdmin(");
+const end=backend.indexOf("function consultaDirecta(",start);
+assert(start>=0&&end>start);
+const decide=new Function(backend.slice(start,end)+";return requiereSistemaAdmin;")();
+const user=rol=>({p:{rol}});
+const fallback={tool:"ayuda",action:null};
+assert.equal(decide(user("residente"),"¿Quién autoriza la jardinería?",fallback,null,null,null,null),true);
+assert.equal(decide(user("residente"),"¿Qué puedes hacer?",fallback,null,null,null,null),false);
+assert.equal(decide(user("residente"),"Hola",fallback,null,null,null,null),false);
+assert.equal(decide(user("residente"),"Reglamento",fallback,null,null,null,{answer:"Reglamento"}),false);
+assert.equal(decide(user("residente"),"Mis pagos",{tool:"pagos",action:null},null,null,null,null),false);
+assert.equal(decide(user("owner"),"Pregunta sin respuesta",fallback,null,null,null,null),false);
+assert.match(backend,/needs_human:requiresHandoff/);
+assert.match(client,/text:"💬 Hablar con Sistema Admin"/);
+assert.match(client,/await switchTab\("chat",null,"owner"\)/);
+assert.match(client,/abrirChatFlotante\(conversationToOpen,destinoPreferido\)/);
+assert.match(client,/if\(question&&!field\.value\.trim\(\)\)field\.value=/);
+assert.match(client,/Tu pregunta solo se enviará si pulsas Enviar en el chat/);
+assert.match(html,/asistente-ia\.js\?v=17/);
+assert.match(html,/asistente-ia-moderno\.css\?v=3/);
+assert.match(css,/\.ia-human-handoff/);
+console.log("PASS: IA deriva consultas sin respuesta, respeta roles y prepara el chat sin enviarlo.");
