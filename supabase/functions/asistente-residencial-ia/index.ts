@@ -45,6 +45,16 @@ function fallback(message){
  if(/solicit.*huella|registr.*huella/.test(m)){action="solicitar_huella";target_id=/indice/.test(m)?"indice_izquierdo":/pulgar/.test(m)?"pulgar_derecho":"";}
  return {tool,house,action,target_id};
 }
+// Escalar solo preguntas sin herramienta o conocimiento verificable.
+// El residente debe decidir si quiere enviar su consulta al chat privado.
+function requiereSistemaAdmin(ctx,message,route,direct,intent,bloqueoIntent,conocimiento){
+ if(ctx.p.rol!=="residente"||route.tool!=="ayuda"||route.action||
+   direct||intent||bloqueoIntent||conocimiento)return false;
+ const clean=String(message||"").toLowerCase().normalize("NFD")
+  .replace(/[\u0300-\u036f]/g,"").replace(/[¿?¡!.,]/g," ").replace(/\s+/g," ").trim();
+ return !/^(hola|buenas|buenos dias|buenas tardes|buenas noches|gracias|adios)\b/.test(clean)
+   && !/\b(que puedes hacer|en que me puedes ayudar|como funcionas|que sabes hacer|tus funciones|para que sirves|ayuda general)\b/.test(clean);
+}
 function consultaDirecta(message){
  const m=message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[¿?¡!.,]/g," ").replace(/\s+/g," ").trim();
  if(/\b(como te llamas|cual es tu nombre|tu nombre|quien eres)\b/.test(m))return "identidad";
@@ -429,7 +439,10 @@ Deno.serve(async(req)=>{
   const {route,mode}=planned;
   const conocimiento=preguntaDeReglamento(message,route.tool,direct,intent,route.action)
     ?await responderConocimiento(ctx,message):null;
-  const answer=bloqueoIntent?await prepararBloqueoControles(ctx,bloqueoIntent):
+  const requiresHandoff=requiereSistemaAdmin(ctx,message,route,direct,intent,bloqueoIntent,conocimiento);
+  const answer=requiresHandoff
+    ?{answer:"No tengo información confirmada para responder esa pregunta. Puedes hablar directamente con Sistema Admin para recibir ayuda."}
+    :bloqueoIntent?await prepararBloqueoControles(ctx,bloqueoIntent):
     intent?await reservationAssistance(ctx,intent,message):
     route.action?await propose(ctx,route,opts):conocimiento||
     await runQuery(ctx,route.tool,route.house,orderedPrior);
@@ -439,6 +452,6 @@ Deno.serve(async(req)=>{
   const {error:assistantErr}=await ctx.admin.from("ia_mensajes").insert({conversacion_id:cid,usuario_id:ctx.uid,rol:"assistant",contenido:corto(answer.answer,4900)});
   if(assistantErr)throw Error("No se pudo almacenar la respuesta.");
   await ctx.db.from("ia_conversaciones").update({updated_at:new Date().toISOString()}).eq("id",cid);
-  return reply({ok:true,conversationId:cid,mode,role:ctx.p.rol,...answer});
+  return reply({ok:true,conversationId:cid,mode,role:ctx.p.rol,...answer,needs_human:requiresHandoff});
  }catch(error){return reply({error:corto(error?.message||"Error de conexión.",210)},500);}
 });
