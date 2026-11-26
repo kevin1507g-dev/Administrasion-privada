@@ -274,7 +274,7 @@ function restoreChat(){
   else chatOriginalParent.appendChild(panel);
  }finally{chatOriginalParent=null;chatOriginalNext=null;}
 }
-async function switchTab(target,conversationToOpen=null){
+async function switchTab(target,conversationToOpen=null,destinoPreferido=null){
  if(!opened||!refs.chatHost||chatLoading)return false;
  const chat=target==="chat",special=target==="special"&&ownerSession();
  if(target==="special"&&!special)return false;
@@ -309,7 +309,7 @@ async function switchTab(target,conversationToOpen=null){
   panel.classList.add("ia-embedded-chat");
   chatLoading=true;
   try{
-   await abrirChatFlotante(conversationToOpen);
+   await abrirChatFlotante(conversationToOpen,destinoPreferido);
    return true;
   }catch(err){
    node("p",{className:"ia-chat-error",text:"No se pudo abrir el chat: "+String(err?.message||"inténtalo de nuevo.")},refs.chatHost);
@@ -482,6 +482,29 @@ function addMessage(role,text,extras={}){
   const openChat=node("button",{type:"button",className:"ia-open-chat",text:"💬 Abrir chat privado"},container);
   openChat.onclick=()=>switchTab("chat");
  }
+ if(extras.needs_human && typeof profile!=="undefined" && profile?.rol==="residente"){
+  const handoff=node("div",{className:"ia-human-handoff"},container);
+  node("p",{text:"¿Quieres consultar directamente con Sistema Admin? Tu pregunta solo se enviará si pulsas Enviar en el chat."},handoff);
+  const contact=node("button",{type:"button",className:"ia-open-chat ia-human-button",
+    text:"💬 Hablar con Sistema Admin"},handoff);
+  contact.onclick=async()=>{
+   if(!opened || !mount)return;
+   contact.disabled=true;
+   try{
+    const openedChat=await switchTab("chat",null,"owner");
+    if(!openedChat)throw Error("No se pudo abrir el chat privado.");
+    const field=document.getElementById("chatInput");
+    if(field){
+     const question=String(extras.handoffQuestion||"").trim().slice(0,900);
+     if(question&&!field.value.trim())field.value="Hola, necesito ayuda con esta consulta: "+question;
+     field.focus();
+    }
+   }catch(err){
+    contact.disabled=false;
+    status("No se pudo abrir el chat: "+String(err?.message||"Intenta de nuevo."));
+   }
+  };
+ }
  if(extras.proposal){
   const p=extras.proposal;
   const bloqueo=p.action==="bloquear_controles";
@@ -539,7 +562,7 @@ async function send(){
   const r=await call({kind:"message",message:text,conversationId});
   conversationId=r.conversationId||conversationId;
   wait.remove();
-  addMessage("assistant",r.answer||"No encontré una respuesta verificable.",r);
+  addMessage("assistant",r.answer||"No encontré una respuesta verificable.",{...r,handoffQuestion:text});
   if(r.scope)refs.messages.setAttribute("data-last-scope",r.scope);
   if(![...refs.history.options].some(x=>x.value===conversationId)){
    const o=node('option',{text:text.slice(0,48)},refs.history);o.value=conversationId;
