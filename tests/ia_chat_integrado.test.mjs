@@ -8,7 +8,7 @@ const css=readFileSync(new URL("../asistente-ia.css",import.meta.url),"utf8");
 new Function(backend.replace(/^import.*\n/,""));
 new Function(client);
 assert.match(css,/\.ia-chat-host \.chatPanel\.ia-embedded-chat/);
-assert.match(client,/abrirChatFlotante\(\)/);
+assert.match(client,/abrirChatFlotante\(conversationToOpen,destinoPreferido\)/);
 assert.match(client,/chatOriginalParent\.appendChild\(panel\)/);
 assert.match(client,/switchTab\("chat"\)/);
 assert.match(client,/aria-selected/);
